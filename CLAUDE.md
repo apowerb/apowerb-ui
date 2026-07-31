@@ -1,76 +1,85 @@
-# th2agent-app — vision produit et cadre de travail
+# apowerb-ui — product vision and working frame
 
-> À lire avant toute décision d'architecture, de packaging ou de découpage de composants.
-> Source : réunion Farid ↔ David du 28/07/2026. État du code vérifié le 28/07/2026.
+> Read before any decision about architecture, packaging or component boundaries.
+> Source: Farid ↔ David meeting, 2026-07-28. Code state verified 2026-07-31.
 
-## 1. Le modèle : open core
+## 1. The model: open core
 
-thaink2 vend **du sur-mesure** (plateforme + composante métier custom),
-cible PME. Le Studio n'est pas le produit vendu : c'est **le levier de visibilité**.
+thaink2 sells **bespoke work** (platform plus a custom business component), aimed at small
+and mid-sized companies. The Studio is not the product being sold: it is **the visibility
+lever**.
 
-Deux portes d'entrée, dans cet ordre : **(1)** « Get started » — le Studio hébergé en
-freemium, **(2)** « Self-host » — open source, référence assumée = **n8n** (community
-edition). Le Studio d'abord : on le finalise, on l'ouvre, on communique.
+Two entry doors, in this order: **(1)** "Get started" — the hosted Studio as freemium,
+**(2)** "Self-host" — open source, stated reference: **n8n** (community edition). The Studio
+first: finish it, open it, communicate.
 
-Le front est concerné directement : il doit exister **en deux versions** — une version
-open source « sans auth advanced », et la version commerciale actuelle.
+The front end is directly concerned: it has to exist **in two versions** — an open source one
+"without advanced auth", and the current commercial one.
 
-## 2. Ce que ça impose au front
+## 2. What that imposes on the front end
 
-**Reste commercial** : SSO / SAML / LDAP, les écrans de logs, les écrans d'usage.
-**Part en OSS** : le reste du Studio.
+**Stays commercial**: SSO / SAML / LDAP, the log screens, the usage screens.
+**Goes open source**: the rest of the Studio.
 
-⚠️ Ces écrans doivent être **retirables proprement** — par feature flag ou par frontière de
-paquet — jamais entrelacés avec la navigation ou les layouts du cœur. Toute nouvelle page
-sensible (billing, logs, usage, admin) se conçoit dès le départ comme détachable.
+⚠️ Those screens must be **cleanly removable** — by feature flag or by package boundary —
+never interleaved with the core navigation or layouts. Any new sensitive page (billing, logs,
+usage, admin) is designed from the start as detachable.
 
-## 3. État réel (vérifié le 28/07/2026)
+## 3. Actual state (verified 2026-07-31)
 
-L'extraction est **mergée sur `main` et tourne en dev** — c'est ce que Farid a vu et validé :
+The extraction is merged on `main` and running:
 
-- **#130** — `src/lib/api.js` (139 fonctions) extrait en paquet npm workspace
-  `packages/apowerb-sdk` (`@apowerb/apowerb-sdk`). `const BASE = ""` remplacé par
-  `configureClient({baseUrl, storage, onUnauthorized})`. Les anciens chemins sont des
-  réexports : les 75 + 17 modules consommateurs n'ont pas bougé.
-- **#131** — 118 fichiers migrés `next-intl` → `use-intl` (cœur agnostique, même API).
-- **#133** — `src/lib/navigation.jsx` abstrait `useRouter/usePathname/useSearchParams/Link/Image`.
-  Le contexte transporte des **implémentations de hooks, pas leurs valeurs** (sinon
-  `useSearchParams` ferait remonter une frontière Suspense au layout).
-  `src/lib/NextNavigationProvider.jsx`, monté dans `src/app/layout.jsx`, est le seul endroit
-  qui importe encore `next/navigation|link|image`.
+- **#130** — `src/lib/api.js` (143 functions) extracted into the npm workspace package
+  `packages/apowerb-sdk` (`@apowerb/apowerb-sdk`). `const BASE = ""` replaced by
+  `configureClient({baseUrl, storage, onUnauthorized})`. The old paths are re-exports, so the
+  75 + 17 consuming modules did not move.
+- **#131** — 118 files migrated from `next-intl` to `use-intl` (framework-agnostic core, same
+  API).
+- **#133** — `src/lib/navigation.jsx` abstracts `useRouter/usePathname/useSearchParams/Link/Image`.
+  The context carries **hook implementations, not their values** (otherwise `useSearchParams`
+  would push a Suspense boundary up to the layout). `src/lib/NextNavigationProvider.jsx`,
+  mounted in `src/app/layout.jsx`, is the only place still importing
+  `next/navigation|link|image`.
 
-Résultat mesuré : composants utilisables hors Next **25 % → 100 %** (227/227).
+Measured result: components usable outside Next went from **25% to 100%** (227/227).
 
-**Restant** : les 227 composants sont découplés mais **pas extraits** en paquet
-`@thaink2/th2agent-ui`. Deux verrous connus : (a) la distribution des styles Tailwind v4
-(`globals.css` fait 1717 lignes avec un `@theme`), (b) le périmètre exporté — tout exposer
-figerait des composants métier en API publique.
+**The SDK is published.** `@apowerb/apowerb-sdk` ships from `.github/workflows/npm-publish.yml`
+through npm trusted publishing (OIDC), with a provenance attestation and no long-lived token.
+One npm quirk to know: unlike PyPI, npm refuses to configure a trusted publisher for a package
+that does not exist yet, so the very first publish had to come from a token.
 
-Ce qui n'existe pas : `Dockerfile`, `docker-compose`, Helm chart, doc self-host.
-`package.json` est encore `"private": true` et rien n'est publié.
+**Still open**: the 227 components are decoupled but **not extracted** into a package. Two
+known blockers: (a) distributing the Tailwind v4 styles (`globals.css` is 1717 lines with a
+`@theme`), (b) the exported surface — exposing everything would freeze business components
+into a public API.
 
-## 4. Règles pour toute session travaillant ici
+What does not exist: `Dockerfile`, `docker-compose`, Helm chart, self-host documentation.
 
-1. **Ne rien publier** (npm ou PyPI). Farid s'occupe de la publication et a demandé
-   d'attendre son feu vert.
-2. **Découpler de Next.js** tout ce qui entre dans le paquet de composants. Le pattern est
-   posé par #133 — passer par `src/lib/navigation.jsx`, jamais réimporter `next/navigation`,
-   `next/link` ou `next/image` ailleurs que dans `NextNavigationProvider.jsx`. Idem i18n :
-   `use-intl`, pas `next-intl`. ⚠️ Du code neuf réintroduit régulièrement l'ancien motif
-   (`QuotaMeter` importait `next-intl` le lendemain de la migration) — vérifier après chaque
-   merge de `main`.
-3. **Les tests moquent l'i18n et la navigation** : ils ne prouvent rien sur le câblage réel.
-   Vérifier au runtime dans le navigateur. Signature qui prouve que Next passe bien par le
-   contexte : les images sortent en `/_next/image?url=...` avec `srcset` (sinon c'est le
-   repli `<img>`).
-4. **Pas de valeur codée en dur propre à un client** dans le cœur : le métier vit dans le
-   template et la DB.
-5. `next dev` ne compile pas le CSS Tailwind de la même façon que le build — vérifier le
-   rendu réel avant de conclure qu'un style est cassé.
+## 4. Rules for any session working here
 
-## 5. Écosystème
+1. **This repository is public, and so is its history.** Removing a file from the tip does not
+   remove it from the history, and a force-push does not purge it from GitHub. Nothing
+   customer-specific — names, domains, deployment topology — goes in, at any point.
+2. **Decouple from Next.js** everything that will enter the component package. The pattern is
+   set by #133: go through `src/lib/navigation.jsx`, never re-import `next/navigation`,
+   `next/link` or `next/image` anywhere other than `NextNavigationProvider.jsx`. Same for
+   i18n: `use-intl`, not `next-intl`. ⚠️ New code keeps reintroducing the old pattern
+   (`QuotaMeter` imported `next-intl` the day after the migration) — check after every merge
+   of `main`.
+3. **The tests mock i18n and navigation**: they prove nothing about the real wiring. Verify at
+   runtime in the browser. The signature proving Next really goes through the context: images
+   come out as `/_next/image?url=...` with a `srcset` (otherwise it fell back to `<img>`).
+4. **No customer-specific hard-coded value** in the core: the business logic lives in the
+   template and the database.
+5. `next dev` does not compile Tailwind CSS the way the build does — check the real rendering
+   before concluding that a style is broken.
+6. **Publishing goes through a GitHub release.** The workflow derives the version from the
+   tag, refuses to ship if tests end up inside the tarball, and attaches provenance. Do not
+   publish by hand.
 
-Le back correspondant est `thaink2/th2agent` (voir son `CLAUDE.md` pour l'état du quota,
-du billing Stripe et du packaging). Périmètre open source arrêté : `th2agent`,
-`th2agent-front`, `th2etl`, `th2pulse`, `th2rag`. Seul `th2pulse` est déjà un repo public
-(MIT) et seul `th2etl` est publié sur PyPI.
+## 5. Ecosystem
+
+The matching backend is `apowerb/apowerb` (public, on PyPI), with the commercial bricks and
+the deployment IaC in `thaink2/apowerb` — see its `CLAUDE.md` for the quota, Stripe billing
+and packaging state. Open source scope: `apowerb`, `apowerb-ui`, `th2etl`, `th2pulse`,
+`th2rag`.
