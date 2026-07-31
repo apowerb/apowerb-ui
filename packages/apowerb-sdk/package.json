@@ -1,5 +1,5 @@
 {
-  "name": "@thaink2/apowerb-sdk",
+  "name": "@apowerb/apowerb-sdk",
   "version": "0.1.0",
   "description": "JavaScript SDK for the apowerb backend: agents, tools, RAG, BI, webhooks and billing. Dependency-free, runs in the browser and in Node.",
   "license": "MIT",

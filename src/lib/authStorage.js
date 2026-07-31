@@ -5,4 +5,4 @@
  * d'origine est conservée (`authStorage`, `authApi`, ...).
  */
 
-export * from "@thaink2/apowerb-sdk/authStorage";
+export * from "@apowerb/apowerb-sdk/authStorage";

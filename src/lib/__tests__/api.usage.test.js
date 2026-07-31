@@ -5,7 +5,7 @@ import { getUsageSummary, getUsageAgentDetail } from "../api";
 import {
   configureClient,
   resetClientConfig,
-} from "@thaink2/apowerb-sdk/config";
+} from "@apowerb/apowerb-sdk/config";
 
 // api.js vit desormais dans packages/apowerb-sdk : moquer le chemin
 // "../authStorage" n'atteint plus le client. On injecte le stockage par la
