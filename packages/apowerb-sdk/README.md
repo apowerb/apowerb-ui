@@ -1,14 +1,14 @@
 # @apowerb/apowerb-sdk
 
-Client JavaScript du backend th2agent : agents, outils, RAG, BI, webhooks, facturation, skills. **139 fonctions**, aucune dépendance, aucun code React ni Next — utilisable dans un navigateur comme dans Node.
+JavaScript client for the apowerb backend: agents, tools, RAG, BI, webhooks, billing, skills. **143 functions**, no dependencies, no React and no Next code — usable in a browser as well as in Node.
 
-## Pourquoi ce paquet
+## Why this package
 
-Cette couche vivait dans `src/lib/api.js` de l'application Next, avec `const BASE = ""` codé en dur : toutes les requêtes partaient en relatif vers `/api/...`, ce qui suppose d'être servi par l'app qui proxie ces routes. La partie la plus réutilisable du dépôt était donc prisonnière du front.
+This layer used to live in `src/lib/api.js` inside the Next application, with `const BASE = ""` hard-coded: every request went out relative to `/api/...`, which assumes being served by the app that proxies those routes. The most reusable part of the repository was therefore trapped inside the front end.
 
 ## Usage
 
-Sans configuration, le comportement est celui d'origine — requêtes relatives, jeton lu dans `localStorage` — donc l'application Next ne change pas d'un octet :
+With no configuration the behaviour is the original one — relative requests, token read from `localStorage` — so the Next application does not change by a single byte:
 
 ```js
 import { listAgents } from "@apowerb/apowerb-sdk";
@@ -16,38 +16,38 @@ import { listAgents } from "@apowerb/apowerb-sdk";
 const agents = await listAgents(); // GET /api/agents
 ```
 
-Ailleurs, on pointe le backend de son choix :
+Anywhere else, point it at the backend of your choice:
 
 ```js
 import { configureClient, listAgents } from "@apowerb/apowerb-sdk";
 
 configureClient({
-  baseUrl: "https://agent.thaink2.com",
-  storage: { getToken: () => process.env.TH2AGENT_TOKEN },
+  baseUrl: "https://your-apowerb-host",
+  storage: { getToken: () => process.env.APOWERB_TOKEN },
 });
 
-const agents = await listAgents(); // GET https://agent.thaink2.com/api/agents
+const agents = await listAgents(); // GET https://your-apowerb-host/api/agents
 ```
 
 ## Configuration
 
-`configureClient(options)` — les clés omises gardent leur valeur courante.
+`configureClient(options)` — omitted keys keep their current value.
 
-| Option | Défaut | Rôle |
+| Option | Default | Role |
 |---|---|---|
-| `baseUrl` | `""` | Racine du backend. Vide = requêtes relatives. Un slash final est toléré. |
-| `storage` | `authStorage` (localStorage) | Doit exposer `getToken()`, idéalement `setToken()` et `clear()`. |
-| `onUnauthorized` | évènement `auth:unauthorized` sur `window` | Appelé sur un 401 définitif. Sans DOM, ne fait rien. |
+| `baseUrl` | `""` | Backend root. Empty means relative requests. A trailing slash is tolerated. |
+| `storage` | `authStorage` (localStorage) | Must expose `getToken()`, ideally `setToken()` and `clear()`. |
+| `onUnauthorized` | `auth:unauthorized` event on `window` | Called on a final 401. With no DOM, it does nothing. |
 
-`getClientConfig()` retourne la configuration courante, `resetClientConfig()` rétablit les défauts (utile entre deux tests).
+`getClientConfig()` returns the current configuration; `resetClientConfig()` restores the defaults, which is useful between tests.
 
-## Ce que le client gère pour vous
+## What the client handles for you
 
-- injection de l'en-tête `Authorization` ;
-- rafraîchissement du jeton sur 401, avec verrou pour éviter les rafraîchissements concurrents, puis rejeu de la requête ;
-- réponses non-JSON des reverse proxies (502/503/504) converties en `Error` propres portant `status` ;
-- upload de fichiers, y compris en morceaux.
+- injecting the `Authorization` header;
+- refreshing the token on a 401, with a lock so concurrent refreshes cannot pile up, then replaying the request;
+- non-JSON responses from reverse proxies (502/503/504), turned into clean `Error` objects carrying `status`;
+- file uploads, including chunked ones.
 
 ## Format
 
-ESM pur, publié tel quel — pas d'étape de build. Les fichiers ne contiennent ni JSX ni syntaxe propriétaire, donc Node comme n'importe quel bundler les consomment directement.
+Pure ESM, published as-is — no build step. The files contain neither JSX nor any proprietary syntax, so Node and any bundler consume them directly.
