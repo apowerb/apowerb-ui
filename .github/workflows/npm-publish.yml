@@ -1,11 +1,11 @@
-name: Publish @apowerb/sdk to npm
+name: Publish @apowerb/apowerb-sdk to npm
 
 # Same shape as the PyPI publication of the other repositories: triggered by a
 # release, version derived from the tag, no long-lived secret.
 #
 # Authentication goes through npm trusted publishing (OIDC): npm verifies the
 # request really comes from this repository and this workflow, the way PyPI
-# does. It has to be declared once on npmjs.com for the @apowerb/sdk package.
+# does. It has to be declared once on npmjs.com for the @apowerb/apowerb-sdk package.
 #
 # One caveat npm does not share with PyPI: a trusted publisher cannot be
 # configured for a package that does not exist yet, so the very first publish
@@ -34,7 +34,7 @@ jobs:
     environment: release
     defaults:
       run:
-        working-directory: packages/sdk
+        working-directory: packages/apowerb-sdk
 
     steps:
       - name: Check out the repository

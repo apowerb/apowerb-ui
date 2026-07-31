@@ -1,4 +1,4 @@
-# @apowerb/sdk
+# @apowerb/apowerb-sdk
 
 Client JavaScript du backend th2agent : agents, outils, RAG, BI, webhooks, facturation, skills. **139 fonctions**, aucune dépendance, aucun code React ni Next — utilisable dans un navigateur comme dans Node.
 
@@ -11,7 +11,7 @@ Cette couche vivait dans `src/lib/api.js` de l'application Next, avec `const BAS
 Sans configuration, le comportement est celui d'origine — requêtes relatives, jeton lu dans `localStorage` — donc l'application Next ne change pas d'un octet :
 
 ```js
-import { listAgents } from "@apowerb/sdk";
+import { listAgents } from "@apowerb/apowerb-sdk";
 
 const agents = await listAgents(); // GET /api/agents
 ```
@@ -19,7 +19,7 @@ const agents = await listAgents(); // GET /api/agents
 Ailleurs, on pointe le backend de son choix :
 
 ```js
-import { configureClient, listAgents } from "@apowerb/sdk";
+import { configureClient, listAgents } from "@apowerb/apowerb-sdk";
 
 configureClient({
   baseUrl: "https://agent.thaink2.com",

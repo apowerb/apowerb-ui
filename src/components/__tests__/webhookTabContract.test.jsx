@@ -32,7 +32,7 @@ function read(rel) {
 
 describe("webhook-tab-only contract", () => {
   describe("lib/api.js", () => {
-    const src = read("packages/sdk/src/api.js");
+    const src = read("packages/apowerb-sdk/src/api.js");
 
     it("exposes a getWebhookLog(id) helper hitting /api/webhooks/logs/:id", () => {
       expect(src).toMatch(/export const getWebhookLog\s*=\s*\(id\)\s*=>/);

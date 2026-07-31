@@ -1,14 +1,14 @@
 {
-  "name": "@apowerb/sdk",
+  "name": "@apowerb/apowerb-sdk",
   "version": "0.1.0",
   "description": "JavaScript SDK for the apowerb backend: agents, tools, RAG, BI, webhooks and billing. Dependency-free, runs in the browser and in Node.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/apowerb/apowerb-ui.git",
-    "directory": "packages/sdk"
+    "directory": "packages/apowerb-sdk"
   },
-  "homepage": "https://github.com/apowerb/apowerb-ui/tree/main/packages/sdk#readme",
+  "homepage": "https://github.com/apowerb/apowerb-ui/tree/main/packages/apowerb-sdk#readme",
   "bugs": {
     "url": "https://github.com/apowerb/apowerb-ui/issues"
   },

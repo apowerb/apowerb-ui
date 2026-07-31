@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
-    "@apowerb/sdk": "*",
+    "@apowerb/apowerb-sdk": "*",
     "@xyflow/react": "^12.10.1",
     "dagre": "^0.8.5",
     "html2canvas-pro": "^2.0.2",
