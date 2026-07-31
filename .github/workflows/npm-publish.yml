@@ -1,12 +1,17 @@
-name: Publier @apowerb/sdk sur npm
+name: Publish @apowerb/sdk to npm
 
-# Meme forme que la publication PyPI des autres depots : declenchee par une
-# release, version derivee du tag, aucun secret de longue duree.
+# Same shape as the PyPI publication of the other repositories: triggered by a
+# release, version derived from the tag, no long-lived secret.
 #
-# L'authentification passe par la publication de confiance npm (OIDC) : npm
-# verifie que la demande vient bien de ce depot et de ce workflow, comme le
-# fait PyPI. Il faut donc l'avoir declaree une fois sur npmjs.com pour le
-# paquet @apowerb/sdk.
+# Authentication goes through npm trusted publishing (OIDC): npm verifies the
+# request really comes from this repository and this workflow, the way PyPI
+# does. It has to be declared once on npmjs.com for the @apowerb/sdk package.
+#
+# One caveat npm does not share with PyPI: a trusted publisher cannot be
+# configured for a package that does not exist yet, so the very first publish
+# has to come from a token. Publish a 0.0.0 placeholder by hand, declare the
+# trusted publisher, and let this workflow ship every real version after that
+# -- so the first version anyone installs already carries an attestation.
 
 on:
   release:
@@ -14,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version a publier (sans le v)"
+        description: "Version to publish (without the leading v)"
         required: true
         type: string
 
@@ -23,8 +28,8 @@ permissions:
   id-token: write
 
 jobs:
-  publier:
-    name: Publier le client sur npm
+  publish:
+    name: Publish the SDK to npm
     runs-on: ubuntu-latest
     environment: release
     defaults:
@@ -32,21 +37,21 @@ jobs:
         working-directory: packages/sdk
 
     steps:
-      - name: Recuperer le depot
+      - name: Check out the repository
         uses: actions/checkout@v4
 
-      - name: Installer Node
+      - name: Install Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
-      # La publication de confiance exige un npm recent : c'est lui qui sait
-      # echanger le jeton OIDC de GitHub contre un droit de publication.
-      - name: Mettre npm a niveau
+      # Trusted publishing needs a recent npm: it is npm that knows how to
+      # exchange the GitHub OIDC token for a publishing right.
+      - name: Upgrade npm
         run: npm install -g npm@latest
 
-      - name: Determiner la version
+      - name: Resolve the version
         id: version
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
@@ -54,21 +59,21 @@ jobs:
           else
             VERSION="${{ github.event.inputs.version }}"
           fi
-          echo "valeur=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "version a publier : $VERSION"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version to publish: $VERSION"
 
-      - name: Aligner la version du paquet
-        run: npm version "${{ steps.version.outputs.valeur }}" --no-git-tag-version --allow-same-version
+      - name: Align the package version
+        run: npm version "${{ steps.version.outputs.value }}" --no-git-tag-version --allow-same-version
 
-      # Verification avant envoi : ce qui part doit contenir les fichiers
-      # declares dans "exports", et surtout pas les tests.
-      - name: Verifier le contenu du paquet
+      # Check before sending: what ships must carry the files declared in
+      # "exports", and above all not the tests.
+      - name: Verify the package contents
         run: |
           npm pack --dry-run
           if npm pack --dry-run 2>&1 | grep -q '__tests__'; then
-            echo "::error::les tests ne doivent pas etre publies"
+            echo "::error::tests must never be published"
             exit 1
           fi
 
-      - name: Publier
+      - name: Publish
         run: npm publish --provenance --access public
