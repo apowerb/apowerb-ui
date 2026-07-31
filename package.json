@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:lib": "vite build --config vite.config.lib.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "npx playwright test"
