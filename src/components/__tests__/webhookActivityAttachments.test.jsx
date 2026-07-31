@@ -33,7 +33,7 @@ describe("webhook activity — email body + attachments contract", () => {
   });
 
   describe("attachment fetch — authenticated and path-safe (lib/api.js)", () => {
-    const src = read("packages/apowerb-sdk/src/api.js");
+    const src = read("packages/sdk/src/api.js");
 
     it("percent-encodes the filename in the attachment path", () => {
       expect(src).toContain("/attachments/${encodeURIComponent(filename)}");
@@ -55,7 +55,7 @@ describe("webhook activity — email body + attachments contract", () => {
   });
 
   describe("lib/api.js — getWebhookLogBody export", () => {
-    const src = read("packages/apowerb-sdk/src/api.js");
+    const src = read("packages/sdk/src/api.js");
 
     it("exports getWebhookLogBody function targeting /api/webhooks/logs/:id/body", () => {
       expect(src).toMatch(/export const getWebhookLogBody\s*=/);

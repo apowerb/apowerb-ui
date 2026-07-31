@@ -3,7 +3,7 @@
  *
  * Usage hors de l'application Next :
  *
- *     import { configureClient, listAgents } from "@thaink2/apowerb-sdk";
+ *     import { configureClient, listAgents } from "@apowerb/sdk";
  *
  *     configureClient({
  *       baseUrl: "https://agent.example.com",

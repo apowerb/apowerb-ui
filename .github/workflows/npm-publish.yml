@@ -1,4 +1,4 @@
-name: Publier @thaink2/apowerb-sdk sur npm
+name: Publier @apowerb/sdk sur npm
 
 # Meme forme que la publication PyPI des autres depots : declenchee par une
 # release, version derivee du tag, aucun secret de longue duree.
@@ -6,7 +6,7 @@ name: Publier @thaink2/apowerb-sdk sur npm
 # L'authentification passe par la publication de confiance npm (OIDC) : npm
 # verifie que la demande vient bien de ce depot et de ce workflow, comme le
 # fait PyPI. Il faut donc l'avoir declaree une fois sur npmjs.com pour le
-# paquet @thaink2/apowerb-sdk.
+# paquet @apowerb/sdk.
 
 on:
   release:
@@ -29,7 +29,7 @@ jobs:
     environment: release
     defaults:
       run:
-        working-directory: packages/apowerb-sdk
+        working-directory: packages/sdk
 
     steps:
       - name: Recuperer le depot

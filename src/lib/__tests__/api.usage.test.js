@@ -5,9 +5,9 @@ import { getUsageSummary, getUsageAgentDetail } from "../api";
 import {
   configureClient,
   resetClientConfig,
-} from "@thaink2/apowerb-sdk/config";
+} from "@apowerb/sdk/config";
 
-// api.js vit desormais dans packages/apowerb-sdk : moquer le chemin
+// api.js vit desormais dans packages/sdk : moquer le chemin
 // "../authStorage" n'atteint plus le client. On injecte le stockage par la
 // couture prevue pour cela, ce qui teste en prime le point d'extension.
 const authStorage = {

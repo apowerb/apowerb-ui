@@ -29,7 +29,7 @@ sensible (billing, logs, usage, admin) se conçoit dès le départ comme détach
 L'extraction est **mergée sur `main` et tourne en dev** — c'est ce que Farid a vu et validé :
 
 - **#130** — `src/lib/api.js` (139 fonctions) extrait en paquet npm workspace
-  `packages/apowerb-sdk` (`@thaink2/apowerb-sdk`). `const BASE = ""` remplacé par
+  `packages/sdk` (`@apowerb/sdk`). `const BASE = ""` remplacé par
   `configureClient({baseUrl, storage, onUnauthorized})`. Les anciens chemins sont des
   réexports : les 75 + 17 modules consommateurs n'ont pas bougé.
 - **#131** — 118 fichiers migrés `next-intl` → `use-intl` (cœur agnostique, même API).
