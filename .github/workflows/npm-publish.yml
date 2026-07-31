@@ -1,0 +1,74 @@
+name: Publier @thaink2/apowerb-sdk sur npm
+
+# Meme forme que la publication PyPI des autres depots : declenchee par une
+# release, version derivee du tag, aucun secret de longue duree.
+#
+# L'authentification passe par la publication de confiance npm (OIDC) : npm
+# verifie que la demande vient bien de ce depot et de ce workflow, comme le
+# fait PyPI. Il faut donc l'avoir declaree une fois sur npmjs.com pour le
+# paquet @thaink2/apowerb-sdk.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version a publier (sans le v)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publier:
+    name: Publier le client sur npm
+    runs-on: ubuntu-latest
+    environment: release
+    defaults:
+      run:
+        working-directory: packages/apowerb-sdk
+
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      # La publication de confiance exige un npm recent : c'est lui qui sait
+      # echanger le jeton OIDC de GitHub contre un droit de publication.
+      - name: Mettre npm a niveau
+        run: npm install -g npm@latest
+
+      - name: Determiner la version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "valeur=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version a publier : $VERSION"
+
+      - name: Aligner la version du paquet
+        run: npm version "${{ steps.version.outputs.valeur }}" --no-git-tag-version --allow-same-version
+
+      # Verification avant envoi : ce qui part doit contenir les fichiers
+      # declares dans "exports", et surtout pas les tests.
+      - name: Verifier le contenu du paquet
+        run: |
+          npm pack --dry-run
+          if npm pack --dry-run 2>&1 | grep -q '__tests__'; then
+            echo "::error::les tests ne doivent pas etre publies"
+            exit 1
+          fi
+
+      - name: Publier
+        run: npm publish --provenance --access public

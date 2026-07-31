@@ -1,0 +1,1717 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* ── Logo adaptatif au thème ───────────────────────────
+   Sombre (défaut) : version blanche. Clair : version bleue d'origine.
+   Utilisé par <BrandIcon> et les headers de marque. */
+html:not(.light) .brand-light-only {
+  display: none;
+}
+html.light .brand-dark-only {
+  display: none;
+}
+
+/* ── Theme Variables ────────────────────────────────── */
+
+:root {
+  --background: #061551;
+  --foreground: #e2e2f0;
+
+  /* Surface colors */
+  --bg-body-start: #061551;
+  --bg-body-mid: #0a1e72;
+  --bg-body-end: #081966;
+  --bg-sidebar: rgba(0, 0, 0, 0.2);
+  --bg-surface: rgba(255, 255, 255, 0.05);
+  --bg-surface-hover: rgba(255, 255, 255, 0.1);
+  --bg-surface-elevated: rgba(255, 255, 255, 0.07);
+  --bg-surface-elevated-hover: rgba(255, 255, 255, 0.1);
+  --bg-input: rgba(255, 255, 255, 0.08);
+  --bg-input-focus: rgba(255, 255, 255, 0.12);
+  --bg-overlay: rgba(0, 0, 0, 0.6);
+  --bg-modal: #0a1e72;
+  --bg-dropdown: #0a1e72;
+  --skeleton-bg: rgba(255, 255, 255, 0.08);
+
+  /* Text colors */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
+  --text-faint: rgba(255, 255, 255, 0.4);
+  --text-ghost: rgba(255, 255, 255, 0.3);
+  --text-whisper: rgba(255, 255, 255, 0.2);
+
+  /* Border colors */
+  --border-primary: rgba(255, 255, 255, 0.1);
+  --border-secondary: rgba(255, 255, 255, 0.05);
+  --border-hover: rgba(255, 255, 255, 0.2);
+  --border-input: rgba(255, 255, 255, 0.15);
+  --border-focus: rgba(96, 165, 250, 0.6);
+
+  /* Shadow */
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --shadow-heavy: rgba(0, 0, 0, 0.4);
+
+  /* Glass */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: rgba(0, 0, 0, 0.3);
+  --glass-card-bg: rgba(255, 255, 255, 0.07);
+  --glass-card-border: rgba(255, 255, 255, 0.12);
+  --glass-card-shadow: rgba(0, 0, 0, 0.2);
+  --glass-card-hover-bg: rgba(255, 255, 255, 0.1);
+  --glass-card-hover-border: rgba(255, 255, 255, 0.2);
+  --glass-card-hover-shadow: rgba(0, 0, 0, 0.3);
+  --glass-input-bg: rgba(255, 255, 255, 0.08);
+  --glass-input-border: rgba(255, 255, 255, 0.15);
+  --glass-input-text: #fff;
+  --glass-input-focus-bg: rgba(255, 255, 255, 0.12);
+  --glass-input-focus-border: rgba(96, 165, 250, 0.6);
+  --glass-input-focus-shadow: rgba(96, 165, 250, 0.15);
+  --glass-input-placeholder: rgba(255, 255, 255, 0.35);
+  --glass-modal-bg: #0a1e72;
+  --glass-modal-border: rgba(255, 255, 255, 0.15);
+  --glass-modal-shadow: rgba(0, 0, 0, 0.4);
+  --glass-shimmer: rgba(255, 255, 255, 0.08);
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --scrollbar-track: transparent;
+  --scrollbar-custom-track: rgba(255, 255, 255, 0.05);
+  --scrollbar-custom-thumb: rgba(255, 255, 255, 0.2);
+
+  /* Glow */
+  --glow-pulse: rgba(96, 165, 250, 0.2);
+  --glow-pulse-intense: rgba(96, 165, 250, 0.45);
+
+  /* React Flow */
+  --rf-controls-bg: rgba(255, 255, 255, 0.05);
+  --rf-controls-border: rgba(255, 255, 255, 0.1);
+  --rf-controls-shadow: rgba(0, 0, 0, 0.3);
+  --rf-button-border: rgba(255, 255, 255, 0.1);
+  --rf-button-fill: rgba(255, 255, 255, 0.7);
+  --rf-button-hover: rgba(255, 255, 255, 0.1);
+  --rf-minimap-bg: rgba(0, 0, 0, 0.4);
+  --rf-edge-stroke: rgba(255, 255, 255, 0.3);
+
+  /* Aliases used by ChartRenderer / SharedConversationView via var(--border) and var(--bg-elevated) */
+  --border: var(--border-primary);
+  --bg-elevated: var(--bg-surface-elevated);
+}
+
+/* Light mode overrides — flat surfaces, real elevation via border+shadow, no blur */
+html.light {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  /* Body : canvas plat, pas de dégradé */
+  --bg-body-start: #f8fafc;
+  --bg-body-mid: #f8fafc;
+  --bg-body-end: #f8fafc;
+
+  /* Surfaces — hiérarchie par border+shadow, pas transparence */
+  --bg-sidebar: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f8fafc;
+  --bg-surface-elevated: #ffffff;
+  --bg-surface-elevated-hover: #f8fafc;
+  --bg-input: #ffffff;
+  --bg-input-focus: #ffffff;
+  --bg-overlay: rgba(15, 23, 42, 0.5);
+  --bg-modal: #ffffff;
+  --bg-dropdown: #ffffff;
+  --skeleton-bg: #e2e8f0;
+
+  /* Texte — WCAG AA+, slate scale
+     Contrast ratios on #ffffff: primary 19:1, secondary 10:1,
+     muted 7.4:1 (AAA small), faint 5.4:1 (AA small), ghost 3.2:1 (AA large). */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+  --text-faint: #64748b;
+  /* ghost aligned on faint in light: #94a3b8 was 2.85:1 on white, failing WCAG AA small text */
+  --text-ghost: #64748b;
+  --text-whisper: #94a3b8;
+
+  /* Borders — contrasts réels */
+  --border-primary: #e5e7eb;
+  --border-secondary: #f1f5f9;
+  --border-hover: #cbd5e1;
+  --border-input: #cbd5e1;
+  --border-focus: #3b82f6;
+
+  /* Shadow — multi-stop real elevation */
+  --shadow-color: rgba(15, 23, 42, 0.06);
+  --shadow-heavy: rgba(15, 23, 42, 0.12);
+
+  /* Glass — solid whites, aucun blur (override dédié plus bas) */
+  --glass-bg: #ffffff;
+  --glass-border: #e5e7eb;
+  --glass-shadow: rgba(15, 23, 42, 0.04);
+  --glass-card-bg: #ffffff;
+  --glass-card-border: #e5e7eb;
+  --glass-card-shadow: rgba(15, 23, 42, 0.05);
+  --glass-card-hover-bg: #ffffff;
+  --glass-card-hover-border: #cbd5e1;
+  --glass-card-hover-shadow: rgba(15, 23, 42, 0.1);
+  --glass-input-bg: #ffffff;
+  --glass-input-border: #cbd5e1;
+  --glass-input-text: #0f172a;
+  --glass-input-focus-bg: #ffffff;
+  --glass-input-focus-border: #3b82f6;
+  --glass-input-focus-shadow: rgba(59, 130, 246, 0.12);
+  --glass-input-placeholder: #94a3b8;
+  --glass-modal-bg: #ffffff;
+  --glass-modal-border: #e5e7eb;
+  --glass-modal-shadow: rgba(15, 23, 42, 0.1);
+  --glass-shimmer: transparent;
+
+  /* Scrollbar */
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --scrollbar-track: transparent;
+  --scrollbar-custom-track: #f1f5f9;
+  --scrollbar-custom-thumb: #cbd5e1;
+
+  /* Glow — désactivé en light mode (override plus bas) */
+  --glow-pulse: rgba(59, 130, 246, 0.06);
+  --glow-pulse-intense: rgba(59, 130, 246, 0.12);
+
+  /* React Flow */
+  --rf-controls-bg: #ffffff;
+  --rf-controls-border: #e5e7eb;
+  --rf-controls-shadow: rgba(15, 23, 42, 0.06);
+  --rf-button-border: #f1f5f9;
+  --rf-button-fill: #334155;
+  --rf-button-hover: #f8fafc;
+  --rf-minimap-bg: #ffffff;
+  --rf-edge-stroke: #94a3b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand: #3b82f6;
+  --color-brand-hover: #2563eb;
+  --color-brand-secondary: #1d4ed8;
+  --color-accent-purple: #60a5fa;
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-overlay: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+  --animate-fade-in: fadeIn 200ms ease-out both;
+  --animate-slide-up: slideUp 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-scale-up-center: scaleUpCenter 300ms cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+  --animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-shimmer: glassShimmer 1.5s ease-in-out;
+  --animate-breathe: breathe 3s ease-in-out infinite;
+}
+
+body {
+  background: linear-gradient(135deg, var(--bg-body-start) 0%, var(--bg-body-mid) 50%, var(--bg-body-end) 100%);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* ── Thin scrollbars globally ────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ── Keyframes ────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes scaleUpCenter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes glassShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 8px 2px var(--glow-pulse);
+  }
+  50% {
+    box-shadow: 0 0 20px 6px var(--glow-pulse-intense);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Glass Utilities ──────────────────────────────── */
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px var(--glass-shadow);
+}
+
+.glass-card {
+  background: var(--glass-card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-card-border);
+  box-shadow: 0 4px 16px var(--glass-card-shadow);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: var(--glass-card-hover-bg);
+  border-color: var(--glass-card-hover-border);
+  box-shadow: 0 8px 32px var(--glass-card-hover-shadow);
+  transform: translateY(-2px);
+}
+
+.glass-input {
+  background: var(--glass-input-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-input-border);
+  color: var(--glass-input-text);
+  transition: all 0.25s ease;
+}
+
+.glass-input:focus {
+  background: var(--glass-input-focus-bg);
+  border-color: var(--glass-input-focus-border);
+  box-shadow: 0 0 16px var(--glass-input-focus-shadow);
+  outline: none;
+}
+
+.glass-input::placeholder {
+  color: var(--glass-input-placeholder);
+}
+
+.glass-modal {
+  background: var(--glass-modal-bg);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid var(--glass-modal-border);
+  box-shadow:
+    0 8px 64px var(--glass-modal-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+html.light .glass-modal {
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Light mode: no blur on glass surfaces — blur over light bg looks dirty */
+html.light .glass,
+html.light .glass-card,
+html.light .glass-input,
+html.light .glass-modal {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html.light .glass-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+html.light .glass-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px rgba(15, 23, 42, 0.05), 0 10px 15px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+/* StatCard is not interactive — suppress the glass-card hover lift + shadow */
+.glass-card.stat-card:hover,
+html.light .glass-card.stat-card:hover {
+  transform: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  border-color: var(--glass-card-border);
+  cursor: default;
+}
+
+/* Unread notification row — soft brand tint background for instant scan */
+.notif-unread {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+html.light .notif-unread {
+  background: #eff6ff;
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+html.light .glass-modal {
+  box-shadow: 0 10px 15px rgba(15, 23, 42, 0.08), 0 20px 40px rgba(15, 23, 42, 0.1);
+}
+
+/* Shimmer off in light mode — adds noise on white */
+html.light .glass-btn::before {
+  display: none;
+}
+
+/* Glass button base */
+.glass-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.glass-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    var(--glass-shimmer) 50%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.glass-btn:hover::before {
+  opacity: 1;
+  animation: glassShimmer 1.2s ease-in-out;
+}
+
+/* ── Brand Button ────────────────────────────────── */
+
+.btn-brand {
+  background: linear-gradient(135deg, var(--color-brand), var(--color-brand-secondary));
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-brand:hover {
+  background: linear-gradient(135deg, var(--color-brand-hover), var(--color-brand));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+.btn-brand:active {
+  transform: translateY(0);
+}
+.btn-brand:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Light mode — solid brand color, no gradient (kills AI-slop gradient on CTAs) */
+html.light .btn-brand {
+  background: var(--color-brand);
+}
+html.light .btn-brand:hover {
+  background: var(--color-brand-hover);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.18);
+}
+
+/* Auth screen — title solid brand color in light mode (no gradient-text AI-slop) */
+.brand-title {
+  background: linear-gradient(to right, var(--color-brand), var(--color-brand-secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+html.light .brand-title {
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: var(--color-brand);
+}
+
+/* Auth screen — hide decorative blobs in light mode (calm canvas) */
+html.light .auth-decoration {
+  display: none;
+}
+
+/* Auth / generic modals — anchor the header with a subtle border in light mode */
+html.light .auth-modal-header {
+  border-bottom: 1px solid var(--border-secondary);
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Focus ring — stronger and more visible in light mode (WCAG 2.4.7) */
+html.light .glass-input:focus,
+html.light .glass-input:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* ── Custom Scrollbar for specific containers ────── */
+.custom-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--scrollbar-custom-track);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-custom-thumb);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* 3D Perspective Utility */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+/* ── Glow accents (3-color palette: brand blue + accent purple) ── */
+.glow-purple {
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.3);
+}
+.glow-blue {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+}
+/* Legacy aliases — map to brand/accent */
+.glow-green {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+.glow-orange {
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.3);
+}
+.glow-red {
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.35);
+}
+.glow-cyan {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+}
+
+/* Light mode: replace colored halos with clean neutral elevation */
+html.light .glow-purple,
+html.light .glow-blue,
+html.light .glow-green,
+html.light .glow-orange,
+html.light .glow-red,
+html.light .glow-cyan {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+/* ── Theme-aware utility classes ─────────────────── */
+/* These auto-switch between light and dark */
+
+.th-bg-body {
+  background: linear-gradient(135deg, var(--bg-body-start) 0%, var(--bg-body-mid) 50%, var(--bg-body-end) 100%);
+}
+
+.th-bg-sidebar {
+  background: var(--bg-sidebar);
+}
+
+.th-bg-surface {
+  background: var(--bg-surface);
+}
+
+.th-bg-surface-hover:hover {
+  background: var(--bg-surface-hover);
+}
+
+.th-bg-elevated {
+  background: var(--bg-surface-elevated);
+}
+
+.th-skeleton {
+  background: var(--skeleton-bg);
+}
+
+.th-bg-input {
+  background: var(--bg-input);
+}
+
+.th-bg-overlay {
+  background: var(--bg-overlay);
+}
+
+.th-bg-modal {
+  background: var(--bg-modal);
+}
+
+.notification-panel {
+  /* --bg-surface-elevated is rgba(255,255,255,0.07) on the dark theme,
+   * which let any chat / dashboard text underneath bleed through and
+   * the dropdown becomes unreadable as soon as the user has more than
+   * a couple of notifications. Use the modal token (opaque) and add a
+   * backdrop blur so the glass aesthetic survives without sacrificing
+   * legibility. */
+  background: var(--bg-modal);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.th-text {
+  color: var(--text-primary);
+}
+
+.th-text-secondary {
+  color: var(--text-secondary);
+}
+
+.th-text-muted {
+  color: var(--text-muted);
+}
+
+.th-text-faint {
+  color: var(--text-faint);
+}
+
+.th-text-ghost {
+  color: var(--text-ghost);
+}
+
+.th-border {
+  border-color: var(--border-primary);
+}
+
+.th-border-secondary {
+  border-color: var(--border-secondary);
+}
+
+.th-border-hover:hover {
+  border-color: var(--border-hover);
+}
+
+/* ── Warning banner/pill (theme-aware amber) ─────── */
+/* Dark mode defaults — high-alpha amber on dark bg */
+.warning-banner {
+  border-color: rgb(245 158 11 / 0.3);
+  background: rgb(245 158 11 / 0.1);
+}
+.warning-banner-title { color: rgb(254 215 170); font-weight: 600; }
+.warning-banner-desc { color: rgb(254 215 170 / 0.75); }
+.warning-banner-icon { color: rgb(251 191 36); }
+.warning-banner-btn {
+  background: rgb(245 158 11 / 0.2);
+  border-color: rgb(245 158 11 / 0.3);
+  color: rgb(254 215 170);
+}
+.warning-banner-btn:hover:not(:disabled) { background: rgb(245 158 11 / 0.3); }
+.warning-banner-dismiss { color: rgb(254 215 170 / 0.6); }
+.warning-banner-dismiss:hover { color: rgb(254 215 170); }
+
+.warning-pill {
+  border-color: rgb(245 158 11 / 0.4);
+  background: rgb(245 158 11 / 0.1);
+  color: rgb(252 211 77);
+}
+.warning-pill:hover { background: rgb(245 158 11 / 0.2); }
+.warning-pill-badge {
+  background: rgb(245 158 11 / 0.3);
+  color: rgb(254 243 199);
+}
+
+/* Light mode — keep amber vibrancy, lean on hue (not darkness) for contrast */
+html.light .warning-banner {
+  border-color: rgb(251 191 36 / 0.55);
+  background: rgb(255 251 235);
+}
+html.light .warning-banner-title { color: rgb(180 83 9); font-weight: 600; }
+html.light .warning-banner-desc { color: rgb(217 119 6); }
+html.light .warning-banner-icon { color: rgb(234 88 12); }
+html.light .warning-banner-btn {
+  background: rgb(255 255 255);
+  border-color: rgb(251 191 36 / 0.7);
+  color: rgb(180 83 9);
+}
+html.light .warning-banner-btn:hover:not(:disabled) {
+  background: rgb(254 243 199);
+  border-color: rgb(217 119 6);
+}
+html.light .warning-banner-dismiss { color: rgb(217 119 6 / 0.7); }
+html.light .warning-banner-dismiss:hover { color: rgb(180 83 9); }
+
+html.light .warning-pill {
+  border-color: rgb(251 191 36 / 0.6);
+  background: rgb(255 251 235);
+  color: rgb(180 83 9);
+}
+html.light .warning-pill:hover {
+  background: rgb(254 243 199);
+  border-color: rgb(217 119 6 / 0.7);
+}
+html.light .warning-pill-badge {
+  background: rgb(251 191 36 / 0.25);
+  color: rgb(180 83 9);
+}
+
+/* Outlined buttons (warning / danger) — theme-aware */
+.btn-warning-outline {
+  background: rgb(245 158 11 / 0.2);
+  border-color: rgb(245 158 11 / 0.3);
+  color: rgb(252 211 77);
+}
+.btn-warning-outline:hover:not(:disabled) { background: rgb(245 158 11 / 0.3); }
+
+.btn-danger-outline {
+  background: rgb(239 68 68 / 0.1);
+  border-color: rgb(239 68 68 / 0.2);
+  color: rgb(248 113 113);
+}
+.btn-danger-outline:hover:not(:disabled) {
+  background: rgb(239 68 68 / 0.2);
+  color: rgb(252 165 165);
+}
+
+/* Light mode — solid, readable, colored */
+html.light .btn-warning-outline {
+  background: rgb(255 255 255);
+  border-color: rgb(217 119 6 / 0.5);
+  color: rgb(180 83 9);
+}
+html.light .btn-warning-outline:hover:not(:disabled) {
+  background: rgb(254 243 199);
+  border-color: rgb(217 119 6);
+}
+
+html.light .btn-danger-outline {
+  background: rgb(255 255 255);
+  border-color: rgb(220 38 38 / 0.4);
+  color: rgb(185 28 28);
+}
+html.light .btn-danger-outline:hover:not(:disabled) {
+  background: rgb(254 226 226);
+  border-color: rgb(220 38 38);
+  color: rgb(153 27 27);
+}
+
+/* Pills / badges */
+.pill-warning {
+  background: rgb(245 158 11 / 0.2);
+  border-color: rgb(245 158 11 / 0.3);
+  color: rgb(251 191 36);
+}
+.pill-success {
+  background: rgb(59 130 246 / 0.2);
+  border-color: rgb(59 130 246 / 0.3);
+  color: rgb(96 165 250);
+}
+
+html.light .pill-warning {
+  background: rgb(254 243 199);
+  border-color: rgb(217 119 6 / 0.5);
+  color: rgb(180 83 9);
+}
+html.light .pill-success {
+  background: rgb(219 234 254);
+  border-color: rgb(37 99 235 / 0.4);
+  color: rgb(29 78 216);
+}
+
+/* Chat sidebar row — active state */
+.sidebar-row-active {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-primary);
+}
+html.light .sidebar-row-active {
+  background: rgb(239 246 255);
+  border: 1px solid rgb(59 130 246 / 0.3);
+}
+
+/* Floating action bar inside a sidebar row — fully opaque backdrop + fade-in
+   gradient on the left so underlying text never bleeds through. The theme
+   --bg-* vars are translucent (5–20% alpha), so we use solid colors here. */
+.sidebar-row-actions {
+  background: #081a60;
+  box-shadow: -16px 0 16px -2px #081a60;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+html.light .sidebar-row-actions {
+  background: #ffffff;
+  box-shadow: -16px 0 16px -2px #ffffff;
+}
+.sidebar-row-active .sidebar-row-actions {
+  background: #0e2068;
+  box-shadow: -16px 0 16px -2px #0e2068;
+}
+html.light .sidebar-row-active .sidebar-row-actions {
+  background: rgb(239 246 255);
+  box-shadow: -16px 0 16px -2px rgb(239 246 255);
+}
+
+/* ── React Flow - Theme-aware ────────────────────── */
+
+.react-flow__controls {
+  background: var(--rf-controls-bg) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--rf-controls-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px var(--rf-controls-shadow) !important;
+}
+
+.react-flow__controls-button {
+  background: transparent !important;
+  border-bottom: 1px solid var(--rf-button-border) !important;
+  fill: var(--rf-button-fill) !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--rf-button-hover) !important;
+}
+
+.react-flow__minimap {
+  background: var(--rf-minimap-bg) !important;
+  border: 1px solid var(--rf-controls-border) !important;
+  border-radius: 8px !important;
+}
+
+.react-flow__background {
+  background: transparent !important;
+}
+
+.react-flow__edge-path {
+  stroke: var(--rf-edge-stroke);
+  stroke-width: 2;
+}
+
+.react-flow__edge.animated .react-flow__edge-path,
+.edge-running .react-flow__edge-path {
+  stroke: var(--color-accent-purple);
+  stroke-width: 3;
+}
+
+/* Edge states */
+.edge-done .react-flow__edge-path {
+  stroke: var(--color-brand);
+  stroke-width: 2;
+}
+.edge-error .react-flow__edge-path {
+  stroke: var(--color-error);
+  stroke-width: 2;
+}
+
+/* Node selection */
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Handle styles */
+.react-flow__handle {
+  transition: all 0.2s ease;
+}
+.react-flow__handle:hover {
+  transform: scale(1.3);
+}
+
+/* ── Light Mode: Code blocks keep dark background (oneDark theme) ── */
+html.light .bg-black\/30:has(pre) {
+  background-color: #1e293b !important;
+}
+html.light .bg-black\/30:has(pre) .bg-white\/5 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.light .bg-black\/30:has(pre) .text-white\/40,
+html.light .bg-black\/30:has(pre) .text-white\/30,
+html.light .bg-black\/30:has(pre) .text-white\/25 {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+html.light .bg-black\/30:has(pre) .border-white\/5 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.light .bg-black\/30:has(pre) .hover\:bg-white\/10:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+html.light .bg-black\/30:has(pre) .hover\:text-white\/60:hover {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+/* Inline code in light mode */
+html.light code.bg-black\/20 {
+  background-color: #f1f3f5 !important;
+  color: #d63384 !important;
+}
+/* Table borders/header in light mode (markdown) */
+html.light .border-white\/10:has(table),
+html.light div.overflow-x-auto.border-white\/10 {
+  border-color: #e2e4ea !important;
+}
+html.light thead.bg-white\/10 {
+  background-color: #f5f6f8 !important;
+}
+html.light th.text-white\/80 {
+  color: #1e293b !important;
+}
+html.light td.text-white\/70 {
+  color: #1e293b !important;
+}
+html.light td.border-white\/5 {
+  border-color: #eef0f4 !important;
+}
+
+/* ── Light Mode: Workflow nodes need solid white background ── */
+html.light .react-flow__node .bg-white\/5 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+html.light .react-flow__node .backdrop-blur-lg {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ── Landing page: always dark, immune to light-mode overrides ─────────
+   The landing is a marketing page designed dark-first. In light mode we
+   neutralise the global remaps so every alpha-white utility, every
+   .glass surface and every arbitrary opacity value reverts to its
+   intended dark-theme value within the .landing-page scope. */
+html.light .landing-page {
+  color-scheme: dark;
+}
+
+/* Text — restore the full alpha-white scale */
+html.light .landing-page .text-white,
+html.light .landing-page .text-white\/90,
+html.light .landing-page strong.text-white,
+html.light .landing-page .font-bold.text-white { color: #ffffff !important; }
+html.light .landing-page .text-white\/85 { color: rgba(255,255,255,0.85) !important; }
+html.light .landing-page .text-white\/80 { color: rgba(255,255,255,0.8) !important; }
+html.light .landing-page .text-white\/75 { color: rgba(255,255,255,0.75) !important; }
+html.light .landing-page .text-white\/70 { color: rgba(255,255,255,0.7) !important; }
+html.light .landing-page .text-white\/65 { color: rgba(255,255,255,0.65) !important; }
+html.light .landing-page .text-white\/60 { color: rgba(255,255,255,0.6) !important; }
+html.light .landing-page .text-white\/55 { color: rgba(255,255,255,0.55) !important; }
+html.light .landing-page .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
+html.light .landing-page .text-white\/45 { color: rgba(255,255,255,0.45) !important; }
+html.light .landing-page .text-white\/40 { color: rgba(255,255,255,0.4) !important; }
+html.light .landing-page .text-white\/35 { color: rgba(255,255,255,0.35) !important; }
+html.light .landing-page .text-white\/30 { color: rgba(255,255,255,0.3) !important; }
+html.light .landing-page .text-white\/25 { color: rgba(255,255,255,0.25) !important; }
+html.light .landing-page .text-white\/20 { color: rgba(255,255,255,0.2) !important; }
+html.light .landing-page .text-white\/15 { color: rgba(255,255,255,0.15) !important; }
+html.light .landing-page .hover\:text-white:hover { color: #ffffff !important; }
+
+/* Backgrounds — keep alpha-white transparencies, including arbitrary values */
+html.light .landing-page .bg-white\/5 { background-color: rgba(255,255,255,0.05) !important; }
+html.light .landing-page .bg-white\/10 { background-color: rgba(255,255,255,0.1) !important; }
+html.light .landing-page .bg-white\/20 { background-color: rgba(255,255,255,0.2) !important; }
+html.light .landing-page .bg-white\/\[0\.015\] { background-color: rgba(255,255,255,0.015) !important; }
+html.light .landing-page .bg-white\/\[0\.02\] { background-color: rgba(255,255,255,0.02) !important; }
+html.light .landing-page .bg-white\/\[0\.03\] { background-color: rgba(255,255,255,0.03) !important; }
+html.light .landing-page .bg-white\/\[0\.04\] { background-color: rgba(255,255,255,0.04) !important; }
+html.light .landing-page .bg-white\/\[0\.06\] { background-color: rgba(255,255,255,0.06) !important; }
+html.light .landing-page .bg-white\/\[0\.07\] { background-color: rgba(255,255,255,0.07) !important; }
+html.light .landing-page .bg-white\/\[0\.08\] { background-color: rgba(255,255,255,0.08) !important; }
+html.light .landing-page .hover\:bg-white\/5:hover { background-color: rgba(255,255,255,0.05) !important; }
+html.light .landing-page .hover\:bg-white\/10:hover { background-color: rgba(255,255,255,0.1) !important; }
+html.light .landing-page .hover\:bg-white\/\[0\.03\]:hover { background-color: rgba(255,255,255,0.03) !important; }
+html.light .landing-page .hover\:bg-white\/\[0\.04\]:hover { background-color: rgba(255,255,255,0.04) !important; }
+html.light .landing-page .hover\:bg-white\/\[0\.07\]:hover { background-color: rgba(255,255,255,0.07) !important; }
+html.light .landing-page .hover\:bg-white\/\[0\.08\]:hover { background-color: rgba(255,255,255,0.08) !important; }
+html.light .landing-page .bg-black\/20 { background-color: rgba(0,0,0,0.2) !important; }
+html.light .landing-page .bg-black\/30 { background-color: rgba(0,0,0,0.3) !important; }
+html.light .landing-page .bg-black\/40 { background-color: rgba(0,0,0,0.4) !important; }
+
+/* Borders */
+html.light .landing-page .border-white\/5 { border-color: rgba(255,255,255,0.05) !important; }
+html.light .landing-page .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
+html.light .landing-page .border-white\/15 { border-color: rgba(255,255,255,0.15) !important; }
+html.light .landing-page .border-white\/20 { border-color: rgba(255,255,255,0.2) !important; }
+html.light .landing-page .border-white\/\[0\.06\] { border-color: rgba(255,255,255,0.06) !important; }
+html.light .landing-page .border-white\/\[0\.08\] { border-color: rgba(255,255,255,0.08) !important; }
+html.light .landing-page .border-white\/\[0\.1\] { border-color: rgba(255,255,255,0.1) !important; }
+html.light .landing-page .hover\:border-white\/15:hover { border-color: rgba(255,255,255,0.15) !important; }
+html.light .landing-page .hover\:border-white\/20:hover { border-color: rgba(255,255,255,0.2) !important; }
+html.light .landing-page .hover\:border-white\/25:hover { border-color: rgba(255,255,255,0.25) !important; }
+
+/* Glass surfaces — keep the smoked-glass look instead of becoming solid white */
+html.light .landing-page .glass {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  backdrop-filter: blur(24px) saturate(1.3) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
+}
+html.light .landing-page .glass-card {
+  background: rgba(255,255,255,0.07) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  backdrop-filter: blur(24px) saturate(1.3) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25) !important;
+}
+html.light .landing-page .glass-card:hover {
+  background: rgba(255,255,255,0.1) !important;
+  border-color: rgba(255,255,255,0.2) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
+}
+
+/* Coloured tints inside mockups — preserve dark-theme transparencies */
+html.light .landing-page .bg-purple-500\/5 { background-color: rgba(168,85,247,0.05) !important; }
+html.light .landing-page .bg-blue-500\/5 { background-color: rgba(59,130,246,0.05) !important; }
+html.light .landing-page .bg-emerald-500\/5,
+html.light .landing-page .bg-green-500\/5 { background-color: rgba(16,185,129,0.05) !important; }
+html.light .landing-page .bg-red-500\/5 { background-color: rgba(239,68,68,0.05) !important; }
+html.light .landing-page .bg-amber-500\/5,
+html.light .landing-page .bg-yellow-500\/5 { background-color: rgba(245,158,11,0.05) !important; }
+html.light .landing-page .bg-\[\#013DFF\]\/5 { background-color: rgba(1,61,255,0.05) !important; }
+html.light .landing-page .bg-\[\#a882ff\]\/5 { background-color: rgba(168,130,255,0.05) !important; }
+
+/* Legacy gradient stops preserved for backwards compatibility */
+html.light .landing-page .from-\[\#0a0a1a\] { --tw-gradient-from: #0a0a1a !important; }
+html.light .landing-page .via-\[\#111132\] { --tw-gradient-via: #111132 !important; }
+html.light .landing-page .to-\[\#0d0d2b\] { --tw-gradient-to: #0d0d2b !important; }
+
+/* ── Light Mode: Global Overrides for unmigrated components ── */
+/* These rules remap Tailwind dark-theme utilities to light-theme equivalents */
+
+/* --- Text color remapping — slate scale, WCAG AA+ --- */
+/* !important required: Tailwind v4 @layer utilities has equal specificity */
+html.light .text-white,
+html.light .text-white\/90 {
+  color: #0f172a !important;
+}
+html.light .text-white\/80,
+html.light .text-white\/70 {
+  color: #334155 !important;
+}
+html.light .text-white\/60 {
+  color: #475569 !important;
+}
+html.light .text-white\/50 {
+  color: #64748b !important;
+}
+html.light .text-white\/40 {
+  color: #64748b !important;
+}
+html.light .text-white\/30,
+html.light .text-white\/25 {
+  color: #94a3b8 !important;
+}
+html.light .text-white\/20 {
+  color: #cbd5e1 !important;
+}
+
+/* --- Background remapping — visible hierarchy using slate scale --- */
+html.light .bg-white\/3,
+html.light .bg-white\/4,
+html.light .bg-white\/5,
+html.light .bg-white\/6 {
+  background-color: #f8fafc !important;
+}
+html.light .bg-white\/10,
+html.light .bg-white\/15 {
+  background-color: #f1f5f9 !important;
+}
+html.light .bg-white\/20 {
+  background-color: #e5e7eb !important;
+}
+/* Arbitrary-value variants used in DataTable zebra / AddChartWizard sections */
+html.light .bg-white\/\[0\.02\] {
+  background-color: #fafbfc !important;
+}
+html.light .bg-white\/\[0\.03\],
+html.light .bg-white\/\[0\.04\] {
+  background-color: #f5f7fa !important;
+}
+html.light .bg-white\/\[0\.06\] {
+  background-color: #f1f5f9 !important;
+}
+
+/* --- Status card tints: bg-X-500/5 near-invisible on white, bump saturation --- */
+html.light .bg-blue-500\/5 {
+  background-color: #eff6ff !important;
+}
+html.light .bg-purple-500\/5 {
+  background-color: #faf5ff !important;
+}
+html.light .bg-emerald-500\/5,
+html.light .bg-green-500\/5 {
+  background-color: #ecfdf5 !important;
+}
+html.light .bg-red-500\/5 {
+  background-color: #fef2f2 !important;
+}
+html.light .bg-amber-500\/5,
+html.light .bg-yellow-500\/5 {
+  background-color: #fffbeb !important;
+}
+
+/* --- Hover backgrounds — one step up in hierarchy --- */
+html.light .hover\:bg-white\/4:hover,
+html.light .hover\:bg-white\/5:hover {
+  background-color: #f1f5f9 !important;
+}
+html.light .hover\:bg-white\/10:hover {
+  background-color: #f1f5f9 !important;
+}
+html.light .hover\:bg-white\/20:hover {
+  background-color: #e5e7eb !important;
+}
+
+/* --- Border remapping — slate scale --- */
+html.light .border-white\/5 {
+  border-color: #f1f5f9 !important;
+}
+html.light .border-white\/10,
+html.light .border-white\/15 {
+  border-color: #e5e7eb !important;
+}
+html.light .border-white\/20 {
+  border-color: #cbd5e1 !important;
+}
+html.light .border-white\/30 {
+  border-color: #94a3b8 !important;
+}
+html.light .hover\:border-white\/20:hover {
+  border-color: #cbd5e1 !important;
+}
+html.light .hover\:border-white\/30:hover {
+  border-color: #94a3b8 !important;
+}
+
+/* --- Hover text --- */
+html.light .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+html.light .hover\:text-white\/60:hover {
+  color: #475569 !important;
+}
+html.light .hover\:text-white\/70:hover,
+html.light .hover\:text-white\/80:hover {
+  color: #334155 !important;
+}
+html.light .group-hover\:text-white:hover,
+html.light .group:hover .group-hover\:text-white {
+  color: #0f172a !important;
+}
+
+/* --- bg-black/* backgrounds — clean slate scale --- */
+html.light .bg-black\/20 {
+  background-color: #f1f5f9 !important;
+}
+html.light .bg-black\/30 {
+  background-color: #e5e7eb !important;
+}
+html.light .bg-black\/40 {
+  background-color: #cbd5e1 !important;
+}
+html.light .bg-black\/60 {
+  background-color: rgba(15, 23, 42, 0.25) !important;
+}
+html.light .bg-black\/80 {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+}
+
+/* --- Dark gradient backgrounds remap --- */
+html.light .bg-linear-to-br.from-gray-900 {
+  --tw-gradient-from: #eeeef4 !important;
+}
+html.light .bg-linear-to-br.via-gray-800 {
+  --tw-gradient-via: #f2f2f7 !important;
+}
+html.light .bg-linear-to-br.to-gray-900 {
+  --tw-gradient-to: #f5f5f9 !important;
+}
+
+/* Hardcoded dark gradients remap */
+html.light .from-\[\#0a0a1a\] {
+  --tw-gradient-from: var(--bg-body-start) !important;
+}
+html.light .via-\[\#111132\] {
+  --tw-gradient-via: var(--bg-body-mid) !important;
+}
+html.light .to-\[\#0d0d2b\] {
+  --tw-gradient-to: var(--bg-body-end) !important;
+}
+
+/* --- Other gray backgrounds — aligned with slate canvas --- */
+html.light .bg-gray-900 {
+  background-color: #f8fafc !important;
+}
+html.light .bg-gray-900\/40 {
+  background-color: rgba(248, 250, 252, 0.88) !important;
+}
+html.light .bg-gray-900\/50 {
+  background-color: rgba(248, 250, 252, 0.92) !important;
+}
+html.light .bg-gray-900\/95 {
+  background-color: rgba(255, 255, 255, 0.97) !important;
+}
+html.light .bg-gray-800 {
+  background-color: #f1f5f9 !important;
+}
+html.light .bg-gray-800\/50 {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+}
+html.light .bg-gray-700 {
+  background-color: #f8fafc !important;
+}
+html.light .bg-gray-600 {
+  background-color: #f1f5f9 !important;
+}
+html.light .border-gray-700 {
+  border-color: #e5e7eb !important;
+}
+html.light .border-gray-600 {
+  border-color: #cbd5e1 !important;
+}
+html.light .text-gray-400 {
+  color: #64748b !important;
+}
+html.light .text-gray-500 {
+  color: #475569 !important;
+}
+html.light .text-gray-300 {
+  color: #334155 !important;
+}
+
+/* --- Colored text for light mode — aligned on brand #013DFF + accent purple --- */
+html.light .text-blue-300,
+html.light .text-blue-200,
+html.light .text-blue-100 {
+  color: #013DFF !important;
+}
+html.light .text-purple-200\/80 {
+  color: rgba(124, 58, 237, 0.85) !important;
+}
+html.light .text-purple-300,
+html.light .text-purple-400 {
+  color: #7c3aed !important;
+}
+html.light .text-cyan-200\/80,
+html.light .text-cyan-300,
+html.light .text-green-300 {
+  color: #013DFF !important;
+}
+html.light .text-orange-300,
+html.light .text-amber-400 {
+  color: #7c3aed !important;
+}
+
+/* --- text-X-400 on pale surfaces: remap to readable saturated tones --- */
+/* #60a5fa (blue-400) on white = 2.4:1 → FAIL. Same for gray, green, red, yellow, amber at 400 level. */
+html.light .text-blue-400 {
+  color: #1d4ed8 !important;
+}
+html.light .text-green-400,
+html.light .text-green-200 {
+  color: #15803d !important;
+}
+html.light .text-red-400,
+html.light .text-red-300,
+html.light .text-red-200 {
+  color: #b91c1c !important;
+}
+html.light .text-yellow-400,
+html.light .text-yellow-300 {
+  color: #a16207 !important;
+}
+html.light .text-amber-500 {
+  color: #b45309 !important;
+}
+
+/* --- Pulse animation cursor — brand tint --- */
+html.light .bg-white\/60 {
+  background-color: rgba(1, 61, 255, 0.35) !important;
+}
+
+/* --- Assistant message bubble --- */
+html.light .bg-white\/10[class*="rounded-bl"] {
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* --- Chat links: high contrast in light mode --- */
+/* Assistant messages (white bg) */
+html.light .bg-white\/10[class*="rounded-bl"] .chat-link {
+  color: #013DFF !important;
+  text-decoration: underline !important;
+  text-decoration-color: #013DFF40 !important;
+  text-underline-offset: 2px !important;
+}
+html.light .bg-white\/10[class*="rounded-bl"] .chat-link:hover {
+  text-decoration-color: #013DFF !important;
+}
+
+/* --- User bubble (blue gradient in both themes) — force white links --- */
+/* Applied via `.user-bubble-md` class on the markdown container so it stays
+   stable even if the bubble's Tailwind gradient classes change. */
+.user-bubble-md .chat-link,
+.user-bubble-md a {
+  color: #ffffff !important;
+  text-decoration: underline !important;
+  text-decoration-color: rgba(255, 255, 255, 0.6) !important;
+  text-underline-offset: 2px !important;
+}
+.user-bubble-md .chat-link:hover,
+.user-bubble-md a:hover {
+  text-decoration-color: #ffffff !important;
+  opacity: 0.9;
+}
+
+/* --- Strong text in rendered markdown (assistant messages) --- */
+/* Scoped to the assistant bubble so we don't flip bold white text inside
+   colored buttons (.btn-brand, .bg-brand, bg-blue-*) to black. */
+html.light .bg-white\/10[class*="rounded-bl"] strong.text-white,
+html.light .bg-white\/10[class*="rounded-bl"] .font-bold.text-white,
+html.light .prose strong.text-white,
+html.light .prose .font-bold.text-white {
+  color: #0f172a !important;
+}
+
+/* --- Fill colors for SVGs --- */
+html.light svg[fill="white"],
+html.light svg[fill="currentColor"] .text-white {
+  fill: #0f172a !important;
+}
+
+/* --- Active nav items: keep white text on gradient bg --- */
+html.light .bg-linear-to-r.from-blue-500 .text-white,
+html.light .bg-linear-to-r.from-\[\#013DFF\] .text-white {
+  color: #ffffff !important;
+}
+
+/* --- Light mode: flatten brand gradients to solid color (kills AI-slop) --- */
+/* Tailwind generates bg-linear-to-{r,br} + from-brand + to-brand-secondary gradients.
+   On a light canvas, that gradient is heavy and screams "AI-generated". Flatten
+   to solid brand color. Keeps white text readable via overrides below. */
+html.light .bg-linear-to-r.from-brand.to-brand-secondary,
+html.light .bg-linear-to-br.from-brand.to-brand-secondary,
+html.light .bg-linear-to-r.from-brand\/80.to-brand-secondary\/80,
+html.light .bg-linear-to-br.from-brand\/80.to-brand-secondary\/80 {
+  background-image: none !important;
+  background-color: var(--color-brand) !important;
+}
+
+/* Soft brand-tinted gradients (bg-linear-to-r from-brand/20 to-brand-secondary/20,
+   used for page headers) — flatten to a single soft tint. */
+html.light .bg-linear-to-r.from-brand\/20.to-brand-secondary\/20,
+html.light .bg-linear-to-br.from-brand\/20.to-brand-secondary\/20,
+html.light .bg-linear-to-r.from-brand\/10.to-brand-secondary\/10,
+html.light .bg-linear-to-br.from-brand\/10.to-brand-secondary\/10 {
+  background-image: none !important;
+  background-color: rgba(1, 61, 255, 0.06) !important;
+}
+
+/* --- Flatten broader "AI-slop" gradients in light mode --- */
+/* Blue-on-blue gradients — treat as solid brand (kept as-is in dark mode) */
+html.light .bg-linear-to-r.from-blue-500.to-blue-400,
+html.light .bg-linear-to-br.from-blue-500.to-blue-400,
+html.light .bg-linear-to-r.from-blue-500.to-blue-600,
+html.light .bg-linear-to-br.from-blue-500.to-blue-600,
+html.light .bg-linear-to-r.from-blue-400.to-blue-500,
+html.light .bg-linear-to-br.from-blue-400.to-blue-500,
+html.light .bg-linear-to-r.from-brand.to-brand-hover,
+html.light .bg-linear-to-br.from-brand.to-brand-hover,
+html.light .bg-linear-to-r.from-brand.to-indigo-600,
+html.light .bg-linear-to-br.from-brand.to-indigo-600 {
+  background-image: none !important;
+  background-color: var(--color-brand) !important;
+}
+
+/* Purple/violet gradients — solid violet in light */
+html.light .bg-linear-to-r.from-purple-500.to-violet-500,
+html.light .bg-linear-to-br.from-purple-500.to-violet-500,
+html.light .bg-linear-to-r.from-purple-600.to-violet-600,
+html.light .bg-linear-to-br.from-purple-600.to-violet-600,
+html.light .bg-linear-to-r.from-purple-500.to-purple-600,
+html.light .bg-linear-to-br.from-purple-500.to-purple-600,
+html.light .bg-linear-to-r.from-purple-400.to-purple-500,
+html.light .bg-linear-to-br.from-purple-400.to-purple-500,
+html.light .bg-linear-to-r.from-purple-500.to-purple-400,
+html.light .bg-linear-to-br.from-purple-500.to-purple-400 {
+  background-image: none !important;
+  background-color: #7c3aed !important;
+}
+
+/* --- Tabs: shadow on active tab in light mode — brand blue --- */
+html.light .shadow-\[0_2px_8px_rgba\(168\,130\,255\,0\.15\)\] {
+  box-shadow: 0 2px 8px rgba(1, 61, 255, 0.15) !important;
+}
+
+/* --- Colored backgrounds: keep white text + white overlays --- */
+/* Any element with a saturated bg keeps its white text and white overlays intact */
+html.light .bg-blue-500,
+html.light .bg-blue-400,
+html.light .bg-purple-500,
+html.light .bg-purple-400,
+html.light .bg-purple-600,
+html.light .bg-brand,
+html.light .bg-\[\#013DFF\] {
+  color: #ffffff !important;
+}
+/* Text inside colored containers */
+html.light .bg-blue-500 .text-white,
+html.light .bg-blue-400 .text-white,
+html.light .bg-purple-500 .text-white,
+html.light .bg-purple-400 .text-white,
+html.light .bg-purple-600 .text-white,
+html.light .bg-\[\#013DFF\] .text-white,
+html.light .bg-brand .text-white,
+html.light .bg-linear-to-r .text-white,
+html.light .bg-linear-to-br .text-white,
+html.light .bg-linear-to-r .text-white\/90,
+html.light .bg-linear-to-br .text-white\/90,
+html.light .bg-linear-to-r.text-white,
+html.light .bg-linear-to-br.text-white,
+html.light .bg-brand.text-white,
+html.light .bg-blue-500 .text-white\/90,
+html.light .bg-blue-400 .text-white\/90,
+html.light .bg-purple-500 .text-white\/90,
+html.light .bg-purple-400 .text-white\/90 {
+  color: #ffffff !important;
+}
+/* Opacity-based text inside colored containers */
+html.light .bg-blue-500 .text-white\/70,
+html.light .bg-blue-400 .text-white\/70,
+html.light .bg-purple-500 .text-white\/70,
+html.light .bg-purple-400 .text-white\/70,
+html.light .bg-blue-500 .text-white\/50,
+html.light .bg-blue-400 .text-white\/50,
+html.light .bg-purple-500 .text-white\/50,
+html.light .bg-purple-400 .text-white\/50 {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+/* White overlays inside colored containers stay white (buttons, badges) */
+html.light .bg-blue-500 .bg-white\/20,
+html.light .bg-blue-400 .bg-white\/20,
+html.light .bg-purple-500 .bg-white\/20,
+html.light .bg-purple-400 .bg-white\/20 {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+html.light .bg-blue-500 .hover\:bg-white\/20:hover,
+html.light .bg-blue-400 .hover\:bg-white\/20:hover,
+html.light .bg-purple-500 .hover\:bg-white\/20:hover,
+html.light .bg-purple-400 .hover\:bg-white\/20:hover,
+html.light .bg-blue-500 .hover\:bg-white\/30:hover,
+html.light .bg-blue-400 .hover\:bg-white\/30:hover,
+html.light .bg-purple-500 .hover\:bg-white\/30:hover,
+html.light .bg-purple-400 .hover\:bg-white\/30:hover {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+/* Borders inside colored containers */
+html.light .bg-blue-500 .border-white\/30,
+html.light .bg-blue-400 .border-white\/30,
+html.light .bg-purple-500 .border-white\/30,
+html.light .bg-purple-400 .border-white\/30 {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* --- Select dropdowns with colored bg keep white --- */
+html.light select.bg-purple-600,
+html.light select.bg-blue-500,
+html.light select.bg-\[\#013DFF\] {
+  color: #ffffff !important;
+}
+
+/* --- .btn-brand and bg-blue-6/7 keep white text in light mode --- */
+/* These override the global .text-white → black remap (line ~901) and any
+   descendant .text-white / font-bold.text-white inside a colored button. */
+html.light .btn-brand,
+html.light .btn-brand.text-white,
+html.light .btn-brand .text-white,
+html.light .btn-brand .font-bold,
+html.light .bg-blue-600,
+html.light .bg-blue-600.text-white,
+html.light .bg-blue-600 .text-white,
+html.light .bg-blue-700,
+html.light .bg-blue-700.text-white,
+html.light .bg-blue-700 .text-white {
+  color: #ffffff !important;
+}
+
+/* --- Native <option> elements need opaque colors for both themes --- */
+:root option {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+html.light option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+/* --- Toggle switch inactive bg --- */
+html.light .bg-white\/10[role="switch"],
+html.light button[role="switch"].bg-white\/10 {
+  background-color: #cbd5e1 !important;
+}
+
+/* --- react-grid-layout resize handles --- */
+
+/* Reset library defaults: remove L-shaped border + rotations */
+.react-grid-item > .react-resizable-handle {
+  transform: none !important;
+}
+.react-grid-item > .react-resizable-handle::after {
+  border: none !important;
+  width: 5px !important;
+  height: 5px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.35) !important;
+  right: auto !important;
+  bottom: auto !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  transition: background 0.15s !important;
+}
+.react-grid-item > .react-resizable-handle:hover::after {
+  background: rgba(59, 130, 246, 0.8) !important;
+}
+/* Light mode: dot must be visible on white cards */
+html.light .react-grid-item > .react-resizable-handle::after {
+  background: rgba(15, 23, 42, 0.25) !important;
+}
+html.light .react-grid-item > .react-resizable-handle:hover::after {
+  background: var(--color-brand) !important;
+}
+
+/* --- TraceStep timeline dot border matches canvas color in each theme --- */
+.trace-dot {
+  border-color: var(--bg-body-start);
+}
+
+/* --- Workflow node wrapper: real surface in light mode, not bg-white/5 --- */
+html.light .node-wrapper {
+  background-color: #ffffff !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+/* --- ChatSidebar avatar: HSL parameterised, clamp per theme for readability --- */
+.sidebar-avatar {
+  background: hsl(var(--avatar-hue) 70% 55% / 0.18);
+  color: hsl(var(--avatar-hue) 70% 65%);
+  border: 1px solid hsl(var(--avatar-hue) 70% 55% / 0.25);
+}
+html.light .sidebar-avatar {
+  background: hsl(var(--avatar-hue) 65% 92%);
+  color: hsl(var(--avatar-hue) 55% 32%);
+  border-color: hsl(var(--avatar-hue) 50% 78%);
+}
+
+/* --- Light mode: suppress decorative dark-only glow/blur/pulse halos --- */
+/* These colored blurred haloes look clean over a dark canvas but add noise
+   over light surfaces. Keep them dark-only. */
+html.light .animate-pulse.blur-lg,
+html.light .animate-pulse.blur-2xl,
+html.light .animate-pulse.blur-3xl {
+  display: none !important;
+}
+/* Decorative white orbs in modal headers (bg-white/20 + blur) */
+html.light .bg-white\/20.blur-2xl,
+html.light .bg-white\/20.blur-3xl,
+html.light .bg-white\/10.blur-2xl,
+html.light .bg-white\/10.blur-3xl {
+  display: none !important;
+}
+/* Colored-glow shadows on workflow nodes — replace with neutral elevation */
+html.light .shadow-\[0_0_20px_rgba\(1\,61\,255\,0\.35\)\],
+html.light .shadow-\[0_0_24px_rgba\(168\,130\,255\,0\.4\)\],
+html.light .shadow-\[0_0_16px_rgba\(1\,61\,255\,0\.2\)\],
+html.light .shadow-\[0_0_12px_rgba\(168\,130\,255\,0\.3\)\],
+html.light .shadow-\[0_0_12px_rgba\(1\,61\,255\,0\.4\)\] {
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Corners */
+.react-grid-item > .react-resizable-handle-se { bottom: 0 !important; right: 0 !important; }
+.react-grid-item > .react-resizable-handle-sw { bottom: 0 !important; left: 0 !important; }
+.react-grid-item > .react-resizable-handle-ne { top: 0 !important;    right: 0 !important; }
+.react-grid-item > .react-resizable-handle-nw { top: 0 !important;    left: 0 !important; }
+
+/* Edges */
+.react-grid-item > .react-resizable-handle-n { top: 0 !important;    left: 50% !important; margin-left: -10px !important; }
+.react-grid-item > .react-resizable-handle-s { bottom: 0 !important; left: 50% !important; margin-left: -10px !important; }
+.react-grid-item > .react-resizable-handle-e { right: 0 !important;  top: 50% !important;  margin-top: -10px !important; }
+.react-grid-item > .react-resizable-handle-w { left: 0 !important;   top: 50% !important;  margin-top: -10px !important; }
+
+/* ── Export light mode ─────────────────────────────── */
+/* Applied temporarily during html2canvas capture */
+.export-light-mode {
+  --background: #f5f5f9;
+  --foreground: #111827;
+  --text-primary: #0f172a;
+  --text-secondary: #1e293b;
+  --text-muted: #475569;
+  --text-faint: #64748b;
+  --text-ghost: #94a3b8;
+  --glass-card-bg: #ffffff;
+  --glass-card-border: #e2e4ea;
+  --glass-card-shadow: rgba(0, 0, 0, 0.05);
+  --glass-card-hover-bg: #ffffff;
+  --glass-card-hover-border: #c7cad2;
+  --border-primary: #e2e4ea;
+  --border-secondary: #eef0f4;
+  background: #f5f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Recharts inline styles use hardcoded rgba(255,255,255,...) — override for export */
+.export-light-mode .recharts-cartesian-grid line {
+  stroke: rgba(0, 0, 0, 0.1) !important;
+}
+.export-light-mode .recharts-xAxis .recharts-cartesian-axis-tick-value,
+.export-light-mode .recharts-yAxis .recharts-cartesian-axis-tick-value {
+  fill: #475569 !important;
+}
+.export-light-mode .recharts-xAxis .recharts-cartesian-axis-line,
+.export-light-mode .recharts-yAxis .recharts-cartesian-axis-line,
+.export-light-mode .recharts-xAxis .recharts-cartesian-axis-tick-line,
+.export-light-mode .recharts-yAxis .recharts-cartesian-axis-tick-line {
+  stroke: #e2e4ea !important;
+}
+.export-light-mode .recharts-legend-item-text {
+  color: #475569 !important;
+}
+.export-light-mode .recharts-label,
+.export-light-mode .recharts-pie-label-text {
+  fill: #475569 !important;
+}
+.export-light-mode .recharts-pie-label-line {
+  stroke: #94a3b8 !important;
+}
+
+/* Glass cards become white with border */
+.export-light-mode .glass-card {
+  background: #ffffff !important;
+  border-color: #e2e4ea !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Text overrides for elements using Tailwind white text */
+.export-light-mode .th-text,
+.export-light-mode [class*="text-white"] {
+  color: #0f172a !important;
+}
+.export-light-mode .th-text-secondary {
+  color: #1e293b !important;
+}
+.export-light-mode .th-text-faint {
+  color: #64748b !important;
+}
+
+/* Hide drag handles & action buttons in export */
+.export-light-mode .drag-handle button {
+  display: none !important;
+}
+.export-light-mode .drag-handle {
+  cursor: default !important;
+}
+
+/* Diff coloring for ArtifactEditCard — WCAG AA compliant */
+.diff-add {
+  background: rgb(16 185 129 / 0.1);
+  color: rgb(110 231 183);
+}
+.diff-remove {
+  background: rgb(239 68 68 / 0.1);
+  color: rgb(252 165 165);
+}
+html.light .diff-add {
+  background: #dcfce7;
+  color: #166534;
+}
+html.light .diff-remove {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+
+/* ---------------------------------------------------------------------------
+ * BI dashboard — restore text selection on card content
+ * ---------------------------------------------------------------------------
+ * react-grid-layout/css/styles.css applies `user-select: none` on
+ * .react-grid-item so that dragging doesn't accidentally start a text
+ * selection. That kills the operator's ability to copy a PO number, a
+ * date, or a KPI value out of a card. Re-enable selection on the actual
+ * card content; keep the drag-handle non-selectable so dragging by the
+ * header still works as expected.
+ */
+.react-grid-item .glass-card,
+.react-grid-item .glass-card * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.react-grid-item .drag-handle,
+.react-grid-item .drag-handle * {
+  user-select: none;
+  -webkit-user-select: none;
+}

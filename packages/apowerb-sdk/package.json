@@ -1,0 +1,44 @@
+{
+  "name": "@thaink2/apowerb-sdk",
+  "version": "0.1.0",
+  "description": "JavaScript SDK for the apowerb backend: agents, tools, RAG, BI, webhooks and billing. Dependency-free, runs in the browser and in Node.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apowerb/apowerb-ui.git",
+    "directory": "packages/apowerb-sdk"
+  },
+  "homepage": "https://github.com/apowerb/apowerb-ui/tree/main/packages/apowerb-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/apowerb/apowerb-ui/issues"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./config": "./src/config.js",
+    "./authStorage": "./src/authStorage.js"
+  },
+  "files": [
+    "src",
+    "!src/__tests__",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "apowerb",
+    "thaink2",
+    "sdk",
+    "api",
+    "agents",
+    "rag"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
