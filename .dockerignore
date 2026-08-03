@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.github
+.vscode
+coverage
+playwright-report
+*.log
+Dockerfile
