@@ -151,7 +151,6 @@ export const realAuthApi = {
     }
 
     const data = await response.json();
-    console.log("[authApi] login response:", { mfa_required: data.mfa_required, has_access_token: !!data.access_token });
 
     // Check if MFA is required
     if (data.mfa_required) {
@@ -185,7 +184,6 @@ export const realAuthApi = {
     }
 
     const data = await response.json();
-    console.log("[authApi] oauthLogin response:", { mfa_required: data.mfa_required, has_access_token: !!data.access_token });
 
     // Check if MFA is required
     if (data.mfa_required) {
