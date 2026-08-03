@@ -6,6 +6,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.js");
 const backendUrl = process.env.API_URL || "http://localhost:8000";
 
 const nextConfig = {
+  output: "standalone",
   poweredByHeader: false,
   async headers() {
     return [
