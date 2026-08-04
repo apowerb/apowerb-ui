@@ -348,7 +348,7 @@ function Navbar() {
             <Image src="/thaink2_logo_circle.png" alt="" aria-hidden="true" fill sizes="28px" className="object-contain" />
           </div>
           <span className="text-[15px] font-semibold tracking-tight text-white">
-            TH2 Agent Studio
+            apowerb
           </span>
         </Link>
 
@@ -1197,7 +1197,7 @@ function Footer() {
               <div className="relative w-7 h-7">
                 <BrandIcon alt="thaink2" fill sizes="28px" className="object-contain" />
               </div>
-              <span className="text-sm font-semibold text-white/85 group-hover:text-white transition-colors">TH2 Agent Studio</span>
+              <span className="text-sm font-semibold text-white/85 group-hover:text-white transition-colors">apowerb</span>
             </Link>
             <p className="text-xs text-white/50 leading-relaxed max-w-[220px]">
               {t("footerTagline")}

@@ -14,7 +14,7 @@ import fr from "../../../messages/fr.json";
 // Libellés légitimement identiques dans les deux langues : nom du produit
 // et mots qui s'écrivent pareil en français.
 const IDENTICAL_ON_PURPOSE = new Set([
-  "studioTitle", // « TH2 Agent Studio » — nom du produit
+  "studioTitle", // « apowerb » — the product name
   "groupAdmin", // « Admin » est français
   "supervision", // idem
 ]);

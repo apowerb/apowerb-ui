@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "TH2 Agent Studio — thaink\u00b2 All-in-One Agentic",
+  title: "apowerb — All-in-One Agentic by thaink\u00b2",
   description: "Build, orchestrate and monitor AI agents",
   icons: {
     icon: "/favicon.ico",

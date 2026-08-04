@@ -19,7 +19,7 @@ function Navbar() {
           <div className="relative w-7 h-7">
             <BrandIcon alt="thaink2" fill className="object-contain" />
           </div>
-          <span className="text-sm font-semibold th-text-secondary">TH2 Agent Studio</span>
+          <span className="text-sm font-semibold th-text-secondary">apowerb</span>
         </Link>
         <Link
           href="/home"
@@ -270,7 +270,7 @@ function TermsOfServiceContent() {
           {t("termsTitlePrefix")} <span className="text-[#6ee7b7]">{t("termsTitleHighlight")}</span>
         </h1>
         <p className="text-sm th-text-muted font-light max-w-xl">
-          {t("termsIntroPrefix")} <strong className="th-text-secondary font-medium">TH2 Agent Studio</strong> —
+          {t("termsIntroPrefix")} <strong className="th-text-secondary font-medium">apowerb</strong> —
           {" "}{t("termsIntroSuffix")}
         </p>
         <div className="flex flex-wrap gap-5 mt-5 font-mono text-xs th-text-ghost">
@@ -308,7 +308,7 @@ function TermsOfServiceContent() {
       <Section id="ts1" number="01" title={t("ts1Title")}>
         <p>
           {t("ts1Para1Prefix")}{" "}
-          <strong className="th-text-secondary font-medium">TH2 Agent Studio</strong>{" "}
+          <strong className="th-text-secondary font-medium">apowerb</strong>{" "}
           {t("ts1Para1Suffix")}
         </p>
         <p>
@@ -496,7 +496,7 @@ function Footer() {
         <span className="font-mono text-xs th-text-ghost">{t("footerCopyright")}</span>
         <div className="flex gap-4 font-mono text-xs">
           <a href="https://agent.thaink2.fr/" target="_blank" rel="noopener noreferrer" className="th-text-ghost hover:th-text-muted transition-colors">
-            TH2 Agent Studio
+            apowerb
           </a>
           <a href="https://www.thaink2.com" target="_blank" rel="noopener noreferrer" className="th-text-ghost hover:th-text-muted transition-colors">
             thaink2.fr
