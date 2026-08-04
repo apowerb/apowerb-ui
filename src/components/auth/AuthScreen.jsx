@@ -68,14 +68,14 @@ export default function AuthScreen({ redirectTo }) {
         <div className="mb-8">
           <div className="w-24 h-24 mx-auto mb-4 relative">
             <BrandIcon
-              alt="TH2 Agent Studio Logo"
+              alt="apowerb Logo"
               fill
               className="object-contain drop-shadow-lg"
               priority
             />
           </div>
           <h1 className="brand-title text-3xl font-bold">
-            TH2 Agent Studio
+            apowerb
           </h1>
           <p className="th-text-muted mt-2">
           thaink² {t("tagline")}

@@ -143,7 +143,7 @@ export default function SharedConversationView({ shareId }) {
             <span
               className="text-sm font-semibold transition-colors th-text-muted"
             >
-              TH2 Agent Studio
+              apowerb
             </span>
           </Link>
 

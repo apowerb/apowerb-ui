@@ -374,7 +374,7 @@ export default function ChatbotLandingPage() {
             className="text-lg font-bold tracking-tight mb-1"
             style={{ background: "linear-gradient(90deg, var(--color-brand), #a882ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
           >
-            TH2 Agent Studio
+            apowerb
           </h2>
           <p
             className="text-xs tracking-widest uppercase"

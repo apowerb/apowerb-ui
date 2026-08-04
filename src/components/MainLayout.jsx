@@ -219,7 +219,7 @@ function AppContent({ children }) {
           >
             {/* Sidebar repliée (desktop) : icône carrée adaptative */}
             <div className={`relative shrink-0 w-10 h-10 ${isCollapsed ? "hidden md:block" : "hidden"}`}>
-              <BrandIcon fill className="object-contain" priority alt="TH2 Agent Studio" />
+              <BrandIcon fill className="object-contain" priority alt="apowerb" />
             </div>
             {/* Déployée, thème sombre : wordmark blanc */}
             <Image
