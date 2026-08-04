@@ -3,7 +3,9 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-ENV NODE_ENV=production
+# NODE_ENV must NOT be set to production here: npm would then skip the
+# devDependencies, and the build needs them (@tailwindcss/postcss is required by
+# postcss.config.mjs). `next build` produces a production build regardless.
 
 RUN apk add --no-cache libc6-compat
 
