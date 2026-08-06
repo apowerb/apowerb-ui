@@ -6,10 +6,7 @@ import { useTranslations } from "use-intl";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { toDateTimeLocalValue } from "@/lib/datetime";
-
-function generateSessionId() {
-  return "sess_" + Math.random().toString(36).substring(2, 15);
-}
+import { newSessionId } from "@/lib/ids";
 
 const INTERVAL_PRESETS = [
   { value: "@every_5m", labelKey: "intervalEvery5m" },
@@ -44,7 +41,7 @@ export default function ScheduleRunModal({
 
   const [agentName, setAgentName] = useState("");
   const [message, setMessage] = useState("");
-  const [sessionId, setSessionId] = useState(generateSessionId());
+  const [sessionId, setSessionId] = useState(newSessionId());
   const [scheduleInterval, setScheduleInterval] = useState("@hourly");
   const [customCron, setCustomCron] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -120,7 +117,7 @@ export default function ScheduleRunModal({
           agent_name: agentName,
           agent_id: agentId,
           user_id: userId,
-          session_id: `sess_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+          session_id: newSessionId(),
           new_message: { role: "user", parts: [{ text: message }] },
         };
         const res = await onRunNow(payload);
