@@ -500,6 +500,30 @@ export const realAuthApi = {
 /**
  * Mock API for authentication (for development/testing)
  */
+/**
+ * Shape check for an email address, without a backtracking regex.
+ *
+ * The previous `/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/` is polynomial: the two
+ * greedy classes around the dot make the engine retry every split of the
+ * domain when there is no dot to find. This only guards the mock backend,
+ * but the module ships in the published SDK bundle, so the pattern leaves
+ * with it.
+ *
+ * Same verdict as before: one `@`, non-empty on both sides, no whitespace,
+ * and a dot inside the domain with something on either side.
+ */
+function looksLikeEmail(value) {
+  const parts = value.split("@");
+  if (parts.length !== 2) return false;
+
+  const [local, domain] = parts;
+  if (!local || !domain) return false;
+  if (/\s/.test(value)) return false;
+
+  const dot = domain.indexOf(".");
+  return dot > 0 && dot < domain.length - 1;
+}
+
 export const mockAuthApi = {
   /**
    * Demo credentials for testing
@@ -604,7 +628,7 @@ export const mockAuthApi = {
       throw new Error("Password must be at least 6 characters");
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!looksLikeEmail(email)) {
       throw new Error("Invalid email format");
     }
 

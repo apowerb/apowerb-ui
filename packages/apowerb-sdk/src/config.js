@@ -66,7 +66,22 @@ export function resetClientConfig() {
  */
 export function apiUrl(path) {
   const base = config.baseUrl || "";
-  return base ? `${base.replace(/\/+$/, "")}${path}` : path;
+  return base ? `${stripTrailingSlashes(base)}${path}` : path;
+}
+
+/**
+ * Strip trailing slashes without a regular expression.
+ *
+ * `replace(/\/+$/, "")` did the same job, but `\/+$` is polynomial: on a
+ * string of N slashes that does not end with one, the engine retries from
+ * every position, so O(N squared). `baseUrl` normally comes from the
+ * application's own configuration, but nothing in this module guarantees
+ * that -- and this loop is linear by construction.
+ */
+function stripTrailingSlashes(value) {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") end -= 1;
+  return value.slice(0, end);
 }
 
 export function getAuthToken() {
