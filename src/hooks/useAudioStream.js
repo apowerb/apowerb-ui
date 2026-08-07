@@ -12,7 +12,18 @@ const PCM_SAMPLE_RATE = 16000;
 const PCM_OUTPUT_RATE = 24000;
 
 function getWsUrl(sessionId) {
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  // A WebSocket cannot go through the Next route handlers that proxy the rest
+  // of /api, so this one needs a real origin rather than a relative path.
+  //
+  // It used to fall back to localhost:8000, which is the visitor's own machine
+  // -- and `NEXT_PUBLIC_*` is inlined at build time, so a published image froze
+  // that fallback and no runtime variable could change it. Falling back to the
+  // page's own origin works wherever the backend is served next to the front,
+  // which is what every deployment behind a single nginx does.
+  const base =
+    process.env.NEXT_PUBLIC_API_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  if (!base) return null;
   const wsBase = base.replace(/^http/, "ws");
   const token = authStorage.getToken();
   if (!token || token === "null" || token === "undefined") return null;

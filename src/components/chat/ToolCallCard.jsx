@@ -28,7 +28,7 @@ function DownloadButton({ downloadPath, filename }) {
     if (busy) return;
     setBusy(true);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
       const token =
         typeof window !== "undefined"
           ? localStorage.getItem("th2_auth_token")
@@ -169,7 +169,7 @@ window.addEventListener('resize',function(){Plotly.Plots.resize('chart')});
 
     // Strategy 2: Fetch HTML file from backend
     if (!downloadPath) return;
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem("th2_auth_token")
@@ -268,7 +268,7 @@ function ImagePreview({ result }) {
     let cancelled = false;
     (async () => {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
         const token = typeof window !== "undefined" ? localStorage.getItem("th2_auth_token") : null;
         const res = await fetch(`${apiBase}${result.download_path}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
