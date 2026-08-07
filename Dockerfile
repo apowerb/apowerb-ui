@@ -23,6 +23,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+# Next.js standalone binds to process.env.HOSTNAME, and Docker injects HOSTNAME
+# into every container (the container id, or the host name with --network host).
+# Left unpinned, the server binds to that single interface only, so localhost and
+# health checks inside the container are refused. Pin it to every interface.
+ENV HOSTNAME=0.0.0.0
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/messages ./messages
