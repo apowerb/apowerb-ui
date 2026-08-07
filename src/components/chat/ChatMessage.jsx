@@ -192,7 +192,7 @@ function DownloadLink({ href, children }) {
     if (busy) return;
     setBusy(true);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
       const token =
         typeof window !== "undefined"
           ? localStorage.getItem("th2_auth_token")
@@ -403,7 +403,7 @@ function FileAttachment({ att }) {
     if (!att.downloadPath || downloading) return;
     setDownloading(true);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
       const token = typeof window !== "undefined"
         ? localStorage.getItem("th2_auth_token")
         : null;

@@ -20,7 +20,7 @@ export default function AudioPlayer({ result }) {
     let cancelled = false;
     (async () => {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
         const token = typeof window !== "undefined" ? localStorage.getItem("th2_auth_token") : null;
         const res = await fetch(`${apiBase}${result.download_path}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},

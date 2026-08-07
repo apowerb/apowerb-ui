@@ -398,7 +398,7 @@ export function useToolsManager() {
   };
 
   const handleExportSkill = (skill, format) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
     let url;
     if (skill.source === "portfolio") {
       url = `${baseUrl}/api/skills/portfolio/${skill.skill_name}/export?format=${format}`;
