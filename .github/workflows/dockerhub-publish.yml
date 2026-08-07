@@ -1,9 +1,16 @@
 name: Publish apowerb-ui to Docker Hub
 
+# Triggered by the release itself, like the npm publication next door -- NOT by
+# that publication finishing. Chaining on `workflow_run` looked equivalent and
+# was not: on a chained run GitHub reports the *branch* in `head_branch`, never
+# the tag, so every release published an image tagged `main` and moved `latest`
+# onto it. That is why npm carries 0.1.2, 0.1.3 and 0.1.4 while Docker Hub has
+# none of them -- only the manual dispatches ever produced a versioned image.
+# The image does not consume the published SDK (it builds it from the workspace
+# source), so there was nothing to wait for either.
 on:
-  workflow_run:
-    workflows: ["Publish @apowerb/apowerb-sdk to npm"]
-    types: [completed]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
@@ -17,7 +24,6 @@ permissions:
 jobs:
   publish:
     name: Publish the UI image to Docker Hub
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: release
 
@@ -29,14 +35,24 @@ jobs:
         id: version
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${GITHUB_REF_NAME}"
           else
-            VERSION="${{ github.event.workflow_run.head_branch }}"
-            VERSION="${VERSION#refs/tags/}"
-            VERSION="${VERSION#tags/}"
-            VERSION="${VERSION#v}"
+            VERSION="${{ github.event.inputs.version }}"
           fi
+          # Stripped on both paths: the release tag carries the v by convention,
+          # and a dispatch has been given it by hand before -- which is how a
+          # `v0.1.4` tag ended up on Docker Hub next to plain 0.1.0 and 0.1.1.
+          VERSION="${VERSION#v}"
+
+          # Refuse anything that is not a version instead of tagging the image
+          # with it. This is the guard the previous shape lacked: it published
+          # `main` and moved `latest` onto it, silently, on every release.
+          if ! printf %s "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z.+-]*$'; then
+            echo "::error::refusing to publish an image tagged '$VERSION' -- expected a version like 1.2.3"
+            exit 1
+          fi
+
           echo "value=$VERSION" >> "$GITHUB_OUTPUT"
           echo "version to publish: $VERSION"
 
