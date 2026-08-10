@@ -17,6 +17,9 @@ const IDENTICAL_ON_PURPOSE = new Set([
   "studioTitle", // « apowerb » — the product name
   "groupAdmin", // « Admin » est français
   "supervision", // idem
+  // « AgentOps » nomme une discipline, comme « DevOps » : le traduire
+  // ferait perdre le terme que Farid a demandé (10/08/26).
+  "groupAgentOps",
 ]);
 
 describe("libellés de navigation", () => {

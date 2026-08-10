@@ -1,0 +1,71 @@
+name: CI
+
+# This repository published images and packages without ever running its own
+# 69 test files. Two dependency bumps and a navigation rename went through on
+# CodeQL alone, which reads the code but never executes it.
+#
+# Deliberately not filtered by `paths`: a workflow that skips itself is worse
+# than none, because a green tick then means "nothing ran" and reads exactly
+# like "everything passed". The suite takes minutes; correctness of the signal
+# is worth more than those minutes.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # `npm ci` and not `npm install`: it fails when package-lock.json has
+      # drifted from package.json instead of quietly repairing it. That drift
+      # is exactly what kept this repository from being installable for days.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npx vitest run
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A passing suite does not prove the app compiles: the tests mock what
+      # the build resolves for real. The published image is built from this
+      # same command, so a break here is a break in what users install.
+      - name: Build the app
+        run: npm run build
+        env:
+          # The build must not read a deployment's configuration. Anything
+          # required at build time and absent here would be a bug in the app,
+          # not in this workflow.
+          NEXT_TELEMETRY_DISABLED: '1'
