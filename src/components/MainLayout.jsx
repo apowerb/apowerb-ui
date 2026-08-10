@@ -71,7 +71,7 @@ const NAV_GROUPS = [
     ],
   },
   {
-    titleKey: "groupMonitoring",
+    titleKey: "groupAgentOps",
     items: [
       { path: "/usage", labelKey: "usage", icon: Gauge, color: BRAND_GRADIENT },
       { path: "/logging", labelKey: "logging", icon: ScrollText, color: BRAND_GRADIENT },
