@@ -53,15 +53,54 @@ export async function proxyToBackend(request, backendPath, options = {}) {
     }
   }
 
-  // Forward body for methods that have one
-  let body = null;
+  // Forward body for methods that have one.
+  //
+  // `payload` is a copy fetch can never reach, because fetch DETACHES whatever
+  // buffer it sends. A fresh copy is handed over on every attempt below, and
+  // this one stays intact.
+  let payload = null;
   if (method !== "GET" && method !== "HEAD") {
-    body = await request.arrayBuffer();
-    if (body.byteLength === 0) body = null;
+    const buffer = await request.arrayBuffer();
+    if (buffer.byteLength > 0) payload = Uint8Array.from(new Uint8Array(buffer));
   }
 
   try {
-    const backendRes = await fetch(target, { method, headers, body });
+    // `redirect: "manual"` is the actual fix, not a detail.
+    //
+    // Letting fetch follow a redirect makes it REPLAY the body on a buffer it
+    // has already detached, which throws "Cannot perform
+    // ArrayBuffer.prototype.slice on a detached ArrayBuffer" and surfaces as
+    // the useless message "fetch failed" -> 502. Every sign-up hit exactly
+    // that: the backend answers 307 on `POST /api/users` and redirects to
+    // `/api/users/`. `POST /api/auth/token` never redirects, which is why
+    // logging in worked while signing up did not.
+    //
+    // Handing fetch a fresh copy each time is not enough on its own -- the
+    // replay happens inside fetch, on the copy it already consumed. So we do
+    // the following ourselves, with a new copy per attempt.
+    let backendRes;
+    let attemptUrl = target;
+    for (let hop = 0; ; hop++) {
+      backendRes = await fetch(attemptUrl, {
+        method,
+        headers,
+        body: payload ? Uint8Array.from(payload) : null,
+        redirect: "manual",
+      });
+
+      const isRedirect = backendRes.status >= 300 && backendRes.status < 400;
+      if (!isRedirect || hop >= 3) break;
+
+      const location = backendRes.headers.get("location");
+      if (!location) break;
+
+      // Resolved against the backend, and only followed when it stays on the
+      // backend: a redirect is attacker-influencable input, and blindly
+      // following it would turn this proxy into an open relay.
+      const next = new URL(location, attemptUrl);
+      if (next.origin !== new URL(API_URL).origin) break;
+      attemptUrl = next.toString();
+    }
 
     // Collect response headers we want to forward back
     const responseHeaders = new Headers();
@@ -89,7 +128,15 @@ export async function proxyToBackend(request, backendPath, options = {}) {
       headers: responseHeaders,
     });
   } catch (error) {
-    console.error(`[proxy] Failed to reach backend at ${target}:`, error.message);
+    // `error.message` on a failed fetch is the useless string "fetch failed";
+    // the reason lives in `error.cause`. Logging only the message cost a long
+    // debugging detour on a 502 that had nothing to do with the network.
+    const cause = error.cause
+      ? ` (cause: ${error.cause.code || error.cause.name}: ${error.cause.message})`
+      : "";
+    console.error(
+      `[proxy] Failed to reach backend at ${target}: ${error.message}${cause}`,
+    );
     return Response.json(
       { detail: "Backend unavailable" },
       { status: 502 },
