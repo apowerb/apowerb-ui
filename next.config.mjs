@@ -32,12 +32,24 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
+    // Last-resort proxy, for `/api` paths no route handler claims.
+    //
+    // It MUST stay in `fallback`. Returning a bare array makes it an
+    // `afterFiles` rewrite, and `afterFiles` is checked before dynamic routes:
+    // every dynamic handler was shadowed by this rewrite. Since `output:
+    // "standalone"` freezes `destination` at build time, the deployed front
+    // proxied `/api/users/me` to `localhost:8000` -- its own container -- and
+    // answered 500, so nobody could log in. Static handlers such as
+    // `/api/agents` were matched first and worked, which made the breakage look
+    // random. `fallback` runs after every route, so the handlers win.
+    return {
+      fallback: [
+        {
+          source: "/api/:path*",
+          destination: `${backendUrl}/api/:path*`,
+        },
+      ],
+    };
   },
 };
 
