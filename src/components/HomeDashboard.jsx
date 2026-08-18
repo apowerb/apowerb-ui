@@ -433,16 +433,8 @@ export default function HomeDashboard() {
             aria-label="Recent sessions"
             className="lg:col-span-2 glass-card rounded-2xl p-5"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4">
               <h2 className="text-sm font-semibold th-text">{t("recentConversationsHeading")}</h2>
-              <button
-                type="button"
-                onClick={() => router.push("/supervision")}
-                className="text-xs th-text-faint hover:text-brand transition-colors inline-flex items-center gap-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              >
-                {t("viewAllButton")}
-                <ArrowRight size={12} />
-              </button>
             </div>
 
             {sessionsLoading ? (

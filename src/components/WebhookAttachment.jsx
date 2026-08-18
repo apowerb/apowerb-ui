@@ -14,7 +14,7 @@ function formatBytes(n) {
 }
 
 /**
- * One webhook-log attachment row in the supervision tab.
+ * One webhook-log attachment row in the webhook-log tab.
  *
  * The serve endpoint (`/api/webhooks/logs/{id}/attachments/{name}`) is
  * Bearer-auth'd, so a raw `<a href>` / `<iframe src>` sends no Authorization

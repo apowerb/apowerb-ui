@@ -1223,7 +1223,6 @@
     "toolBoxLabel": "Boîte à outils",
     "topUpHint": "Recharger",
     "unreadLabel": "Non lu",
-    "viewAllButton": "Tout voir",
     "viewAllHint": "Tout voir"
   },
   "HubBrowser": {
@@ -2005,9 +2004,7 @@
     "openMenu": "Ouvrir le menu de navigation",
     "orchestrator": "Orchestrateur",
     "studioTitle": "apowerb",
-    "supervision": "Supervision",
     "toolBox": "Boîte à outils & MCP",
-    "usage": "Utilisation",
     "webhooks": "Déclencheurs web"
   },
   "NewExcelCampaignWizard": {
@@ -2468,32 +2465,6 @@
     "selectedCount": "Sélectionnés ({count})",
     "title": "Configuration des sous-agents",
     "twoToSixRequired": "(2 à 6 requis)"
-  },
-  "SupervisionDashboard": {
-    "actionsHeader": "Actions",
-    "agentHeader": "Agent",
-    "allAgentsOption": "Tous les agents",
-    "createdHeader": "Créé",
-    "failedLoadSessions": "Échec du chargement des sessions : {error}",
-    "failedLoadTrace": "Échec du chargement de la trace : {error}",
-    "fetchingSessionsText": "Récupération des sessions de tous les agents",
-    "inspectButtonLabel": "Inspecter",
-    "inspectTraceTooltip": "Inspecter la trace",
-    "lastUpdatedHeader": "Dernière mise à jour",
-    "loadingSessionsTitle": "Chargement des sessions...",
-    "loadingTraceDataText": "Chargement des données de trace...",
-    "noMatchFiltersHint": "Aucune session ne correspond aux filtres actuels",
-    "noSessionsFoundTitle": "Aucune session trouvée",
-    "noTraceDataText": "Aucune donnée de trace disponible",
-    "pageSubtitle": "Surveillez et auditez les décisions des agents",
-    "pageTitle": "Tableau de bord de supervision",
-    "paginationRange": "{start}-{end} sur {total}",
-    "refreshLabel": "Actualiser",
-    "runAgentsHint": "Exécutez des agents pour voir les sessions ici",
-    "searchPlaceholder": "Rechercher des sessions...",
-    "sessionIdHeader": "ID de session",
-    "sessionsCount": "{count, plural, one {# session} other {# sessions}}",
-    "userHeader": "Utilisateur"
   },
   "TemplateDriftBanner": {
     "cancel": "Annuler",
