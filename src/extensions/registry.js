@@ -38,7 +38,45 @@ export function filledSlots() {
 /** Vide le registre. Réservé aux tests : le registre est global au bundle. */
 export function resetRegistry() {
   emplacements.clear();
+  entreesDeNavigation.clear();
   detecteurDeDefi = null;
+}
+
+// ---------------------------------------------------------------------------
+// Entrées de navigation
+// ---------------------------------------------------------------------------
+// La navigation était le dernier endroit où le noyau nommait une fonctionnalité
+// vendue : `/usage` était écrit en dur dans `MainLayout`, alors que la page
+// n'existe que dans la brique. Toute installation open source affichait donc
+// une entrée de menu qui rend 404 — constaté en production le 18/08.
+//
+// Le noyau déclare les groupes, les briques y déposent leurs entrées. Sans
+// brique, le groupe est vide : le menu ne montre que ce que le produit contient
+// réellement. Comme pour les emplacements, masquer ne suffisait pas — il faut
+// que l'entrée n'existe pas.
+
+const entreesDeNavigation = new Map();
+
+/**
+ * Ajoute une entrée de menu dans un groupe déclaré par le noyau.
+ * @param groupe clé du groupe, p.ex. "groupAgentOps"
+ * @param entree `{ path, labelKey, icon?, color? }`
+ */
+export function registerNavItem(groupe, entree) {
+  if (typeof groupe !== "string" || !groupe) {
+    throw new Error("registerNavItem: nom de groupe invalide");
+  }
+  if (!entree || typeof entree.path !== "string" || !entree.path) {
+    // Une entrée sans chemin produirait exactement le lien mort qu'on corrige.
+    throw new Error("registerNavItem: entrée sans `path`");
+  }
+  const existantes = entreesDeNavigation.get(groupe) ?? [];
+  entreesDeNavigation.set(groupe, [...existantes, entree]);
+}
+
+/** Entrées déposées dans `groupe`, dans l'ordre d'enregistrement. */
+export function navItemsFor(groupe) {
+  return entreesDeNavigation.get(groupe) ?? [];
 }
 
 // ---------------------------------------------------------------------------
