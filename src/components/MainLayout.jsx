@@ -33,6 +33,7 @@ import { LanguageToggle } from "./LanguageToggle";
 import NotificationBell from "./NotificationBell";
 import Slot from "@/extensions/Slot";
 import { getPublicConfig } from "@/lib/api";
+import { navItemsFor } from "@/extensions/registry";
 
 const BRAND_GRADIENT = "from-brand to-brand-secondary";
 
@@ -72,8 +73,12 @@ const NAV_GROUPS = [
   },
   {
     titleKey: "groupAgentOps",
+    // `/usage` et `/supervision` ne sont PAS ici : leurs pages n'existent que
+    // dans les briques commerciales. Écrites en dur, elles donnaient un menu
+    // qui promet ce que l'édition open source ne contient pas — `/usage`
+    // rendait 404 sur une vraie installation. Les briques les déposent
+    // elles-mêmes via `registerNavItem("groupAgentOps", …)`.
     items: [
-      { path: "/usage", labelKey: "usage", icon: Gauge, color: BRAND_GRADIENT },
       { path: "/logging", labelKey: "logging", icon: ScrollText, color: BRAND_GRADIENT },
     ],
   },
@@ -85,24 +90,25 @@ const NAV_GROUPS = [
   },
 ];
 
-// Appended (as its own category) only for admins.
-const ADMIN_GROUP = {
-  titleKey: "groupAdmin",
-  items: [
-    { path: "/supervision", labelKey: "supervision", icon: Activity, color: BRAND_GRADIENT },
-  ],
-};
+// Plus de groupe « Admin » dans le noyau : il ne contenait que Supervision,
+// qui relève d'une brique, et une section d'administration sans administration
+// n'a rien à annoncer. Une brique qui apporte de l'administration déclare son
+// propre groupe avec `registerNavItem`.
 
 function AppContent({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const t = useTranslations("Nav");
-  const isAdmin = user?.role === "admin";
-  const navGroups = [
-    ...NAV_GROUPS,
-    ...(isAdmin ? [ADMIN_GROUP] : []),
-  ];
+
+  // Chaque groupe = ce que le noyau contient + ce que les briques y ont déposé.
+  // Sans brique, `navItemsFor` rend `[]` et le menu est exactement le produit
+  // open source. Un groupe qui reste vide n'est pas affiché du tout : mieux
+  // vaut pas de rubrique qu'une rubrique qui ne mène nulle part.
+  const navGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: [...group.items, ...navItemsFor(group.titleKey)],
+  })).filter((group) => group.items.length > 0);
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== "undefined") {
