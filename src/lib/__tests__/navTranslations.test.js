@@ -16,6 +16,7 @@ import fr from "../../../messages/fr.json";
 const IDENTICAL_ON_PURPOSE = new Set([
   "studioTitle", // « apowerb » — the product name
   "groupAdmin", // « Admin » est français
+  "admin", // idem, le libellé de l'entrée elle-même
   // « AgentOps » nomme une discipline, comme « DevOps » : le traduire
   // ferait perdre le terme que Farid a demandé (10/08/26).
   "groupAgentOps",

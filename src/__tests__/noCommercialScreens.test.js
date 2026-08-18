@@ -20,9 +20,13 @@ import { join } from "path";
 const SRC = join(process.cwd(), "src");
 const PAGES = join(SRC, "app", "(dashboard)");
 
-// Livrés par une brique commerciale, et par elle seule. `/billing` n'en est
-// pas : sa page est dans ce dépôt, donc le noyau a le droit d'y envoyer.
-const SCREENS_THAT_ARE_SOLD = ["/supervision", "/usage", "/admin"];
+// Livrés par une brique commerciale, et par elle seule.
+//
+// Deux absents volontaires. `/billing` : sa page est dans ce dépôt, donc le
+// noyau a le droit d'y envoyer. `/admin` : le panneau de contrôle est passé
+// en open source le 18/08/2026 — la liste a été mise à jour parce que ce
+// test a échoué en disant que la page existait, pas l'inverse.
+const SCREENS_THAT_ARE_SOLD = ["/supervision", "/usage"];
 
 function sourceFiles(dir) {
   return readdirSync(dir).flatMap((entry) => {

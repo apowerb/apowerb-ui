@@ -828,3 +828,153 @@ export const uploadBiCsv = async (file, separator = "auto", organizationId) => {
   if (!res.ok) throw new Error(`CSV upload failed (${res.status})`);
   return res.json();
 };
+
+// ---- Control panel (admin only: users, groups, organisations, permissions)
+// Published on 18/08/2026 with the panel itself: it lived in the commercial
+// client while the routes lived in a private brick, and both moved together.
+// Every route below is admin-only server-side -- these helpers do not guard,
+// they call.
+// Every route below answers 403 to a non-admin. The screen still has to
+// handle that: a role can be revoked while a tab stays open.
+
+export const listAdminUsers = () => request("/api/admin/users");
+
+// The password is set by the administrator and travels in this one request
+// body: hashed server-side, never echoed back by any response.
+export const createAdminUser = ({ email, firstName, lastName, password, role }) =>
+  request("/api/admin/users", {
+    method: "POST",
+    body: JSON.stringify({
+      email,
+      first_name: firstName,
+      last_name: lastName,
+      password,
+      ...(role ? { role } : {}),
+    }),
+  });
+
+export const changeAdminUserRole = (userId, role) =>
+  request(`/api/admin/users/${userId}/role`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+
+// The catalogue of permissions this build can enforce. Never hardcode it
+// here: one added server-side must show up without a front deploy.
+export const listAdminPermissions = () => request("/api/admin/permissions");
+
+export const listAdminGroups = () => request("/api/admin/groups");
+
+export const createAdminGroup = ({ name, description }) =>
+  request("/api/admin/groups", {
+    method: "POST",
+    body: JSON.stringify({ name, ...(description ? { description } : {}) }),
+  });
+
+export const deleteAdminGroup = (groupId) =>
+  request(`/api/admin/groups/${groupId}`, { method: "DELETE" });
+
+// Replaces the whole set rather than adding to it — the screen is a list of
+// checkboxes, and an add-only call would make unticking one impossible.
+export const setAdminGroupPermissions = (groupId, permissions) =>
+  request(`/api/admin/groups/${groupId}/permissions`, {
+    method: "PUT",
+    body: JSON.stringify({ permissions }),
+  });
+
+export const addAdminGroupMember = (groupId, userId) =>
+  request(`/api/admin/groups/${groupId}/members`, {
+    method: "POST",
+    body: JSON.stringify({ user_id: userId }),
+  });
+
+export const removeAdminGroupMember = (groupId, userId) =>
+  request(`/api/admin/groups/${groupId}/members/${userId}`, { method: "DELETE" });
+
+// ---- Supervision ----
+// Replaces listAllSessions() for this screen: that one fans out one ADK HTTP
+// call per agent to return camelCase fields the table never read. This reads
+// the tables directly, and carries the opening request, the step and tool
+// counts, and whether anything errored.
+export const listSupervisionSessions = ({ limit = 200, offset = 0 } = {}) =>
+  // `/api/supervision`, not `/api/evaluations`: supervision stays in the
+  // core while evaluation moves to a commercial brick.
+  request(`/api/supervision/sessions?limit=${limit}&offset=${offset}`);
+
+// ---- Control panel: editing, demands, organisations ----
+
+// What this administrator may do. Without it the screen would have to infer
+// the boundary from what it happens to receive, and a filtered list looks
+// exactly like a small one.
+export const getAdminContext = () => request("/api/admin/me");
+
+// Platform usage over a window, scoped server-side to what this
+// administrator administers — an aggregate is the easiest place for a
+// boundary to vanish unnoticed.
+export const getAdminMetrics = (days = 30) =>
+  request(`/api/admin/metrics?days=${days}`);
+
+// The email is deliberately not editable: every ownership table joins on it.
+export const editAdminUser = (userId, { firstName, lastName, plan }) =>
+  request(`/api/admin/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      ...(firstName ? { first_name: firstName } : {}),
+      ...(lastName ? { last_name: lastName } : {}),
+      ...(plan ? { plan } : {}),
+    }),
+  });
+
+// Refused server-side while the account still holds anything — the response
+// says what, so the screen can show it rather than a bare failure.
+export const deleteAdminUser = (userId) =>
+  request(`/api/admin/users/${userId}`, { method: "DELETE" });
+
+// Invalidates every token the account holds, refresh cookie included.
+// Scheduled agent runs are untouched: they carry a different token type.
+export const forceRelogin = (userId) =>
+  request(`/api/admin/users/${userId}/force-relogin`, { method: "POST" });
+
+// Demands a second factor, or stops demanding it. Enabling MFA *for*
+// someone stays impossible by construction — the secret is born when they
+// scan the QR code.
+export const setMfaRequired = (userId, required) =>
+  request(`/api/admin/users/${userId}/require-mfa`, {
+    method: "POST",
+    body: JSON.stringify({ required }),
+  });
+
+// Sends the core's own reset link. No temporary password is ever minted:
+// an administrator who could set one could sign in as that person.
+export const demandPasswordReset = (userId) =>
+  request(`/api/admin/users/${userId}/password-reset`, { method: "POST" });
+
+export const demandEmailVerification = (userId) =>
+  request(`/api/admin/users/${userId}/require-email-verification`, { method: "POST" });
+
+// The locked-out case. Enabling MFA for someone else is impossible: the
+// secret is created when they scan the QR code.
+export const disableAdminUserMfa = (userId) =>
+  request(`/api/admin/users/${userId}/disable-mfa`, { method: "POST" });
+
+// Organisations — superadmin only; these answer 403 to an org admin.
+export const listAdminOrganizations = () => request("/api/admin/organizations");
+
+export const createAdminOrganization = ({ name, description }) =>
+  request("/api/admin/organizations", {
+    method: "POST",
+    body: JSON.stringify({ name, ...(description ? { description } : {}) }),
+  });
+
+export const renameAdminOrganization = (orgId, { name, description }) =>
+  request(`/api/admin/organizations/${orgId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name, ...(description ? { description } : {}) }),
+  });
+
+export const deleteAdminOrganization = (orgId) =>
+  request(`/api/admin/organizations/${orgId}`, { method: "DELETE" });
+
+// A user belongs to at most one organisation, so this moves rather than adds.
+export const setUserOrganization = (orgId, userId) =>
+  request(`/api/admin/organizations/${orgId}/members/${userId}`, { method: "PUT" });
