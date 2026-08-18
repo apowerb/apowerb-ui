@@ -6,6 +6,7 @@ import { Image } from "@/lib/navigation";
 import { Link } from "@/lib/navigation";
 import BrandIcon from "@/components/brand/BrandIcon";
 import {
+  ShieldCheck,
   Home,
   MessageSquare,
   Users,
@@ -80,6 +81,15 @@ const NAV_GROUPS = [
     // elles-mêmes via `registerNavItem("groupAgentOps", …)`.
     items: [
       { path: "/logging", labelKey: "logging", icon: ScrollText, color: BRAND_GRADIENT },
+    ],
+  },
+  {
+    // Le panneau de contrôle est du noyau depuis le 18/08/2026. Le menu peut
+    // donc le nommer : la règle n'a jamais été « pas de rubrique Admin », mais
+    // « ne nomme que ce que tu contiens ».
+    titleKey: "groupAdmin",
+    items: [
+      { path: "/admin", labelKey: "admin", icon: ShieldCheck, color: BRAND_GRADIENT },
     ],
   },
   {
