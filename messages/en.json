@@ -1223,7 +1223,6 @@
     "toolBoxLabel": "Tool box",
     "topUpHint": "Top up",
     "unreadLabel": "Unread",
-    "viewAllButton": "View all",
     "viewAllHint": "View all"
   },
   "HubBrowser": {
@@ -2005,9 +2004,7 @@
     "openMenu": "Open navigation menu",
     "orchestrator": "Orchestrator",
     "studioTitle": "apowerb",
-    "supervision": "Supervision",
     "toolBox": "Tool Box & MCP",
-    "usage": "Usage",
     "webhooks": "Webhooks"
   },
   "NewExcelCampaignWizard": {
@@ -2468,32 +2465,6 @@
     "selectedCount": "Selected ({count})",
     "title": "Sub-agents Configuration",
     "twoToSixRequired": "(2-6 required)"
-  },
-  "SupervisionDashboard": {
-    "actionsHeader": "Actions",
-    "agentHeader": "Agent",
-    "allAgentsOption": "All Agents",
-    "createdHeader": "Created",
-    "failedLoadSessions": "Failed to load sessions: {error}",
-    "failedLoadTrace": "Failed to load trace: {error}",
-    "fetchingSessionsText": "Fetching sessions from all agents",
-    "inspectButtonLabel": "Inspect",
-    "inspectTraceTooltip": "Inspect trace",
-    "lastUpdatedHeader": "Last Updated",
-    "loadingSessionsTitle": "Loading sessions...",
-    "loadingTraceDataText": "Loading trace data...",
-    "noMatchFiltersHint": "No sessions match the current filters",
-    "noSessionsFoundTitle": "No sessions found",
-    "noTraceDataText": "No trace data available",
-    "pageSubtitle": "Monitor and audit agent decisions",
-    "pageTitle": "Supervision Dashboard",
-    "paginationRange": "{start}-{end} of {total}",
-    "refreshLabel": "Refresh",
-    "runAgentsHint": "Run agents to see sessions here",
-    "searchPlaceholder": "Search sessions...",
-    "sessionIdHeader": "Session ID",
-    "sessionsCount": "{count, plural, one {# session} other {# sessions}}",
-    "userHeader": "User"
   },
   "TemplateDriftBanner": {
     "cancel": "Cancel",
