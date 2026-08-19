@@ -973,28 +973,6 @@ export const demandEmailVerification = (userId) =>
 export const disableAdminUserMfa = (userId) =>
   request(`/api/admin/users/${userId}/disable-mfa`, { method: "POST" });
 
-// Organisations — superadmin only; these answer 403 to an org admin.
-export const listAdminOrganizations = () => request("/api/admin/organizations");
-
-export const createAdminOrganization = ({ name, description }) =>
-  request("/api/admin/organizations", {
-    method: "POST",
-    body: JSON.stringify({ name, ...(description ? { description } : {}) }),
-  });
-
-export const renameAdminOrganization = (orgId, { name, description }) =>
-  request(`/api/admin/organizations/${orgId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ name, ...(description ? { description } : {}) }),
-  });
-
-export const deleteAdminOrganization = (orgId) =>
-  request(`/api/admin/organizations/${orgId}`, { method: "DELETE" });
-
-// A user belongs to at most one organisation, so this moves rather than adds.
-export const setUserOrganization = (orgId, userId) =>
-  request(`/api/admin/organizations/${orgId}/members/${userId}`, { method: "PUT" });
-
 /**
  * Fetches a file's bytes through the authenticated API and hands back a Blob.
  *

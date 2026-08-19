@@ -46,8 +46,19 @@ const SCREENS_THAT_ARE_SOLD = ["/supervision", "/usage", "/billing"];
 // + le `prefix` de chaque `APIRouter`) : billing, prospection, campaigns,
 // usage, evaluations, supervision.
 //
-// `/api/admin` n'y est pas : le panneau de contrôle est du noyau, MFA et
-// organisations compris — vérifié route par route, pas supposé.
+// `/api/admin` n'y est pas : le panneau de contrôle est du noyau, MFA
+// comprise — vérifié route par route, pas supposé.
+//
+// 19/08/2026 — sauf les organisations, sorties en commercial sur décision de
+// Farid : partitionner une plateforme entre locataires gouverne la portée des
+// autres au lieu de servir celui qui installe. C'est le premier préfixe
+// commercial qui est un SOUS-chemin d'un préfixe du noyau ; la ligne au-dessus
+// n'est donc pas contredite, elle est précisée.
+//
+// ⚠️ Le noyau garde la MÉCANIQUE (les deux tables, `administered_user_ids` qui
+// borne ce qu'un administrateur voit, `UserOut.organization`) et perd la
+// CAPACITÉ. Retirer les tables élargirait les droits des admins non
+// superadmin au lieu de simplifier quoi que ce soit.
 const COMMERCIAL_API_PREFIXES = [
   "/api/billing",
   "/api/prospection",
@@ -55,6 +66,7 @@ const COMMERCIAL_API_PREFIXES = [
   "/api/usage",
   "/api/evaluations",
   "/api/supervision",
+  "/api/admin/organizations",
 ];
 
 // Ceux d'entre eux que le client open source décrit aujourd'hui.
