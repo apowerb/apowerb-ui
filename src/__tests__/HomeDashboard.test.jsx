@@ -37,10 +37,8 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 vi.mock("@/lib/api", () => ({
   listAgents: vi.fn().mockResolvedValue([]),
-  getBillingBalance: vi.fn().mockResolvedValue({ credits: 1000 }),
   listNotifications: vi.fn().mockResolvedValue({ notifications: [] }),
   getUnreadNotificationCount: vi.fn().mockResolvedValue({ count: 0 }),
-  getPublicConfig: vi.fn().mockResolvedValue({ billing_enabled: true }),
   createAgent: vi.fn(),
   listAllSessions: vi.fn().mockResolvedValue([]),
   listPipelines: vi.fn().mockResolvedValue([]),

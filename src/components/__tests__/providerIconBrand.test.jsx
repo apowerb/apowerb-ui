@@ -1,10 +1,18 @@
 /**
- * L'icône du fournisseur thaink2 doit être le VRAI logo de marque.
+ * Le modèle par défaut porte le logo de l'application, et AUCUN nom de marque.
  *
- * Une première version dessinait un monogramme « T2 » en SVG — générique et
- * étranger à la marque, alors que le logo (la méduse) existe déjà en asset et
- * est utilisé partout ailleurs dans l'app. Ce test empêche de re-dériver vers
- * un substitut dessiné à la main.
+ * Deux règles distinctes, toutes deux gardées ici.
+ *
+ * L'ICÔNE : une première version dessinait un monogramme « T2 » en SVG —
+ * générique, alors que le logo existe déjà en asset et sert partout ailleurs.
+ * Ce test empêche de re-dériver vers un substitut dessiné à la main.
+ *
+ * Le LIBELLÉ : il affichait « thaink2 », et l'infobulle du sélecteur promettait
+ * une imputation « à votre crédit thaink2 » dans une build qui ne sait pas
+ * facturer — la facturation est une brique commerciale. La clé technique reste
+ * `thaink2` (elle est appariée avec le backend et ne s'affiche jamais) ; ce qui
+ * se voit doit rester neutre, car l'exploitant d'une instance auto-hébergée
+ * n'est pas thaink2.
  */
 import { render } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
@@ -18,7 +26,7 @@ vi.mock("next/image", () => ({
 
 import ProviderIcon from "@/components/ProviderIcon";
 
-describe("ProviderIcon — thaink2", () => {
+describe("ProviderIcon — modèle par défaut", () => {
   it("rend le logo de marque, pas un monogramme dessiné", () => {
     const { container } = render(<ProviderIcon provider="thaink2" size={14} />);
     const imgs = [...container.querySelectorAll("img")];
@@ -39,9 +47,14 @@ describe("ProviderIcon — thaink2", () => {
     expect(container.textContent).not.toContain("TH");
   });
 
-  it("affiche le nom quand showName est demandé", () => {
+  it("affiche un nom quand showName est demandé", () => {
     const { container } = render(<ProviderIcon provider="thaink2" size={14} showName />);
-    expect(container.textContent).toContain("thaink2");
+    expect(container.textContent.trim()).not.toBe("");
+  });
+
+  it("ne nomme aucune marque dans le libellé visible", () => {
+    const { container } = render(<ProviderIcon provider="thaink2" size={14} showName />);
+    expect(container.textContent.toLowerCase()).not.toContain("thaink2");
   });
 
   it("laisse les providers tiers sur leur icône SVG d'origine", () => {

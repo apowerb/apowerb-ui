@@ -12,9 +12,11 @@ const DEFAULT_LLM_PROVIDER = "thaink2";
 // ---------------------------------------------------------------------------
 
 const PROVIDERS = {
-  // Modèle mutualisé servi par thaink2 : couleur de marque (--color-brand)
-  // pour le libellé. L'icône, elle, est le logo réel (cf. BrandIcon plus bas).
-  thaink2:   { name: "thaink2",   color: "#3b82f6", bg: "rgba(59,130,246,0.15)" },
+  // Modèle fourni par l'exploitant du serveur. La CLÉ reste `thaink2` --
+  // elle est appariée avec le backend et ne s'affiche jamais ; seul le
+  // libellé se voit, et il ne doit nommer aucune marque : dans une build
+  // auto-hébergée, l'exploitant n'est pas thaink2.
+  thaink2:   { name: "Default",   color: "#3b82f6", bg: "rgba(59,130,246,0.15)" },
   anthropic: { name: "Anthropic", color: "#D4A27F", bg: "rgba(212,162,127,0.15)" },
   openai:    { name: "OpenAI",    color: "#10A37F", bg: "rgba(16,163,127,0.15)" },
   mistral:   { name: "Mistral",   color: "#FF7000", bg: "rgba(255,112,0,0.15)" },
@@ -129,8 +131,9 @@ export default function ProviderIcon({
 
   const SvgIcon = SVG_MAP[providerKey];
 
-  // thaink2 : le vrai logo de marque, pas un monogramme dessiné. Il est rendu
-  // sans la pastille colorée des providers tiers — le logo rond porte déjà son
+  // Modèle par défaut : on montre le logo de l'application plutôt qu'un
+  // monogramme de fournisseur — c'est bien cette instance qui le sert. Rendu
+  // sans la pastille colorée des providers tiers : le logo rond porte déjà son
   // propre fond, et `BrandIcon` bascule entre la version blanche (thème sombre)
   // et la version bleue (thème clair).
   if (providerKey === DEFAULT_LLM_PROVIDER) {

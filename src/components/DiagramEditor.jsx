@@ -17,7 +17,6 @@ import AgentSidebar from "./AgentSidebar";
 import AgentDetailsModal from "./AgentDetailsModal";
 import ConnectSnippetModal from "./ConnectSnippetModal";
 import AgentModal from "./AgentModal";
-import ProspectOnboardingModal from "./ProspectOnboardingModal";
 import ConfirmToast from "./ConfirmToast";
 import { useDiagramState } from "./diagram/useDiagramState";
 import DiagramToolbar from "./diagram/DiagramToolbar";
@@ -274,9 +273,6 @@ function DiagramEditorContent() {
         onToast={toast.warning}
         onRefreshTools={fetchData}
       />
-
-      {/* th2prospect onboarding (etape 0) — auto-contenu, ecoute l'event creation */}
-      <ProspectOnboardingModal />
 
       {/* Connect Snippet Modal */}
       <ConnectSnippetModal

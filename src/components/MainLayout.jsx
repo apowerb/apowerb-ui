@@ -23,6 +23,7 @@ import {
   Rocket,
   Gauge,
   ScrollText,
+  FileCode,
 } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { ToastProvider } from "./Toast";
@@ -33,7 +34,6 @@ import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
 import NotificationBell from "./NotificationBell";
 import Slot from "@/extensions/Slot";
-import { getPublicConfig } from "@/lib/api";
 import { navItemsFor } from "@/extensions/registry";
 
 const BRAND_GRADIENT = "from-brand to-brand-secondary";
@@ -55,6 +55,7 @@ const NAV_GROUPS = [
     items: [
       { path: "/chat", labelKey: "chat", icon: MessageSquare, color: BRAND_GRADIENT },
       { path: "/agents", labelKey: "agents", icon: Users, color: BRAND_GRADIENT },
+      { path: "/artifacts", labelKey: "artifacts", icon: FileCode, color: BRAND_GRADIENT },
       { path: "/bi", labelKey: "bi", icon: BarChart3, color: BRAND_GRADIENT },
     ],
   },
@@ -127,16 +128,11 @@ function AppContent({ children }) {
     return false;
   });
   const [showProfile, setShowProfile] = useState(false);
-  const [billingEnabled, setBillingEnabled] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("sidebar-collapsed", isCollapsed);
   }, [isCollapsed]);
-
-  useEffect(() => {
-    getPublicConfig().then((cfg) => setBillingEnabled(cfg.billing_enabled !== false));
-  }, []);
 
   const renderNavItem = (item) => {
     const Icon = item.icon;
@@ -313,7 +309,6 @@ function AppContent({ children }) {
             <UserMenu
               collapsed={isCollapsed}
               onOpenProfile={() => setShowProfile(true)}
-              onOpenBilling={billingEnabled ? () => router.push("/billing") : undefined}
             />
           </div>
         </aside>
