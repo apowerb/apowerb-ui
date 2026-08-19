@@ -12,9 +12,14 @@ import { proxyToBackend } from "@/lib/proxy";
  * there. This forwards, it does not decide.
  */
 
+// `params` est une Promise ici : la déstructurer directement rend `undefined`,
+// et l'URL construite perd son sous-chemin. Le backend répond alors 404 sur
+// `/api/admin/` — le même 404 pour toutes les routes, ce qui se lit à tort
+// comme « le backend ne les a pas ». Même forme que `tools/[...path]`.
 function forward(request, { params }) {
-  const { path } = params;
-  return proxyToBackend(request, `/api/admin/${(path ?? []).join("/")}`);
+  return params.then(({ path }) =>
+    proxyToBackend(request, `/api/admin/${path.join("/")}`),
+  );
 }
 
 export const GET = forward;
