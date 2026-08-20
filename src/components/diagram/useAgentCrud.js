@@ -314,15 +314,6 @@ export function useAgentCrud({ allAgents, fetchData, tabs, setTabs }) {
       await apiCreateAgent(payload);
       setShowCreateModal(false);
       fetchData();
-      // th2prospect : declenche l'onboarding (etape 0 - profil emetteur) a la
-      // creation d'un agent issu du template th2prospect. Le modal auto-contenu
-      // ne s'affiche que si le profil est absent.
-      if (
-        payload.superagent_template_id === "th2prospect_outbound" &&
-        typeof window !== "undefined"
-      ) {
-        window.dispatchEvent(new CustomEvent("th2prospect:agent-created"));
-      }
     } catch (err) {
       if (err.status === 409 || err.message?.includes("already exists")) {
         toast.warning(

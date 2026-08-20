@@ -1047,7 +1047,6 @@ export default function ChatSidebar({ onNewChat, sessionFilter, showUserMenu = f
         <div className="p-3 border-t th-border-secondary">
           <UserMenu
             onOpenProfile={() => setShowProfile(true)}
-            onOpenBilling={() => window.location.href = "/billing"}
           />
         </div>
       )}

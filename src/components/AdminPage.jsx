@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "use-intl";
 import {
-  Building2,
   KeyRound,
   Loader2,
   MailCheck,
@@ -20,8 +19,6 @@ import {
 } from "lucide-react";
 import {
   addAdminGroupMember,
-  createAdminOrganization,
-  deleteAdminOrganization,
   deleteAdminUser,
   demandEmailVerification,
   demandPasswordReset,
@@ -29,8 +26,6 @@ import {
   forceRelogin,
   setMfaRequired,
   getAdminContext,
-  listAdminOrganizations,
-  setUserOrganization,
   changeAdminUserRole,
   createAdminGroup,
   createAdminUser,
@@ -116,8 +111,6 @@ export default function AdminPage() {
   // What this administrator may do. A filtered list looks exactly like a
   // small one, so the screen is told rather than left to infer.
   const [context, setContext] = useState(null);
-  const [orgs, setOrgs] = useState([]);
-  const [newOrg, setNewOrg] = useState({ name: "", description: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -139,9 +132,6 @@ export default function AdminPage() {
       setGroups(g || []);
       setPermissions(p || []);
       setContext(ctx || null);
-      // Organisations are a superadmin concern; asking for them as an org
-      // admin would be a guaranteed 403 on every load.
-      setOrgs(ctx?.superadmin ? (await listAdminOrganizations()) || [] : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -200,7 +190,9 @@ export default function AdminPage() {
             {context
               ? context.superadmin
                 ? t("scopeSuperadmin")
-                : t("scopeOrg", { org: context.organization?.name || t("noOrg") })
+                : context.organization
+                  ? t("scopeOrg", { org: context.organization.name })
+                  : t("scopeBounded")
               : t("subtitle")}
           </p>
         </div>
@@ -215,7 +207,7 @@ export default function AdminPage() {
       </header>
 
       <div className="flex gap-2 mb-5">
-        {["dashboard", "users", "groups", ...(context?.superadmin ? ["orgs"] : [])].map((key) => (
+        {["dashboard", "users", "groups"].map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -230,9 +222,7 @@ export default function AdminPage() {
                 ? "tabDashboard"
                 : key === "users"
                   ? "tabUsers"
-                  : key === "groups"
-                    ? "tabGroups"
-                    : "tabOrgs",
+                  : "tabGroups",
             )}
           </button>
         ))}
@@ -269,23 +259,6 @@ export default function AdminPage() {
         />
       ) : tab === "dashboard" ? (
         <DashboardTab />
-      ) : tab === "orgs" ? (
-        <OrgsTab
-          t={t}
-          orgs={orgs}
-          users={users}
-          busy={busy}
-          newOrg={newOrg}
-          setNewOrg={setNewOrg}
-          onCreate={() =>
-            run(async () => {
-              await createAdminOrganization(newOrg);
-              setNewOrg({ name: "", description: "" });
-            })
-          }
-          onDelete={(orgId) => run(() => deleteAdminOrganization(orgId))}
-          onAssign={(orgId, userId) => run(() => setUserOrganization(orgId, userId))}
-        />
       ) : (
         <GroupsTab
           t={t}
@@ -620,11 +593,6 @@ function UsersTab({ t, users, me, busy, newUser, setNewUser, canCreate, onCreate
                 </Hint>
               </th>
               <th className="text-left font-medium px-4 py-3">
-                <Hint label={t("organizationHint")} focusable>
-                  <span className="cursor-help border-b border-dotted th-border">{t("organization")}</span>
-                </Hint>
-              </th>
-              <th className="text-left font-medium px-4 py-3">
                 <Hint label={t("roleHint")} focusable>
                   <span className="cursor-help border-b border-dotted th-border">{t("role")}</span>
                 </Hint>
@@ -714,18 +682,6 @@ function UsersTab({ t, users, me, busy, newUser, setNewUser, canCreate, onCreate
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {u.organization ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] th-bg-surface th-text-secondary border th-border">
-                        <Building2 size={10} />
-                        {u.organization}
-                      </span>
-                    ) : (
-                      <Hint label={t("noOrgHint")}>
-                        <span className="th-text-ghost cursor-help">—</span>
-                      </Hint>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
                     <select
                       value={roleValue(u)}
                       aria-label={t("roleOf", { email: u.email })}
@@ -754,7 +710,7 @@ function UsersTab({ t, users, me, busy, newUser, setNewUser, canCreate, onCreate
             })}
             {shown.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center th-text-faint text-sm">
+                <td colSpan={7} className="px-4 py-8 text-center th-text-faint text-sm">
                   {t("noUserMatches", { query })}
                 </td>
               </tr>
@@ -762,119 +718,6 @@ function UsersTab({ t, users, me, busy, newUser, setNewUser, canCreate, onCreate
           </tbody>
         </table>
       </div>
-    </>
-  );
-}
-
-/** Organisations: what an org admin's authority is bounded by.
- *
- *  Only a superadmin reaches this. An org admin who could create or delete
- *  organisations could grant themselves another one, which would make the
- *  boundary decorative.
- */
-function OrgsTab({ t, orgs, users, busy, newOrg, setNewOrg, onCreate, onDelete, onAssign }) {
-  const field = "px-3 py-2 rounded-xl th-bg-input border th-border th-text text-sm focus:outline-none focus:border-brand";
-  const [pending, setPending] = useState({});
-  const byId = Object.fromEntries(users.map((u) => [u.user_id, u]));
-
-  return (
-    <>
-      <section className="mb-6 p-4 rounded-2xl border th-border th-bg-surface">
-        <h2 className="text-sm font-bold th-text mb-3 flex items-center gap-2">
-          <Building2 size={16} /> {t("createOrg")}
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          <input
-            className={`${field} w-56`} placeholder={t("orgName")} aria-label={t("orgName")}
-            value={newOrg.name}
-            onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })}
-          />
-          <input
-            className={`${field} w-96`} placeholder={t("orgDescription")} aria-label={t("orgDescription")}
-            value={newOrg.description}
-            onChange={(e) => setNewOrg({ ...newOrg, description: e.target.value })}
-          />
-          <button
-            onClick={onCreate}
-            disabled={busy || !newOrg.name.trim()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl btn-brand text-sm font-semibold disabled:opacity-40"
-          >
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-            {t("create")}
-          </button>
-        </div>
-      </section>
-
-      {orgs.length === 0 ? (
-        <EmptyState icon={Building2} title={t("noOrgTitle")} description={t("noOrgBody")} />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {orgs.map((org) => (
-            <div key={org.org_id} className="p-4 rounded-2xl border th-border th-bg-surface">
-              <div className="flex items-start gap-2 mb-3">
-                <div>
-                  <h3 className="font-bold th-text">{org.name}</h3>
-                  {org.description && (
-                    <p className="text-xs th-text-muted">{org.description}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => onDelete(org.org_id)}
-                  disabled={busy}
-                  aria-label={t("deleteOrgOf", { name: org.name })}
-                  className="ml-auto p-2 rounded-lg th-text-faint hover:text-red-400 hover:th-bg-surface-hover disabled:opacity-40"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-
-              <span className="block text-xs font-bold th-text-muted mb-1.5">
-                {t("orgMembers", { count: org.members.length })}
-              </span>
-              <div className="flex flex-wrap gap-1 mb-2">
-                {org.members.map((userId) => (
-                  <span
-                    key={userId}
-                    className="px-2 py-1 rounded-lg th-bg-elevated border th-border text-xs th-text"
-                  >
-                    {byId[userId]?.email ?? `#${userId}`}
-                  </span>
-                ))}
-              </div>
-
-              {/* Assigning moves rather than adds: a user belongs to at most
-                  one organisation, so this reassigns whoever is picked. */}
-              <div className="flex gap-2">
-                <select
-                  className={`${field} flex-1 text-xs`}
-                  aria-label={t("assignTo", { name: org.name })}
-                  value={pending[org.org_id] ?? ""}
-                  onChange={(e) => setPending({ ...pending, [org.org_id]: e.target.value })}
-                >
-                  <option value="">{t("chooseMember")}</option>
-                  {users
-                    .filter((u) => !org.members.includes(u.user_id))
-                    .map((u) => (
-                      <option key={u.user_id} value={u.user_id}>{u.email}</option>
-                    ))}
-                </select>
-                <button
-                  onClick={() => {
-                    const picked = pending[org.org_id];
-                    if (!picked) return;
-                    onAssign(org.org_id, Number(picked));
-                    setPending({ ...pending, [org.org_id]: "" });
-                  }}
-                  disabled={busy || !pending[org.org_id]}
-                  className="px-3 py-2 rounded-xl btn-brand text-xs font-semibold disabled:opacity-40"
-                >
-                  {t("assign")}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </>
   );
 }

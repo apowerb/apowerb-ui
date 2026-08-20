@@ -32,7 +32,6 @@ import {
   Check,
 } from "lucide-react";
 import ScheduleRunModal from "./ScheduleRunModal";
-import NewExcelCampaignWizard from "./campaigns/NewExcelCampaignWizard";
 import {
   listAgents,
   listPipelineSchedules,
@@ -295,7 +294,6 @@ export default function SchedulerManager() {
   const [runsPage, setRunsPage] = useState(0);
   const [prefilledMessage, setPrefilledMessage] = useState("");
   const [runNowMode, setRunNowMode] = useState(false);
-  const [wizardOpen, setWizardOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== "undefined") {
       const h = window.location.hash.replace("#", "");
@@ -1404,13 +1402,6 @@ export default function SchedulerManager() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setWizardOpen(true)}
-              className="glass-btn flex items-center gap-2 px-5 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 hover:scale-105"
-            >
-              <Mail size={20} />
-              {t("newExcelCampaign")}
-            </button>
-            <button
               onClick={() => {
                 setPreselectedAgent(null);
                 setPrefilledMessage("");
@@ -1509,12 +1500,6 @@ export default function SchedulerManager() {
         onRunNow={handleRunNow}
       />
 
-      {wizardOpen && (
-        <NewExcelCampaignWizard
-          open={wizardOpen}
-          onClose={() => setWizardOpen(false)}
-        />
-      )}
     </div>
   );
 }

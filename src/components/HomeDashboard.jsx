@@ -5,7 +5,6 @@ import { useRouter } from "@/lib/navigation";
 import {
   Users,
   MessageSquare,
-  Coins,
   Plus,
   ArrowRight,
   Clock,
@@ -21,9 +20,7 @@ import { useTranslations } from "use-intl";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   listAgents,
-  getBillingBalance,
   listNotifications,
-  getPublicConfig,
   createAgent,
   listAllSessions,
   listPipelines,
@@ -94,9 +91,6 @@ export default function HomeDashboard() {
   const [pipelinesLoading, setPipelinesLoading] = useState(true);
   const [templates, setTemplates] = useState([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
-  const [balance, setBalance] = useState(null);
-  const [balanceLoading, setBalanceLoading] = useState(true);
-  const [billingEnabled, setBillingEnabled] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [notifsLoading, setNotifsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -107,17 +101,14 @@ export default function HomeDashboard() {
     setSessionsLoading(true);
     setPipelinesLoading(true);
     setTemplatesLoading(true);
-    setBalanceLoading(true);
     setNotifsLoading(true);
 
-    const [agentsRes, sessionsRes, pipelinesRes, templatesRes, cfgRes, balRes, notifsRes] =
+    const [agentsRes, sessionsRes, pipelinesRes, templatesRes, notifsRes] =
       await Promise.allSettled([
         listAgents(),
         listAllSessions(),
         listPipelines(),
         listSuperAgents(),
-        getPublicConfig(),
-        getBillingBalance(),
         listNotifications({ limit: 5, unread_only: false }),
       ]);
 
@@ -139,12 +130,6 @@ export default function HomeDashboard() {
       const list = Array.isArray(raw) ? raw : raw?.templates || raw?.superagents || [];
       setTemplates(Array.isArray(list) ? list : []);
     }
-    if (cfgRes.status === "fulfilled") {
-      setBillingEnabled(cfgRes.value?.billing_enabled !== false);
-    }
-    if (balRes.status === "fulfilled") {
-      setBalance(balRes.value);
-    }
     if (notifsRes.status === "fulfilled") {
       const list = notifsRes.value?.notifications ?? [];
       setNotifications(Array.isArray(list) ? list : []);
@@ -154,7 +139,6 @@ export default function HomeDashboard() {
     setSessionsLoading(false);
     setPipelinesLoading(false);
     setTemplatesLoading(false);
-    setBalanceLoading(false);
     setNotifsLoading(false);
   }, []);
 
@@ -214,7 +198,6 @@ export default function HomeDashboard() {
     [templates],
   );
 
-  const credits = balance?.credits ?? balance?.balance ?? null;
   const unreadNotifs = notifications.filter((n) => !n.is_read);
 
   const resumeSession = (session) => {
@@ -403,27 +386,16 @@ export default function HomeDashboard() {
             }
             tone="blue"
           />
-          {billingEnabled ? (
-            <StatCard
-              icon={Coins}
-              label={t("creditsLabel")}
-              value={credits !== null ? credits.toLocaleString() : "—"}
-              loading={balanceLoading}
-              hint={credits === 0 ? t("topUpHint") : null}
-              tone="amber"
-            />
-          ) : (
-            <StatCard
-              icon={Bell}
-              label={t("unreadLabel")}
-              value={unreadNotifs.length}
-              loading={notifsLoading}
-              hint={
-                unreadNotifs.length > 0 ? t("checkNotificationsHint") : t("allCaughtUpHint")
-              }
-              tone="amber"
-            />
-          )}
+          <StatCard
+            icon={Bell}
+            label={t("unreadLabel")}
+            value={unreadNotifs.length}
+            loading={notifsLoading}
+            hint={
+              unreadNotifs.length > 0 ? t("checkNotificationsHint") : t("allCaughtUpHint")
+            }
+            tone="amber"
+          />
         </section>
 
         {/* Two-column : recent sessions + discover */}

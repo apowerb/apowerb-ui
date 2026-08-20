@@ -54,7 +54,6 @@ import DashboardFilters from "./DashboardFilters";
 import AddChartWizard from "./AddChartWizard";
 import ChartSidebar from "./ChartSidebar";
 import MiniChat from "./MiniChat";
-import LaunchEmailCampaignModal from "./LaunchEmailCampaignModal";
 import { authStorage } from "@/lib/authStorage";
 
 import html2canvas from "html2canvas-pro";
@@ -114,15 +113,6 @@ export default function DashboardDetail({ dashboardId }) {
   const [showSidebar, setShowSidebar] = useState(false);
   const draggingChartRef = useRef(null);
 
-  // Email campaign
-  const [campaignModal, setCampaignModal] = useState({
-    open: false,
-    itemPath: null,
-    availableColumns: [],
-    previewRow: null,
-    sheetName: null,
-  });
-  const [loadingCampaign, setLoadingCampaign] = useState(false);
   const [chartSourcesById, setChartSourcesById] = useState({});
 
   const fetchDashboard = useCallback(async () => {
@@ -663,42 +653,6 @@ export default function DashboardDetail({ dashboardId }) {
     };
   }, [dashboard, chartSourcesById]);
 
-  // TODO: support multiple onedrive_excel charts (multi-chart picker).
-  // For MVP we pick the first component whose chart source is onedrive_excel.
-  const onedriveExcelComponent = useMemo(() => {
-    return (dashboard?.components || []).find((c) => {
-      const chartId = c.chart?.chart_id;
-      if (!chartId) return false;
-      const src = chartSourcesById[chartId];
-      return src?.source_type === "onedrive_excel";
-    });
-  }, [dashboard, chartSourcesById]);
-
-  const handleOpenCampaign = useCallback(async () => {
-    if (!onedriveExcelComponent?.chart?.chart_id) return;
-    const chartId = onedriveExcelComponent.chart.chart_id;
-    const sourceOptions =
-      chartSourcesById[chartId]?.source_options || {};
-    setLoadingCampaign(true);
-    try {
-      const data = await getChartData(chartId);
-      const rows = data?.rows || [];
-      const columns =
-        data?.labels ||
-        (rows.length > 0 ? Object.keys(rows[0]) : []);
-      setCampaignModal({
-        open: true,
-        itemPath: sourceOptions.item_path || null,
-        availableColumns: columns,
-        previewRow: rows[0] || null,
-        sheetName: sourceOptions.sheet_name || null,
-      });
-    } catch (err) {
-      toast.error(t("loadChartDataFailed", { message: err.message }));
-    } finally {
-      setLoadingCampaign(false);
-    }
-  }, [onedriveExcelComponent, chartSourcesById, toast, t]);
 
   if (loading) {
     return (
@@ -814,21 +768,6 @@ export default function DashboardDetail({ dashboardId }) {
                   <Lock size={20} />
                 </button>
               </>
-            )}
-            {onedriveExcelComponent && (
-              <button
-                onClick={handleOpenCampaign}
-                disabled={loadingCampaign}
-                className="flex items-center gap-2 px-4 py-3 th-bg-surface border th-border hover:bg-blue-500/20 hover:border-blue-500/30 th-text-muted hover:text-blue-400 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                title={t("launchEmailCampaignTitle")}
-              >
-                {loadingCampaign ? (
-                  <Loader2 size={20} className="animate-spin" />
-                ) : (
-                  <Send size={20} />
-                )}
-                <span className="text-sm">{t("launchEmailCampaign")}</span>
-              </button>
             )}
             {/* Export dropdown */}
             <div className="relative" ref={exportMenuRef}>
@@ -1358,18 +1297,6 @@ export default function DashboardDetail({ dashboardId }) {
         />
       )}
 
-      {/* Launch Email Campaign Modal */}
-      <LaunchEmailCampaignModal
-        open={campaignModal.open}
-        onClose={() =>
-          setCampaignModal((s) => ({ ...s, open: false }))
-        }
-        itemPath={campaignModal.itemPath}
-        dashboardId={dashboardId}
-        availableColumns={campaignModal.availableColumns}
-        previewRow={campaignModal.previewRow}
-        sheetName={campaignModal.sheetName}
-      />
     </div>
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { User, LogOut, Settings, ChevronDown, CreditCard } from "lucide-react";
+import { User, LogOut, Settings, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function UserMenu({ onOpenProfile, onOpenBilling, onLogout, collapsed = false }) {
+export default function UserMenu({ onOpenProfile, onLogout, collapsed = false }) {
   const { user, logout, isLoading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
@@ -121,16 +121,6 @@ export default function UserMenu({ onOpenProfile, onOpenBilling, onLogout, colla
             <Settings size={16} />
             My Profile
           </button>
-
-          {onOpenBilling && (
-            <button
-              onClick={() => { setIsOpen(false); onOpenBilling?.(); }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm th-text-secondary hover:th-bg-surface-hover rounded-lg transition-colors"
-            >
-              <CreditCard size={16} />
-              Billing
-            </button>
-          )}
 
           <button
             onClick={handleLogout}

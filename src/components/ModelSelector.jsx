@@ -51,10 +51,11 @@ const FALLBACK_PROVIDER_MODELS = {
   ],
 };
 
-// `thaink2` en tête : c'est le choix par défaut recommandé (aucune clé à
+// Le modèle par défaut en tête : c'est le choix recommandé (aucune clé à
 // saisir). Il n'apparaît que si le backend le sert vraiment — GET /models
 // ne renvoie ce provider que lorsque DEFAULT_LLM_MODEL/API_KEY sont
-// configurés côté serveur, et il est absent du fallback statique.
+// configurés côté serveur, et il est absent du fallback statique. La clé
+// `thaink2` est l'identifiant apparié avec le backend, jamais un libellé.
 const PROVIDER_ORDER = ["thaink2", "anthropic", "openai", "mistral", "gemini", "deepseek", "groq"];
 
 export const DEFAULT_LLM_PROVIDER = "thaink2";
@@ -111,8 +112,8 @@ export default function ModelSelector({ value, onChange }) {
 
 
 
-  // Modèle mutualisé : un seul modèle, choisi par thaink2. On n'affiche ni
-  // liste ni champ libre — laisser l'utilisateur éditer « thaink2/... » ne
+  // Modèle par défaut : un seul modèle, choisi par l'exploitant du serveur.
+  // On n'affiche ni liste ni champ libre — laisser l'utilisateur éditer ce
   // produirait qu'un modèle invalide (le backend rejette tout autre suffixe).
   const isDefaultLlm = providerKey === DEFAULT_LLM_PROVIDER;
 
@@ -207,7 +208,7 @@ export default function ModelSelector({ value, onChange }) {
         )}
       </div>
 
-      {/* ---- Modèle mutualisé thaink2 : rien à configurer ---- */}
+      {/* ---- Modèle fourni par le serveur : rien à configurer ---- */}
       {isDefaultLlm && (
         <div className="flex items-start gap-2 p-3 rounded-lg border th-border-secondary th-bg-surface text-xs th-text-secondary">
           <ProviderIcon provider={DEFAULT_LLM_PROVIDER} size={14} />

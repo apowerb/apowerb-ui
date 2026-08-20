@@ -249,15 +249,30 @@ export const getSessionHistory = (agentName, userId, sessionId) =>
   request(`/api/adk/sessions/${agentName}/${userId}/${sessionId}`);
 
 // --- Artifacts (silent401: don't clear auth on 401 — artifacts may fail independently) ---
+
+/** Uploads and generated files live under the same routes, told apart by `kind`. */
+const kindQuery = (kind) => (kind ? `?kind=${encodeURIComponent(kind)}` : "");
+
+/**
+ * The whole library in one request.
+ *
+ * Returns `{items, supported}`. `supported: false` means the backend is on
+ * its local-disk fallback, which has no equivalent sweep — the caller falls
+ * back to listing per session. Older backends answer 404, same thing.
+ */
+export const listArtifactLibrary = () =>
+  request("/api/artifacts/library", { silent401: true });
+
 export const listArtifacts = (agentName, userId, sessionId) =>
   request(`/api/artifacts/${agentName}/${userId}/${sessionId}`, {
     silent401: true,
   });
 
-export const loadArtifact = (agentName, userId, sessionId, filename) =>
-  request(`/api/artifacts/${agentName}/${userId}/${sessionId}/${filename}`, {
-    silent401: true,
-  });
+export const loadArtifact = (agentName, userId, sessionId, filename, kind) =>
+  request(
+    `/api/artifacts/${agentName}/${userId}/${sessionId}/${filename}${kindQuery(kind)}`,
+    { silent401: true },
+  );
 
 export const executeArtifact = (
   agentName,
@@ -265,9 +280,10 @@ export const executeArtifact = (
   sessionId,
   filename,
   options,
+  kind,
 ) =>
   request(
-    `/api/artifacts/${agentName}/${userId}/${sessionId}/${filename}/execute`,
+    `/api/artifacts/${agentName}/${userId}/${sessionId}/${filename}/execute${kindQuery(kind)}`,
     {
       method: "POST",
       body: JSON.stringify(options || {}),
@@ -957,24 +973,21 @@ export const demandEmailVerification = (userId) =>
 export const disableAdminUserMfa = (userId) =>
   request(`/api/admin/users/${userId}/disable-mfa`, { method: "POST" });
 
-// Organisations — superadmin only; these answer 403 to an org admin.
-export const listAdminOrganizations = () => request("/api/admin/organizations");
-
-export const createAdminOrganization = ({ name, description }) =>
-  request("/api/admin/organizations", {
-    method: "POST",
-    body: JSON.stringify({ name, ...(description ? { description } : {}) }),
-  });
-
-export const renameAdminOrganization = (orgId, { name, description }) =>
-  request(`/api/admin/organizations/${orgId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ name, ...(description ? { description } : {}) }),
-  });
-
-export const deleteAdminOrganization = (orgId) =>
-  request(`/api/admin/organizations/${orgId}`, { method: "DELETE" });
-
-// A user belongs to at most one organisation, so this moves rather than adds.
-export const setUserOrganization = (orgId, userId) =>
-  request(`/api/admin/organizations/${orgId}/members/${userId}`, { method: "PUT" });
+/**
+ * Fetches a file's bytes through the authenticated API and hands back a Blob.
+ *
+ * A PDF or an image has no text body to rebuild client-side: downloading it
+ * from what the artifact endpoint returns would write an empty file. The
+ * download route serves the object itself.
+ */
+export const downloadAgentFile = async (agentName, filename) => {
+  const token = getAuthToken();
+  const res = await fetch(
+    apiUrl(`/api/files/${agentName}/${encodeURIComponent(filename)}`),
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  );
+  if (!res.ok) {
+    throw new Error(`Download failed (${res.status})`);
+  }
+  return res.blob();
+};
