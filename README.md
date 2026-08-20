@@ -40,9 +40,9 @@ the same API is a supported thing to build.
 | **BI** | Build dashboards and charts from your data, and export them |
 | **Orchestrator** | Schedule runs, and see what a schedule produced |
 | **Webhooks** | Trigger an agent from an incoming event, such as a new email |
-| **Supervision** | Audit sessions: what ran, for whom, how many steps, whether it errored |
 | **Logging** | Read the run trace of a single session, step by step |
-| **Billing** | Credit balance and purchases *(needs the billing brick — see Editions)* |
+| **Artifacts** | Browse the files your agents produced, read them, run them again, download them |
+| **Administration** | Users, groups, permissions, and demanding a second factor |
 
 Dedicated chatbot routes ship for two common cases: retrieval over your documents
 (`/chatbot/rag`) and natural-language querying of a database (`/chatbot/text-to-sql`).
@@ -105,10 +105,19 @@ instance, rather than re-deriving the endpoints by hand.
 ## Editions, and the extension slots
 
 apowerb is an **open core**. The API ships as a complete, generic server, and some
-capabilities — billing, usage metering, identity-provider sign-in, multi-factor
-authentication, agent evaluation — are separate commercial bricks. They are *absent* from the
-open-source build, not disabled: their routes answer `404`. See
-[Editions and extensions](https://docs.apowerb.com/concepts/editions).
+capabilities — billing, usage metering, prospection, identity-provider sign-in, multi-factor
+authentication, agent evaluation, supervision, organisation management — are separate
+commercial bricks. They are *absent* from the open-source build, not disabled: their routes
+answer `404`. See [Editions and extensions](https://docs.apowerb.com/concepts/editions).
+
+The administration panel itself is **here**: users, groups, permissions, MFA enforcement.
+Only the management of *organisations* is sold separately — deciding which tenant a person
+belongs to governs other people's reach, rather than serving whoever runs the install. A
+user's organisation is still displayed where the server reports one.
+
+A screen that would call a brick this build does not carry is not shipped hidden, it is not
+shipped at all. `src/__tests__/noCommercialScreens.test.js` enforces that on both links and
+**calls**, deriving the forbidden symbols from the client rather than from a hand-kept list.
 
 This interface mirrors that on the front end. `src/extensions/` holds a small registry: a
 brick is an object with a `register(registry)` function, `Slot.jsx` marks the places in the
