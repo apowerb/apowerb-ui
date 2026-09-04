@@ -1,8 +1,7 @@
 /**
  * Server-side proxy to the telemetry ingest service (th2pulse ingest).
  *
- * The ingest service listens on localhost only and has no auth of its own,
- * so this proxy is the authorization boundary:
+ * This proxy is the authorization boundary in front of the ingest:
  *  - authentication: the caller's Bearer token is validated against the
  *    FastAPI backend (/api/users/me);
  *  - authorization: non-admin users only see their own conversations —
@@ -11,10 +10,22 @@
  *    overwritten).
  * The ingest URL is read from the server-only env var PULSE_API_URL
  * (never exposed to the browser).
+ *
+ * The ingest has auth of its own, and this proxy must satisfy it: th2pulse
+ * binds 0.0.0.0 in its container and refuses to start without a query token,
+ * so its read endpoints answer 401 to a caller that presents none. Measured
+ * on 04/09/2026 against 0.1.4: with PULSE_API_URL correctly pointed, the
+ * Logging screen still got `401 missing or invalid query token`. The token
+ * travels in PULSE_QUERY_TOKEN, server-side only.
+ *
+ * `x-th2pulse-query-token` reads; `x-th2pulse-token` writes (OTLP ingestion)
+ * and belongs to the collector. This proxy never carries the write token --
+ * holding it would let a read path forge telemetry.
  */
 
 const API_URL = process.env.API_URL || "http://localhost:8000";
 const PULSE_API_URL = process.env.PULSE_API_URL || "http://127.0.0.1:4319";
+const QUERY_TOKEN_HEADER = "x-th2pulse-query-token";
 
 /** Authenticate + authorize. Returns { identity, scopedUserId } or a Response. */
 async function authorize(request) {
@@ -60,9 +71,23 @@ function buildTarget(request, pulsePath, scopedUserId) {
   return `${PULSE_API_URL}${pulsePath}${qs ? `?${qs}` : ""}`;
 }
 
+/**
+ * Every call to the ingest goes through here, and that is why the token is
+ * attached here rather than at each call site: an endpoint added later cannot
+ * silently skip it by forgetting. Same reasoning as the ingest's own route
+ * guard.
+ *
+ * An ingest running without a token accepts reads; we send nothing in that
+ * case rather than refusing, so a deployment that never configured one keeps
+ * working.
+ */
 async function forward(target, init = {}) {
+  const token = process.env.PULSE_QUERY_TOKEN;
+  const headers = new Headers(init.headers || {});
+  if (token) headers.set(QUERY_TOKEN_HEADER, token);
+
   try {
-    const res = await fetch(target, { cache: "no-store", ...init });
+    const res = await fetch(target, { cache: "no-store", ...init, headers });
     return new Response(res.body, {
       status: res.status,
       headers: {
