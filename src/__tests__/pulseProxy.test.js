@@ -41,33 +41,41 @@ describe("pulseProxy", () => {
     expect((await pulseProxy(req(), "/logs")).status).toBe(502);
   });
 
-  it("forces the verified user's scope for non-admins, overriding client input", async () => {
-    fetch
-      .mockResolvedValueOnce(jsonResponse({ email: "alice@x.io", role: "user" }))
-      .mockResolvedValueOnce(jsonResponse({ count: 0, logs: [] }));
+  it("refuses non-admins outright, and never reaches the ingest", async () => {
+    // Was: scoped to their own user_id. That filter matched nothing, because
+    // application logs carry no user attribute — every non-admin got an
+    // empty 200 that read exactly like an outage.
+    fetch.mockResolvedValueOnce(jsonResponse({ email: "alice@x.io", role: "user" }));
 
-    const res = await pulseProxy(
-      req("/api/logging/logs?user_id=victim@x.io&conversation_id=c1"),
-      "/logs",
-    );
-    expect(res.status).toBe(200);
-    const target = new URL(fetch.mock.calls[1][0]);
-    expect(target.searchParams.get("user_id")).toBe("alice@x.io");
-    expect(target.searchParams.get("conversation_id")).toBe("c1");
+    const res = await pulseProxy(req(), "/logs");
+
+    expect(res.status).toBe(403);
+    expect(fetch).toHaveBeenCalledTimes(1); // identity check only
   });
 
-  it("does not scope admins", async () => {
+  it("tells a refused user why, instead of showing them nothing", async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({ email: "alice@x.io", role: "user" }));
+    const body = await (await pulseProxy(req(), "/logs")).json();
+    expect(body.detail).toMatch(/administrator/i);
+  });
+
+  it("passes an admin's query through untouched", async () => {
     fetch
       .mockResolvedValueOnce(jsonResponse({ email: "root@x.io", role: "ADMIN" }))
       .mockResolvedValueOnce(jsonResponse({ count: 0, logs: [] }));
 
-    await pulseProxy(req("/api/logging/conversations"), "/conversations");
+    await pulseProxy(
+      req("/api/logging/logs?user_id=someone@x.io&conversation_id=c1"),
+      "/logs",
+    );
     const target = new URL(fetch.mock.calls[1][0]);
-    expect(target.searchParams.get("user_id")).toBeNull();
+    // An admin's own filters are theirs to set; nothing is forced or removed.
+    expect(target.searchParams.get("user_id")).toBe("someone@x.io");
+    expect(target.searchParams.get("conversation_id")).toBe("c1");
   });
 
-  it("denies non-admin identities without an email", async () => {
-    fetch.mockResolvedValueOnce(jsonResponse({ role: "user" }));
+  it("denies an identity carrying no role at all", async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({ email: "nobody@x.io" }));
     expect((await pulseProxy(req(), "/logs")).status).toBe(403);
   });
 });
@@ -89,8 +97,9 @@ describe("pulseProxyWrite", () => {
   }
 
   it("forces the verified identity as author, overriding any client value", async () => {
+    // Only admins get here now, but an admin does not sign as someone else.
     fetch
-      .mockResolvedValueOnce(jsonResponse({ email: "alice@x.io", role: "user" }))
+      .mockResolvedValueOnce(jsonResponse({ email: "root@x.io", role: "ADMIN" }))
       .mockResolvedValueOnce(jsonResponse({ id: 1 }));
 
     const res = await pulseProxyWrite(
@@ -98,14 +107,23 @@ describe("pulseProxyWrite", () => {
       "/annotations",
     );
     expect(res.status).toBe(200);
-    const [target, init] = fetch.mock.calls[1];
+    const [, init] = fetch.mock.calls[1];
     expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body).author).toBe("alice@x.io");
-    expect(new URL(target).searchParams.get("user_id")).toBe("alice@x.io");
+    expect(JSON.parse(init.body).author).toBe("root@x.io");
+  });
+
+  it("refuses a non-admin write before reading the body", async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({ email: "alice@x.io", role: "user" }));
+    const res = await pulseProxyWrite(
+      writeReq({ conversation_id: "c1", note: "hi" }),
+      "/annotations",
+    );
+    expect(res.status).toBe(403);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("rejects invalid JSON bodies", async () => {
-    fetch.mockResolvedValueOnce(jsonResponse({ email: "a@x.io", role: "user" }));
+    fetch.mockResolvedValueOnce(jsonResponse({ email: "a@x.io", role: "ADMIN" }));
     const bad = new Request("http://front.local/api/logging/annotations", {
       method: "POST",
       headers: { authorization: "Bearer tok" },

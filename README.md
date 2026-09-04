@@ -40,7 +40,7 @@ the same API is a supported thing to build.
 | **BI** | Build dashboards and charts from your data, and export them |
 | **Orchestrator** | Schedule runs, and see what a schedule produced |
 | **Webhooks** | Trigger an agent from an incoming event, such as a new email |
-| **Logging** | Read the run trace of a single session, step by step |
+| **Logging** | Read the run traces and logs of the whole deployment, step by step — administrators only |
 | **Artifacts** | Browse the files your agents produced, read them, run them again, download them |
 | **Administration** | Users, groups, permissions, and demanding a second factor |
 

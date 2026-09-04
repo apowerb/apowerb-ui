@@ -4,10 +4,16 @@
  * This proxy is the authorization boundary in front of the ingest:
  *  - authentication: the caller's Bearer token is validated against the
  *    FastAPI backend (/api/users/me);
- *  - authorization: non-admin users only see their own conversations —
- *    a user_id filter derived from the *verified* backend identity is
- *    forced onto every downstream query (any client-supplied user_id is
- *    overwritten).
+ *  - authorization: **administrators only**. The Logging screen is an
+ *    operations view over the whole deployment, not a personal journal.
+ *
+ * That is a deliberate decision (04/09/2026), and it follows from what the
+ * records actually contain: application logs carry no user attribute, so the
+ * per-user filter this proxy used to force matched nothing. Measured — 2 rows
+ * stored, 0 returned once scoped. Filtering by a field the data does not have
+ * showed every non-admin an empty screen and called it privacy. Either the
+ * records gain a user attribute, or the screen is admin-only; this is the
+ * second, said out loud.
  * The ingest URL is read from the server-only env var PULSE_API_URL
  * (never exposed to the browser).
  *
@@ -27,7 +33,7 @@ const API_URL = process.env.API_URL || "http://localhost:8000";
 const PULSE_API_URL = process.env.PULSE_API_URL || "http://127.0.0.1:4319";
 const QUERY_TOKEN_HEADER = "x-th2pulse-query-token";
 
-/** Authenticate + authorize. Returns { identity, scopedUserId } or a Response. */
+/** Authenticate + authorize. Returns { identity } or a Response. */
 async function authorize(request) {
   const authHeader = request.headers.get("authorization");
   if (!authHeader) {
@@ -55,19 +61,24 @@ async function authorize(request) {
   }
 
   const role = (identity?.role || "").toLowerCase();
-  if (role !== "admin" && !identity?.email) {
-    return Response.json({ detail: "Forbidden" }, { status: 403 });
+  if (role !== "admin") {
+    // 403 with a reason, not an empty 200. A blank screen is
+    // indistinguishable from an outage, and this whole feature exists
+    // because someone could not tell those two apart.
+    return Response.json(
+      {
+        detail:
+          "The Logging screen is restricted to administrators. Ask a " +
+          "workspace administrator for access.",
+      },
+      { status: 403 },
+    );
   }
-  return {
-    identity,
-    scopedUserId: role === "admin" ? null : identity.email,
-  };
+  return { identity };
 }
 
-function buildTarget(request, pulsePath, scopedUserId) {
-  const params = new URL(request.url).searchParams;
-  if (scopedUserId) params.set("user_id", scopedUserId);
-  const qs = params.toString();
+function buildTarget(request, pulsePath) {
+  const qs = new URL(request.url).searchParams.toString();
   return `${PULSE_API_URL}${pulsePath}${qs ? `?${qs}` : ""}`;
 }
 
@@ -103,12 +114,13 @@ async function forward(target, init = {}) {
 export async function pulseProxy(request, pulsePath) {
   const auth = await authorize(request);
   if (auth instanceof Response) return auth;
-  return forward(buildTarget(request, pulsePath, auth.scopedUserId));
+  return forward(buildTarget(request, pulsePath));
 }
 
 /**
  * Write proxy (annotations): the author is ALWAYS the verified identity —
- * any client-supplied author is overwritten, admins included.
+ * any client-supplied author is overwritten. Only administrators reach
+ * here at all, but an admin does not get to sign as someone else.
  */
 export async function pulseProxyWrite(request, pulsePath) {
   const auth = await authorize(request);
@@ -125,7 +137,7 @@ export async function pulseProxyWrite(request, pulsePath) {
   }
   body.author = auth.identity.email;
 
-  return forward(buildTarget(request, pulsePath, auth.scopedUserId), {
+  return forward(buildTarget(request, pulsePath), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
