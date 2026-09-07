@@ -13,6 +13,8 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "use-intl";
 import SavedApiKeySelector from "../SavedApiKeySelector";
+import DefaultLlmUsageGauge from "../agent-modal/DefaultLlmUsageGauge";
+import { DEFAULT_LLM_MODEL_ID } from "../ModelSelector";
 
 function ToggleSwitch({ label, checked, onChange }) {
   return (
@@ -49,6 +51,9 @@ export default function DiagramHeaderPanel({
   toolConfigs,
 }) {
   const t = useTranslations("DiagramHeaderPanel");
+  // Modèle mutualisé thaink2 : aucune clé à saisir ni à lire — à la place, la
+  // jauge du mois (même composant que le formulaire de création).
+  const usesDefaultLlm = agentData.agent_model === DEFAULT_LLM_MODEL_ID;
   const templateParams = agentData.template_model_params || {};
   const showPropagateToggle =
     canvasOrderLength > 0 &&
@@ -59,8 +64,8 @@ export default function DiagramHeaderPanel({
 
   return (
     <div className="px-4 pb-3 text-sm space-y-2">
-      {/* Saved API Key Configuration */}
-      <div>
+      {/* Saved API Key Configuration — sans objet pour le modèle mutualisé */}
+      <div className={usesDefaultLlm ? "hidden" : undefined}>
         <label className="block text-xs th-text-faint mb-1">
           {t("savedConfigurationLabel")}
         </label>
@@ -104,7 +109,12 @@ export default function DiagramHeaderPanel({
             className="glass-input w-full px-3 py-1.5 rounded-lg"
           />
         </div>
-        <div>
+        {usesDefaultLlm && (
+          <div>
+            <DefaultLlmUsageGauge />
+          </div>
+        )}
+        <div className={usesDefaultLlm ? "hidden" : undefined}>
           <label className="block text-xs th-text-faint mb-1">{t("apiKeyLabel")}</label>
           <div className="relative">
             <input
