@@ -191,7 +191,14 @@
     "memoryTitle": "Long-term Memory",
     "propagateApiKeyLabel": "Propagate API key to all sub-agents",
     "savedConfigurationLabel": "Saved configuration",
-    "selectCategoryOption": "-- Select Category --"
+    "selectCategoryOption": "-- Select Category --",
+    "defaultLlmUsageTitle": "Shared model usage this month",
+    "defaultLlmUsageTokens": "{used} tokens",
+    "defaultLlmUsageOfLimit": "{used} / {limit} tokens",
+    "defaultLlmUsageResets": "Resets on {date}.",
+    "defaultLlmUsageWarning": "{percent}% of your monthly allowance used.",
+    "defaultLlmUsageExceeded": "Monthly allowance exhausted.",
+    "defaultLlmUsageUnavailable": "Shared model usage is unavailable right now."
   },
   "AgentHeader": {
     "agentNamePlaceholder": "Agent Name",
