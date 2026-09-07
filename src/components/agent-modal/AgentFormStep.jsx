@@ -16,6 +16,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import SavedApiKeySelector from "../SavedApiKeySelector";
 import ModelSelector, { DEFAULT_LLM_MODEL_ID } from "../ModelSelector";
+import DefaultLlmUsageGauge from "./DefaultLlmUsageGauge";
 import { MASKED_API_KEY } from "@/lib/apiKeyMask";
 import GuardrailsSection from "./GuardrailsSection";
 import OutputFormatSection from "./OutputFormatSection";
@@ -224,6 +225,10 @@ export default function AgentFormStep({
         value={newAgent.agent_model || ""}
         onChange={(model) => setNewAgent((prev) => ({ ...prev, agent_model: model }))}
       />
+
+      {/* Modèle mutualisé : pas de clé à saisir, mais une jauge — où en est-on
+          ce mois-ci ? Le serveur ne sert une limite que si une brique la plafonne. */}
+      {usesDefaultLlm && <DefaultLlmUsageGauge />}
 
       {/* API Key — masquée pour thaink2 : l'utilisateur n'a aucune clé à saisir,
           et surtout aucune à lire (la clé mutualisée ne quitte pas le serveur). */}

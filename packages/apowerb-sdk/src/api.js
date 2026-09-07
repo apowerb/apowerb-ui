@@ -203,6 +203,12 @@ export const getToolsDocs = () => request("/api/tools/docs");
 
 export const getModels = () => request("/api/models");
 
+// Consommation du mois sur le modèle mutualisé « thaink2/default » : jetons
+// facturés à thaink2, mois calendaire de Paris. `limit_tokens` et ce qui en
+// découle restent null tant qu'aucune brique ne plafonne — le noyau compte,
+// il ne plafonne pas.
+export const getDefaultLlmUsage = () => request("/api/config/default-llm/usage");
+
 // --- MCP Configs ---
 export const listMcpConfigs = () => request("/api/mcp_configs");
 

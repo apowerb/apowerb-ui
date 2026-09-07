@@ -191,7 +191,14 @@
     "memoryTitle": "Mémoire à long terme",
     "propagateApiKeyLabel": "Propager la clé API à tous les sous-agents",
     "savedConfigurationLabel": "Configuration enregistrée",
-    "selectCategoryOption": "-- Sélectionner une catégorie --"
+    "selectCategoryOption": "-- Sélectionner une catégorie --",
+    "defaultLlmUsageTitle": "Consommation du modèle mutualisé ce mois-ci",
+    "defaultLlmUsageTokens": "{used} jetons",
+    "defaultLlmUsageOfLimit": "{used} / {limit} jetons",
+    "defaultLlmUsageResets": "Remise à zéro le {date}.",
+    "defaultLlmUsageWarning": "{percent} % de votre forfait mensuel consommés.",
+    "defaultLlmUsageExceeded": "Forfait mensuel épuisé.",
+    "defaultLlmUsageUnavailable": "Consommation du modèle mutualisé indisponible pour le moment."
   },
   "AgentHeader": {
     "agentNamePlaceholder": "Nom de l'agent",
