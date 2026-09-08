@@ -57,16 +57,23 @@ export function recentFromSessions(sessions, { agents = 5, conversations = 4 } =
 const STARTERS = ["starterSummarize", "starterChart", "starterEmail", "starterCompare"];
 
 /**
- * What you see with no conversation open: a greeting, the agents you used
- * recently, prompt starters, your latest threads, and the three power moves
- * of this chat (`/`, `@`, ⌘K).
+ * What you see with no conversation open, or on a thread that has no message
+ * yet (`session`): a greeting, the agents you used recently, prompt starters,
+ * your latest threads, and the three power moves of this chat (`/`, `@`, ⌘K).
+ * On an empty thread the starters go straight into the composer — the agent
+ * is already chosen — and that thread is left out of the recent list.
  */
-export default function ChatHome() {
+export default function ChatHome({ session = null }) {
   const t = useTranslations("ChatHome");
   const { user } = useAuth();
   const { sessions, createSession, setActiveSession } = useChatSessions();
   const ui = useChatUi();
-  const { recentAgents, recentConversations } = useMemo(() => recentFromSessions(sessions), [sessions]);
+  const { recentAgents, recentConversations } = useMemo(() => {
+    const r = recentFromSessions(sessions);
+    return session
+      ? { ...r, recentConversations: r.recentConversations.filter((s) => s.id !== session.id) }
+      : r;
+  }, [sessions, session]);
   const firstName = user?.firstName || user?.username || (user?.email ? user.email.split("@")[0] : "");
 
   const startWith = async (agent) => {
@@ -79,6 +86,7 @@ export default function ChatHome() {
 
   const startWithPrompt = (text) => {
     ui.setPendingComposerText(text);
+    if (session) return; // the thread already has its agent
     if (recentAgents.length === 1) startWith(recentAgents[0]);
     else ui.setAgentPickerOpen(true);
   };
@@ -95,7 +103,9 @@ export default function ChatHome() {
             <span className="w-8 h-8 rounded-xl bg-brand/15 border border-brand/25 flex items-center justify-center">
               <Sparkles size={15} className="text-brand" />
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] th-text-ghost">{t("eyebrow")}</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] th-text-ghost">
+              {session ? t("threadEyebrow", { agentName: session.agentName || session.agentId }) : t("eyebrow")}
+            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-semibold th-text tracking-tight">
             {t(greetingKey())}

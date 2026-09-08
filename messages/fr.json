@@ -3000,7 +3000,8 @@
     "powerMentionDesc": "Tapez @ pour confier le prochain message à un autre agent.",
     "powerChart": "Blocs ```chart",
     "powerChartDesc": "Demandez un graphique : le JSON de l'agent devient un graphique vivant, au thème du studio.",
-    "footerHint": "Les conversations restent dans ce navigateur. Partagez un instantané avec le bouton Partager."
+    "footerHint": "Les conversations restent dans ce navigateur. Partagez un instantané avec le bouton Partager.",
+    "threadEyebrow": "Nouvelle conversation avec {agentName}"
   },
   "ChatContainer": {
     "deleteConversationConfirm": "Supprimer cette conversation ?"
@@ -3124,11 +3125,5 @@
     "downloadedToast": "Téléchargement lancé",
     "agentReloadedToast": "Agent rechargé — le prochain message utilisera la dernière configuration",
     "agentReloadFailedToast": "Échec du rechargement de l'agent : {message}"
-  },
-  "DefaultLlmUsageMeter": {
-    "title": "Modèle mutualisé",
-    "thisMonth": "{used} ce mois-ci",
-    "remaining": "{percent} % restants",
-    "resets": "Remise à zéro le {date}"
   }
 }
