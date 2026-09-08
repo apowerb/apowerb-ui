@@ -68,7 +68,7 @@ export default function ScheduleRunModal({
         setAgentName("");
       }
       setMessage(prefilledMessage || "");
-      setSessionId(generateSessionId());
+      setSessionId(newSessionId());
       setScheduleInterval("@hourly");
       setCustomCron("");
       setStartTime("");
@@ -330,7 +330,7 @@ export default function ScheduleRunModal({
                       className="glass-input flex-1 px-4 py-3 rounded-xl"
                     />
                     <button
-                      onClick={() => setSessionId(generateSessionId())}
+                      onClick={() => setSessionId(newSessionId())}
                       className="glass-btn px-4 py-3 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-xl font-medium transition-all border border-blue-500/20"
                       title={t("generateSessionIdTitle")}
                     >
