@@ -2879,5 +2879,11 @@
     "windowDays": "{days} j",
     "scopeBounded": "Administrateur — vous ne gérez que votre propre compte.",
     "scopeOrg": "Administrateur de {org} — vous ne gérez que les utilisateurs de cette organisation."
+  },
+  "DefaultLlmUsageMeter": {
+    "title": "Modèle mutualisé",
+    "thisMonth": "{used} ce mois-ci",
+    "remaining": "{percent} % restants",
+    "resets": "Remise à zéro le {date}"
   }
 }

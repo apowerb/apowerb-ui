@@ -33,6 +33,7 @@ import { UserProfileModal, UserMenu } from "./auth";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
 import NotificationBell from "./NotificationBell";
+import DefaultLlmUsageMeter from "./DefaultLlmUsageMeter";
 import Slot from "@/extensions/Slot";
 import { navItemsFor } from "@/extensions/registry";
 
@@ -282,9 +283,12 @@ function AppContent({ children }) {
           {/* Theme toggle + Notifications + Landing + User section at bottom */}
           <div className="pt-3 border-t flex flex-col gap-2" style={{ borderColor: "var(--border-primary)" }}>
             {/* Emplacement de pied de barre latérale. La brique commerciale y
-                pose la jauge de crédit ; sans brique, rien ne s'affiche et
-                c'est l'interface open source complète. */}
-            <Slot name="sidebar.footer" collapsed={isCollapsed} />
+                pose sa jauge de crédit (limite, restant, achat) ; sans brique,
+                le cœur y met ce qu'il sait : le compteur du mois du modèle
+                mutualisé, et une barre seulement si le serveur sert une limite. */}
+            <Slot name="sidebar.footer" collapsed={isCollapsed}>
+              <DefaultLlmUsageMeter collapsed={isCollapsed} />
+            </Slot>
             {/* Repliée, la sidebar est trop étroite pour aligner le toggle
                 (48px) + 3 icônes sur une ligne : ça débordait et rognait le
                 toggle. On laisse la rangée passer à la ligne et se centrer. */}

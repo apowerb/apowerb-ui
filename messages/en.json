@@ -2879,5 +2879,11 @@
     "windowDays": "{days} d",
     "scopeBounded": "Administrator — you manage your own account only.",
     "scopeOrg": "Administrator of {org} — you manage that organisation's users only."
+  },
+  "DefaultLlmUsageMeter": {
+    "title": "Shared model",
+    "thisMonth": "{used} this month",
+    "remaining": "{percent}% left",
+    "resets": "Resets on {date}"
   }
 }
