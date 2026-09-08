@@ -82,6 +82,8 @@ export function useArtifacts(messages, sessionMeta, { autoOpen = false } = {}) {
 
       while ((match = fencedCodeRe.exec(msg.content)) !== null) {
         const language = match[1] || "text";
+        // A ```chart fence is data drawn inline by the chat, not a file.
+        if (language === "chart") continue;
         const code = match[2];
         if (code.trim().length < 20) continue;
 

@@ -10,96 +10,101 @@ import { authStorage } from "@/lib/authStorage";
 import ChatMessage from "./ChatMessage";
 import ContextIndicator from "./ContextIndicator";
 import ChatErrorBanner from "./ChatErrorBanner";
-import ChatEmptyState from "./ChatEmptyState";
+import ChatHome from "./ChatHome";
+import ThreadSearchBar from "./ThreadSearchBar";
+import { useChatUi } from "@/contexts/ChatUiContext";
 import FollowUpSuggestions from "./FollowUpSuggestions";
 import {
   MessageSquare, AlertCircle, X, Copy, Check,
-  Share2, Link, Loader2, Globe, Lock, ExternalLink,
+  Share2, Link, Loader2, Globe, ExternalLink,
   ArrowDown,
 } from "lucide-react";
-import { formatDate as formatDateParis, formatDateTime } from "@/lib/datetime";
+import { useLocale, useNow } from "use-intl";
 
 /* ─────────────────────────────────────────
    Helpers
 ───────────────────────────────────────── */
-function formatConversation(session, messages, t) {
-  const lines = [];
-  lines.push(`# ${session.title}`);
-  lines.push(`${t("agentLabel")}: ${session.agentName}`);
-  lines.push(`${t("dateLabel")}: ${formatDateParis(session.createdAt)}`);
-  lines.push("---\n");
-  for (const msg of messages) {
-    const role = msg.role === "user" ? t("userRole") : session.agentName || t("assistantRole");
-    const time = formatDateTime(msg.timestamp);
-    lines.push(`**${role}** (${time}):`);
-    const rawContent = typeof msg.content === "string" ? msg.content : "";
-    const thinking = typeof msg.thinking === "string" ? msg.thinking : "";
-    const content = rawContent.trim() ? rawContent : thinking;
-    if (content.trim()) lines.push(content);
-    if (msg.toolCalls?.length) lines.push(`\n_[${t("toolCallCount", { count: msg.toolCalls.length })}]_`);
-    lines.push("");
-  }
-  return lines.join("\n");
-}
-
 /* ─────────────────────────────────────────
    Share Modal
 ───────────────────────────────────────── */
 function ShareModal({ session, messages, onClose }) {
   const t = useTranslations("ChatMessages");
-  const [status, setStatus]       = useState("idle"); // idle | loading | success | error
+  const [status, setStatus]       = useState("loading"); // loading | success | error
   const [shareUrl, setShareUrl]   = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
   const [errorMsg, setErrorMsg]   = useState("");
   const inputRef = useRef(null);
 
-  // Generate share link on mount
-  useEffect(() => {
-    generateShare();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Resolves to the public URL; every state write happens in the promise
+  // callbacks below, so neither the mount effect nor the retry handler ever
+  // sets state synchronously.
+  const createShare = async () => {
+    const payload = {
+      title: session.title,
+      agentName: session.agentName,
+      createdAt: session.createdAt,
+      isPublic: true,
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: typeof m.content === "string" ? m.content : "",
+        timestamp: m.timestamp,
+        toolCalls: m.toolCalls || [],
+      })),
+    };
 
-  const generateShare = async () => {
+    const token = authStorage.getToken();
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch("/api/conversations/share", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error || t("serverError", { status: res.status }));
+    }
+
+    const { shareId } = await res.json();
+    return `${window.location.origin}/share/${shareId}`;
+  };
+  const failureText = (err) => err.message || t("shareGenericError");
+
+  const retryShare = () => {
     setStatus("loading");
     setErrorMsg("");
-    try {
-      const payload = {
-        title: session.title,
-        agentName: session.agentName,
-        createdAt: session.createdAt,
-        isPublic: true,
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: typeof m.content === "string" ? m.content : "",
-          timestamp: m.timestamp,
-          toolCalls: m.toolCalls || [],
-        })),
-      };
-
-      const token = authStorage.getToken();
-      const headers = { "Content-Type": "application/json" };
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      const res = await fetch("/api/conversations/share", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
+    createShare()
+      .then((url) => {
+        setShareUrl(url);
+        setStatus("success");
+      })
+      .catch((err) => {
+        setErrorMsg(failureText(err));
+        setStatus("error");
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || t("serverError", { status: res.status }));
-      }
-
-      const { shareId } = await res.json();
-      const url = `${window.location.origin}/share/${shareId}`;
-      setShareUrl(url);
-      setStatus("success");
-    } catch (err) {
-      setErrorMsg(err.message || t("shareGenericError"));
-      setStatus("error");
-    }
   };
+
+  // Generate share link on mount; a modal closed mid-flight writes nothing.
+  useEffect(() => {
+    let alive = true;
+    createShare()
+      .then((url) => {
+        if (!alive) return;
+        setShareUrl(url);
+        setStatus("success");
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setErrorMsg(failureText(err));
+        setStatus("error");
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const copyLink = async () => {
     try {
@@ -233,7 +238,7 @@ function ShareModal({ session, messages, onClose }) {
                 <p className="text-sm text-red-300">{errorMsg}</p>
               </div>
               <button
-                onClick={generateShare}
+                onClick={retryShare}
                 className="w-full py-3 rounded-xl text-sm font-semibold th-text transition-all th-bg-surface border th-border hover:th-bg-surface-hover"
               >
                 {t("tryAgain")}
@@ -276,21 +281,52 @@ function recentUserText(messages, k = 6) {
   return parts.join(" ");
 }
 
+// Day separators: "Today", "Yesterday", or the date — only when the day changes.
+function dayKey(ts) {
+  const d = new Date(ts || 0);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function DaySeparator({ timestamp, locale, t }) {
+  // `useNow` keeps "today" out of render-time clock reads (and lets the intl
+  // provider control the reference time).
+  const now = useNow().getTime();
+  const today = dayKey(now);
+  const yesterday = dayKey(now - 86_400_000);
+  const key = dayKey(timestamp);
+  const label =
+    key === today
+      ? t("today")
+      : key === yesterday
+        ? t("yesterday")
+        : new Date(timestamp).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  return (
+    <div className="flex items-center gap-3 my-5 select-none" aria-hidden="true">
+      <span className="flex-1 h-px th-border" style={{ background: "var(--border-secondary)" }} />
+      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] th-text-ghost">{label}</span>
+      <span className="flex-1 h-px" style={{ background: "var(--border-secondary)" }} />
+    </div>
+  );
+}
+
 export default function ChatMessages({ onEditPrompt, onOpenArtifact }) {
   const t = useTranslations("ChatMessages");
+  const locale = useLocale();
   const {
     messages,
     streamingMessageId,
     error,
     clearError,
-    resolveApproval,
-    setBranchIndex,
     respondToActionCard,
     sendMessage,
+    regenerate,
+    continueResponse,
+    setBranchIndex,
     isLoading,
   } = useChat();
   const { activeSession } = useChatSessions();
   const { dispatch } = useChatContext();
+  const ui = useChatUi();
   const messagesEndRef = useRef(null);
   const userLangText = useMemo(() => recentUserText(messages), [messages]);
   const isStreamingRef = useRef(false);
@@ -307,8 +343,6 @@ export default function ChatMessages({ onEditPrompt, onOpenArtifact }) {
     setPrevSessionId(activeSession?.id);
     setShowJumpButton(false);
   }
-  const [conversationCopied, setConversationCopied] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
 
   const updateIntegrationRequest = useCallback(
     (requestId, updates) => {
@@ -342,7 +376,7 @@ export default function ChatMessages({ onEditPrompt, onOpenArtifact }) {
       );
       if (req) updateIntegrationRequest(req.id, { status: "connected" });
     },
-    onFailure: (error) => {
+    onFailure: () => {
       const msg = messages.find((m) =>
         m.integrationRequests?.some((r) => r.status === "connecting")
       );
@@ -374,18 +408,6 @@ export default function ChatMessages({ onEditPrompt, onOpenArtifact }) {
     },
     [messages, updateIntegrationRequest, openOAuth]
   );
-
-  const handleCopyConversation = useCallback(async () => {
-    if (!activeSession || messages.length === 0) return;
-    try {
-      const text = formatConversation(activeSession, messages, t);
-      await navigator.clipboard.writeText(text);
-      setConversationCopied(true);
-      setTimeout(() => setConversationCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy conversation:", err);
-    }
-  }, [activeSession, messages]);
 
   useEffect(() => {
     isStreamingRef.current = !!streamingMessageId;
@@ -437,93 +459,81 @@ export default function ChatMessages({ onEditPrompt, onOpenArtifact }) {
   }, [messages]);
 
   if (!activeSession) {
-    return <ChatEmptyState />;
+    return <ChatHome />;
   }
+
+  const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
+  const lastMessage = messages[messages.length - 1];
 
   return (
     <div className="relative flex-1 flex flex-col overflow-hidden">
       {error && <ChatErrorBanner error={error} onClear={clearError} />}
 
+      {ui.threadSearch.open && (
+        <ThreadSearchBar
+          messages={messages}
+          query={ui.threadSearch.query}
+          onQueryChange={ui.setThreadSearchQuery}
+          onClose={ui.closeThreadSearch}
+        />
+      )}
+
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto custom-scrollbar p-4"
+        className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-6"
       >
-        {/* Session header */}
-        <div className="text-center py-4 mb-4 border-b th-border-secondary">
-          <h2 className="text-lg font-semibold th-text-secondary">{activeSession.title}</h2>
-          <p className="text-xs th-text-faint">{t("agentLabel")}: {activeSession.agentName}</p>
-        </div>
-
-        {/* Messages */}
-        {messages.length === 0 ? (
-          <div className="text-center th-text-faint text-sm py-8">
-            {t("sendMessageToStart")}
-          </div>
-        ) : (
-          messages.map((message, idx) => (
-            <ChatMessage
-              key={message.id}
-              message={message}
-              messageIndex={idx}
-              isStreaming={message.id === streamingMessageId}
-              onEditPrompt={onEditPrompt}
-              onOpenArtifact={onOpenArtifact}
-              onApprove={(msgId, approvalId) => resolveApproval(msgId, approvalId, "approved")}
-              onReject={(msgId, approvalId) => resolveApproval(msgId, approvalId, "rejected")}
-              onModifyApproval={(msgId, approvalId, text) => resolveApproval(msgId, approvalId, "modified", text)}
-              onConnectIntegration={handleConnectIntegration}
-              onRespondToActionCard={respondToActionCard}
-              onNavigateBranch={setBranchIndex}
-              agentName={activeSession.agentName}
-            />
-          ))
-        )}
-
-        {/* Action buttons at end of conversation */}
-        {!streamingMessageId &&
-          messages.length > 0 &&
-          messages[messages.length - 1]?.role === "assistant" && (
-            <FollowUpSuggestions
-              key={messages[messages.length - 1].id}
-              content={messages[messages.length - 1].content}
-              userText={userLangText}
-              onSelect={(text) => sendMessage(text)}
-              disabled={isLoading}
-            />
+        <div className="mx-auto w-full max-w-3xl py-4">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-16 gap-2">
+              <MessageSquare size={28} className="text-brand/50" />
+              <p className="text-sm th-text-muted">{t("sendMessageToStart")}</p>
+              <p className="text-[11px] th-text-ghost">{t("startHint")}</p>
+            </div>
+          ) : (
+            messages.map((message, idx) => {
+              const prev = messages[idx - 1];
+              const showDay = !prev || dayKey(prev.timestamp) !== dayKey(message.timestamp);
+              return (
+                <div key={message.id}>
+                  {showDay && <DaySeparator timestamp={message.timestamp} locale={locale} t={t} />}
+                  <ChatMessage
+                    message={message}
+                    messageIndex={idx}
+                    isStreaming={message.id === streamingMessageId}
+                    isLastAssistant={message.id === lastAssistantId && !streamingMessageId}
+                    onEditPrompt={onEditPrompt}
+                    onOpenArtifact={onOpenArtifact}
+                    onConnectIntegration={handleConnectIntegration}
+                    onRespondToActionCard={respondToActionCard}
+                    onNavigateBranch={setBranchIndex}
+                    onRegenerate={regenerate}
+                    onContinue={continueResponse}
+                    agentName={activeSession.agentName}
+                  />
+                </div>
+              );
+            })
           )}
 
-        {messages.length > 0 && !streamingMessageId && (
-          <div className="flex items-center justify-center gap-2 py-4">
-            {/* Copy conversation */}
-            <button
-              onClick={handleCopyConversation}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs rounded-lg transition-all th-bg-surface border th-border th-text-faint hover:th-bg-surface-hover hover:th-border-hover hover:th-text-secondary"
-              title={t("copyConversationTitle")}
-            >
-              {conversationCopied ? (
-                <><Check size={13} className="text-blue-400" /><span className="text-blue-400">{t("copiedExclaim")}</span></>
-              ) : (
-                <><Copy size={13} /><span>{t("copy")}</span></>
-              )}
-            </button>
+          {/* Suggested follow-ups after a completed assistant reply */}
+          {!streamingMessageId &&
+            messages.length > 0 &&
+            lastMessage?.role === "assistant" &&
+            lastMessage.status !== "error" &&
+            lastMessage.status !== "empty" &&
+            lastMessage.status !== "interrupted" && (
+              <FollowUpSuggestions
+                key={lastMessage.id}
+                content={lastMessage.content}
+                userText={userLangText}
+                onSelect={(text) => sendMessage(text)}
+                disabled={isLoading}
+              />
+            )}
 
-            {/* Divider */}
-            <div className="w-px h-4 th-border" />
-
-            {/* Share conversation */}
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs rounded-lg transition-all bg-brand/10 border border-brand/20 text-brand/80 hover:bg-brand/18 hover:border-brand/40 hover:text-brand hover:shadow-[0_0_16px_rgba(1,61,255,0.2)]"
-              title={t("shareConversationTitle")}
-            >
-              <Share2 size={13} />
-              <span>{t("share")}</span>
-            </button>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {showJumpButton && (
@@ -539,12 +549,12 @@ export default function ChatMessages({ onEditPrompt, onOpenArtifact }) {
       )}
       <ContextIndicator />
 
-      {/* Share modal */}
-      {showShareModal && (
+      {/* Share modal — opened from the header or the command palette */}
+      {ui.shareOpen && (
         <ShareModal
           session={activeSession}
           messages={messages}
-          onClose={() => setShowShareModal(false)}
+          onClose={() => ui.setShareOpen(false)}
         />
       )}
     </div>

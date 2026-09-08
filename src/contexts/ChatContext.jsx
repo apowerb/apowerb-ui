@@ -10,8 +10,57 @@ import {
 } from "react";
 import { chatStorage } from "@/lib/chatStorage";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  appendThinkingStep,
+  closeThinkingStep,
+  closeOpenSteps,
+  addToolStep,
+  setToolStepResult,
+} from "@/lib/reasoningSteps";
 
 const ChatContext = createContext(null);
+
+// The fields of an assistant message that differ between two regenerations.
+// A "branch" is one such snapshot; the message keeps them all in `_branches`
+// and shows the one at `_activeBranch` through its top-level fields.
+const BRANCH_FIELDS = [
+  "content",
+  "thinking",
+  "toolCalls",
+  "steps",
+  "meta",
+  "status",
+  "error",
+  "timestamp",
+  "actionCards",
+  "integrationRequests",
+  "interruptedAt",
+];
+
+function snapshotBranch(msg) {
+  const out = {};
+  for (const key of BRANCH_FIELDS) {
+    if (msg[key] !== undefined) out[key] = msg[key];
+  }
+  return out;
+}
+
+function applyBranch(msg, branch) {
+  const cleared = { ...msg };
+  for (const key of BRANCH_FIELDS) delete cleared[key];
+  return { ...cleared, content: "", thinking: "", toolCalls: [], steps: [], ...branch };
+}
+
+// A turn that produced neither text, nor a card, nor a tool call is "empty":
+// the agent answered with nothing, and the UI must say so instead of showing
+// a blank bubble.
+function turnIsEmpty(msg) {
+  const hasContent = typeof msg.content === "string" && msg.content.trim().length > 0;
+  const hasCards =
+    (msg.actionCards || []).length > 0 || (msg.integrationRequests || []).length > 0;
+  const hasTools = (msg.toolCalls || []).length > 0;
+  return !hasContent && !hasCards && !hasTools;
+}
 
 // Action types
 const ACTIONS = {
@@ -44,9 +93,14 @@ const ACTIONS = {
   RENAME_FOLDER: "RENAME_FOLDER",
   DELETE_FOLDER: "DELETE_FOLDER",
   MOVE_SESSIONS_TO_FOLDER: "MOVE_SESSIONS_TO_FOLDER",
+  // Regeneration / branches / transient stream information
+  REGENERATE_MESSAGE: "REGENERATE_MESSAGE",
+  SET_BRANCH_INDEX: "SET_BRANCH_INDEX",
+  SET_STREAM_INFO: "SET_STREAM_INFO",
+  SET_MESSAGE_STATUS: "SET_MESSAGE_STATUS",
 };
 
-const initialState = {
+export const initialState = {
   sessions: new Map(),
   activeSessionId: null,
   isLoading: false,
@@ -55,9 +109,15 @@ const initialState = {
   uploadProgress: new Map(),
   folders: [],
   hasHydrated: false,
+  // Transient, per-stream information the status bar can show (for example a
+  // rate-limit pause the backend is waiting out). Cleared by the next chunk
+  // and when the stream finishes.
+  streamInfo: null,
 };
 
-function chatReducer(state, action) {
+// Exported for the reducer tests; the app only ever reaches it through the
+// provider below.
+export function chatReducer(state, action) {
   switch (action.type) {
     case ACTIONS.INIT_FROM_STORAGE: {
       // Clean up stale isStreaming flags from crashed/reloaded sessions
@@ -139,20 +199,29 @@ function chatReducer(state, action) {
       const session = state.sessions.get(sessionId);
       if (!session) return state;
 
+      const now = Date.now();
       const newMessages = session.messages.map((msg) =>
-        msg.id === messageId ? { ...msg, content: msg.content + content } : msg
+        msg.id === messageId
+          ? {
+              ...msg,
+              content: msg.content + content,
+              // Visible text means the reasoning phase is over (for now).
+              steps: closeThinkingStep(msg.steps || [], now),
+            }
+          : msg
       );
 
       const newSessions = new Map(state.sessions);
       newSessions.set(sessionId, {
         ...session,
         messages: newMessages,
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
 
       return {
         ...state,
         sessions: newSessions,
+        streamInfo: null,
       };
     }
 
@@ -161,9 +230,14 @@ function chatReducer(state, action) {
       const session = state.sessions.get(sessionId);
       if (!session) return state;
 
+      const now = Date.now();
       const newMessages = session.messages.map((msg) =>
         msg.id === messageId
-          ? { ...msg, thinking: (msg.thinking || "") + thinking }
+          ? {
+              ...msg,
+              thinking: (msg.thinking || "") + thinking,
+              steps: appendThinkingStep(msg.steps || [], thinking, now),
+            }
           : msg
       );
 
@@ -185,6 +259,7 @@ function chatReducer(state, action) {
       const session = state.sessions.get(sessionId);
       if (!session) return state;
 
+      const now = Date.now();
       const newMessages = session.messages.map((msg) => {
         if (msg.id !== messageId || !msg.content) return msg;
         const separator = msg.thinking ? "\n\n---\n\n" : "";
@@ -192,6 +267,9 @@ function chatReducer(state, action) {
           ...msg,
           thinking: (msg.thinking || "") + separator + msg.content,
           content: "",
+          // The text was an intermediate thought: it joins the trail as
+          // reasoning, in its real position (just before the tool call).
+          steps: appendThinkingStep(msg.steps || [], msg.content, now),
         };
       });
 
@@ -218,7 +296,14 @@ function chatReducer(state, action) {
         const hasContent = (msg.content || "").trim().length > 0;
         const hasThinking = (msg.thinking || "").trim().length > 0;
         if (hasContent || !hasThinking) return msg;
-        return { ...msg, content: msg.thinking, thinking: "" };
+        // The "thought" IS the answer: it leaves the trail so the reader does
+        // not see it twice.
+        return {
+          ...msg,
+          content: msg.thinking,
+          thinking: "",
+          steps: (msg.steps || []).filter((s) => s.kind !== "thinking"),
+        };
       });
 
       const newSessions = new Map(state.sessions);
@@ -239,9 +324,17 @@ function chatReducer(state, action) {
       const session = state.sessions.get(sessionId);
       if (!session) return state;
 
+      const now = Date.now();
       const newMessages = session.messages.map((msg) =>
         msg.id === messageId
-          ? { ...msg, toolCalls: [...(msg.toolCalls || []), toolCall] }
+          ? {
+              ...msg,
+              toolCalls: [
+                ...(msg.toolCalls || []),
+                { ...toolCall, status: "running", startedAt: now },
+              ],
+              steps: addToolStep(msg.steps || [], toolCall, now),
+            }
           : msg
       );
 
@@ -266,14 +359,24 @@ function chatReducer(state, action) {
       const newMessages = session.messages.map((msg) => {
         if (msg.id !== messageId || !msg.toolCalls) return msg;
         // Find the last tool call matching toolName and attach result
+        const now = Date.now();
+        const steps = setToolStepResult(msg.steps || [], toolName, result, now);
         const updated = [...msg.toolCalls];
         for (let i = updated.length - 1; i >= 0; i--) {
           if (updated[i].name === toolName && !updated[i].result) {
-            updated[i] = { ...updated[i], result };
+            const finished = steps.find(
+              (s) => s.kind === "tool" && s.name === toolName && s.endedAt === now,
+            );
+            updated[i] = {
+              ...updated[i],
+              result,
+              status: finished?.status || "done",
+              durationMs: updated[i].startedAt ? now - updated[i].startedAt : undefined,
+            };
             break;
           }
         }
-        return { ...msg, toolCalls: updated };
+        return { ...msg, toolCalls: updated, steps };
       });
 
       const newSessions = new Map(state.sessions);
@@ -312,7 +415,10 @@ function chatReducer(state, action) {
     }
 
     case ACTIONS.FINISH_STREAMING: {
-      const { sessionId, messageId } = action.payload;
+      // outcome: "done" (default) | "interrupted" (the user pressed Stop) |
+      // "error" (the stream failed; `error` carries the message). A "done"
+      // turn that produced nothing visible is stored as "empty".
+      const { sessionId, messageId, outcome = "done", error = null } = action.payload;
       const session = state.sessions.get(sessionId);
       // Always clear streaming state, even if the session was deleted
       if (!session) {
@@ -320,18 +426,42 @@ function chatReducer(state, action) {
           ...state,
           streamingMessageId: null,
           isLoading: false,
+          streamInfo: null,
         };
       }
 
-      const newMessages = session.messages.map((msg) =>
-        msg.id === messageId ? { ...msg, isStreaming: false } : msg
-      );
+      const now = Date.now();
+      const newMessages = session.messages.map((msg) => {
+        if (msg.id !== messageId) return msg;
+        const status =
+          outcome === "interrupted" || outcome === "error"
+            ? outcome
+            : turnIsEmpty(msg)
+              ? "empty"
+              : "done";
+        const finished = {
+          ...msg,
+          isStreaming: false,
+          status,
+          error: outcome === "error" ? error || msg.error || "error" : null,
+          ...(outcome === "interrupted" && { interruptedAt: now }),
+          steps: closeOpenSteps(msg.steps || [], now, {
+            toolStatus: outcome === "done" ? "done" : outcome,
+          }),
+        };
+        if (Array.isArray(finished._branches)) {
+          const branches = [...finished._branches];
+          branches[finished._activeBranch ?? branches.length - 1] = snapshotBranch(finished);
+          finished._branches = branches;
+        }
+        return finished;
+      });
 
       const newSessions = new Map(state.sessions);
       newSessions.set(sessionId, {
         ...session,
         messages: newMessages,
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
 
       return {
@@ -339,7 +469,92 @@ function chatReducer(state, action) {
         sessions: newSessions,
         streamingMessageId: null,
         isLoading: false,
+        streamInfo: null,
       };
+    }
+
+    case ACTIONS.REGENERATE_MESSAGE: {
+      // Keep the current answer as a branch and reset the message to a fresh
+      // streaming placeholder (same id, so the stream callbacks still target it).
+      const { sessionId, messageId } = action.payload;
+      const session = state.sessions.get(sessionId);
+      if (!session) return state;
+      const now = Date.now();
+      const newMessages = session.messages.map((msg) => {
+        if (msg.id !== messageId) return msg;
+        const branches = Array.isArray(msg._branches)
+          ? [...msg._branches]
+          : [snapshotBranch(msg)];
+        // Make sure the branch being left holds its latest content.
+        const current = msg._activeBranch ?? branches.length - 1;
+        branches[current] = snapshotBranch(msg);
+        const placeholder = {
+          content: "",
+          thinking: "",
+          toolCalls: [],
+          steps: [],
+          meta: { startTime: now },
+          status: "streaming",
+          error: null,
+          timestamp: now,
+        };
+        branches.push(placeholder);
+        return {
+          ...applyBranch(msg, placeholder),
+          isStreaming: true,
+          _branches: branches,
+          _activeBranch: branches.length - 1,
+        };
+      });
+      const newSessions = new Map(state.sessions);
+      newSessions.set(sessionId, { ...session, messages: newMessages, updatedAt: now });
+      return {
+        ...state,
+        sessions: newSessions,
+        streamingMessageId: messageId,
+        isLoading: true,
+        error: null,
+        streamInfo: null,
+      };
+    }
+
+    case ACTIONS.SET_BRANCH_INDEX: {
+      const { sessionId, messageId, index } = action.payload;
+      const session = state.sessions.get(sessionId);
+      if (!session) return state;
+      const newMessages = session.messages.map((msg) => {
+        if (msg.id !== messageId || !Array.isArray(msg._branches)) return msg;
+        if (msg.isStreaming) return msg; // never swap under a live stream
+        const branches = [...msg._branches];
+        if (index < 0 || index >= branches.length) return msg;
+        const current = msg._activeBranch ?? branches.length - 1;
+        branches[current] = snapshotBranch(msg);
+        return {
+          ...applyBranch(msg, branches[index]),
+          isStreaming: false,
+          _branches: branches,
+          _activeBranch: index,
+        };
+      });
+      const newSessions = new Map(state.sessions);
+      newSessions.set(sessionId, { ...session, messages: newMessages });
+      return { ...state, sessions: newSessions };
+    }
+
+    case ACTIONS.SET_STREAM_INFO: {
+      return { ...state, streamInfo: action.payload || null };
+    }
+
+    case ACTIONS.SET_MESSAGE_STATUS: {
+      const { sessionId, messageId, status, error = null } = action.payload;
+      const session = state.sessions.get(sessionId);
+      if (!session) return state;
+      const newMessages = session.messages.map((msg) =>
+        msg.id === messageId ? { ...msg, status, error } : msg
+      );
+      const newSessions = new Map(state.sessions);
+      newSessions.set(sessionId, { ...session, messages: newMessages });
+      return { ...state, sessions: newSessions };
     }
 
     case ACTIONS.SET_LOADING: {

@@ -56,3 +56,7 @@ messages/_frag_fr/
 
 # Claude Code — per-developer settings (shared .claude/settings.json stays tracked)
 .claude/settings.local.json
+
+# Mock-backend end-to-end run: results and screenshots
+tests/e2e-mock/.results/
+tests/e2e-mock/shots/

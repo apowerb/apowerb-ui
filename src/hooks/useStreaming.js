@@ -10,6 +10,9 @@ export function useStreaming() {
   const lastChunkRef = useRef("");
   const accumulatedContentRef = useRef("");
   const turnContentRef = useRef(""); // Tracks accumulated content for current model turn
+  // Set by abortStreaming(): tells the catch block that the AbortError it sees
+  // is the user's Stop button, so the message can be marked "interrupted".
+  const userAbortedRef = useRef(false);
 
   const startStreaming = useCallback(
     async ({
@@ -22,6 +25,8 @@ export function useStreaming() {
       onToolCall,
       onToolResult,
       onMeta,
+      onInfo,
+      onStreamError,
       onComplete,
       onError,
     }) => {
@@ -29,6 +34,7 @@ export function useStreaming() {
       lastChunkRef.current = "";
       accumulatedContentRef.current = "";
       turnContentRef.current = "";
+      userAbortedRef.current = false;
       // Abort any existing stream
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -101,6 +107,20 @@ export function useStreaming() {
               const turnContent = turnContentRef.current;
 
               // --- Per-turn dedup (handles ADK accumulated-per-turn events) ---
+              // An event that restates the whole turn so far, plus new text,
+              // is the accumulated form whatever its length: a turn opening
+              // with a short word ("Je", "Oui,", "The") must not be doubled
+              // into "JeJe vais…" because the 5-character window below could
+              // not see it yet.
+              if (turnContent.length > 0 && chunk.startsWith(turnContent)) {
+                if (chunk.length === turnContent.length) return; // pure dup
+                const tail = chunk.slice(turnContent.length);
+                lastChunkRef.current = chunk;
+                turnContentRef.current = chunk;
+                accumulatedContentRef.current += tail;
+                onChunk(tail);
+                return;
+              }
               if (turnContent.length > 0 && chunk.length > 0) {
                 const cmpLen = Math.min(turnContent.length, chunk.length, 200);
                 if (cmpLen >= 5 && chunk.slice(0, cmpLen) === turnContent.slice(0, cmpLen)) {
@@ -173,6 +193,8 @@ export function useStreaming() {
               if (onToolResult) onToolResult(data);
             },
             onMeta,
+            onInfo,
+            onStreamError,
             onError,
           };
 
@@ -231,8 +253,9 @@ export function useStreaming() {
         }
       } catch (error) {
         if (error.name === "AbortError") {
-          // User aborted, not an error
-          onComplete();
+          // The user pressed Stop (or a newer send replaced this stream): not
+          // an error, but the message stays partial and must say so.
+          onComplete({ interrupted: userAbortedRef.current });
           return;
         }
         console.error("[useStreaming] Error:", error);
@@ -250,6 +273,7 @@ export function useStreaming() {
 
   const abortStreaming = useCallback(() => {
     if (abortControllerRef.current) {
+      userAbortedRef.current = true;
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
@@ -322,7 +346,8 @@ function extractContent(data) {
  * We extract all data: lines, join them, and parse as JSON.
  */
 export function processSSEBlock(block, callbacks) {
-  const { onChunk, onThinking, onToolCall, onToolResult, onMeta, onError } = callbacks;
+  const { onChunk, onThinking, onToolCall, onToolResult, onMeta, onInfo, onStreamError, onError } =
+    callbacks;
   const trimmed = block.trim();
   if (!trimmed) return;
 
@@ -370,8 +395,28 @@ export function processSSEBlock(block, callbacks) {
           "Click **New chat** (or reload the page) to start a fresh session, then re-send your message.\n\n",
       );
       if (onError) onError({ code: "session_expired", message: errStr });
+    } else if (onStreamError) {
+      // The message itself carries the error state (inline notice + Retry);
+      // no markdown warning is appended to the transcript.
+      onStreamError({ code: "stream_error", message: errStr, status: data.status });
     } else {
       onChunk(`\n\n⚠️ **Error:** ${errStr}\n\n`);
+    }
+    return;
+  }
+
+  // --- Backend information events (not content) ---
+  // { info: "rate_limit_retry", delay_seconds, attempt, max_attempts }: the
+  // backend is waiting out a provider rate limit before retrying. Without this
+  // the user only sees an unexplained pause.
+  if (typeof data.info === "string") {
+    if (onInfo) {
+      onInfo({
+        kind: data.info,
+        delaySeconds: data.delay_seconds,
+        attempt: data.attempt,
+        maxAttempts: data.max_attempts,
+      });
     }
     return;
   }

@@ -2,8 +2,111 @@
 
 import { useTranslations } from "use-intl";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { X, Copy, Check, Code2, Eye, FileCode, Play, Download, Loader2, MessageSquare } from "lucide-react";
+import { X, Copy, Check, Code2, Eye, FileCode, Play, Download, Loader2, MessageSquare, Library } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { executeArtifact as apiExecuteArtifact } from "@/lib/api";
+import { Link } from "@/lib/navigation";
+import { JsonBlock, DataTable } from "./StructuredOutput";
+
+// What a preview can show besides the raw code, by language / extension.
+export function previewKind(artifact) {
+  const lang = String(artifact?.language || "").toLowerCase();
+  const name = String(artifact?.filename || "").toLowerCase();
+  const ext = name.includes(".") ? name.split(".").pop() : "";
+  if (lang === "html" || ext === "html" || ext === "htm") return "html";
+  if (lang === "markdown" || lang === "md" || ext === "md" || ext === "markdown") return "markdown";
+  if (lang === "json" || ext === "json") return "json";
+  if (lang === "csv" || ext === "csv" || ext === "tsv") return "csv";
+  if (lang === "svg" || ext === "svg") return "svg";
+  return null;
+}
+
+// Minimal CSV/TSV reader for the table preview (quoted fields, no escapes
+// beyond doubled quotes). Returns rows as objects keyed by the header line.
+export function parseDelimited(text, max = 500) {
+  const lines = String(text || "").split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return [];
+  const delim = lines[0].includes("\t") ? "\t" : lines[0].includes(";") && !lines[0].includes(",") ? ";" : ",";
+  const split = (line) => {
+    const out = [];
+    let cur = "";
+    let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) {
+        if (c === '"' && line[i + 1] === '"') {
+          cur += '"';
+          i += 1;
+        } else if (c === '"') q = false;
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === delim) {
+        out.push(cur);
+        cur = "";
+      } else cur += c;
+    }
+    out.push(cur);
+    return out;
+  };
+  const header = split(lines[0]).map((h) => h.trim());
+  return lines.slice(1, max + 1).map((line) => {
+    const cells = split(line);
+    const row = {};
+    header.forEach((h, i) => {
+      const v = (cells[i] ?? "").trim();
+      const n = v !== "" && !Number.isNaN(Number(v)) ? Number(v) : v;
+      row[h || `col${i + 1}`] = n;
+    });
+    return row;
+  });
+}
+
+function ArtifactPreview({ kind, code, t }) {
+  if (kind === "html") {
+    return (
+      <iframe
+        srcDoc={code}
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+        className="w-full h-full bg-white"
+        title={t("htmlPreviewTitle")}
+        tabIndex={0}
+      />
+    );
+  }
+  if (kind === "markdown") {
+    return (
+      <div className="p-4 text-sm markdown-content th-text-secondary leading-relaxed">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{code}</ReactMarkdown>
+      </div>
+    );
+  }
+  if (kind === "json") {
+    return (
+      <div className="p-3">
+        <JsonBlock content={code} />
+      </div>
+    );
+  }
+  if (kind === "csv") {
+    const rows = parseDelimited(code);
+    return rows.length ? (
+      <div className="p-3">
+        <DataTable data={rows} />
+      </div>
+    ) : (
+      <div className="p-4 th-text-faint text-sm italic">{t("previewUnavailable")}</div>
+    );
+  }
+  if (kind === "svg") {
+    return (
+      <div className="p-4 flex items-center justify-center bg-white/90 h-full">
+        <img src={`data:image/svg+xml;utf8,${encodeURIComponent(code)}`} alt={t("svgPreviewAlt")} className="max-w-full max-h-full" />
+      </div>
+    );
+  }
+  return null;
+}
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;
@@ -81,12 +184,17 @@ export default function ArtifactPanel({ artifact, artifacts, onSelect, onClose, 
   const startX = useRef(0);
   const startWidth = useRef(0);
 
-  // Reset state when artifact changes — always start in code view
-  useEffect(() => {
+  // Reset state when the artifact changes — rendered kinds (markdown, json,
+  // csv, svg) open on their preview, code-like ones on the code. Done during
+  // render (the sanctioned "derived state" pattern), not in an effect.
+  const [prevArtifactId, setPrevArtifactId] = useState(artifact?.id);
+  if (artifact?.id !== prevArtifactId) {
+    setPrevArtifactId(artifact?.id);
     setExecResult(null);
     setIsRunning(false);
-    setShowPreview(false);
-  }, [artifact?.id]);
+    const k = previewKind(artifact);
+    setShowPreview(k !== null && k !== "html");
+  }
 
   const handleMouseDown = useCallback((e) => {
     e.preventDefault();
@@ -124,7 +232,9 @@ export default function ArtifactPanel({ artifact, artifacts, onSelect, onClose, 
 
   const code = artifact.code || "";
   const lines = code.split("\n");
-  const isHtml = artifact.language === "html";
+  const kind = previewKind(artifact);
+  const isHtml = kind === "html";
+  const canPreview = kind !== null;
   const canRun = ["python", "javascript", "js", "bash", "sh", "ruby", "go"].includes(
     artifact.language?.toLowerCase()
   );
@@ -246,7 +356,7 @@ export default function ArtifactPanel({ artifact, artifacts, onSelect, onClose, 
             >
               <Download size={14} />
             </button>
-            {isHtml && (
+            {canPreview && (
               <button
                 onClick={() => setShowPreview(!showPreview)}
                 className={`p-1.5 rounded-lg transition-colors ${
@@ -254,11 +364,20 @@ export default function ArtifactPanel({ artifact, artifacts, onSelect, onClose, 
                     ? "bg-blue-500/20 text-blue-400"
                     : "th-bg-surface hover:th-bg-surface-hover th-text-faint hover:th-text-secondary"
                 }`}
-                title={showPreview ? t("showCode") : t("previewHtml")}
+                title={showPreview ? t("showCode") : isHtml ? t("previewHtml") : t("preview")}
+                aria-pressed={showPreview}
               >
                 {showPreview ? <Code2 size={14} /> : <Eye size={14} />}
               </button>
             )}
+            <Link
+              href="/artifacts"
+              className="p-1.5 rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-faint hover:th-text-secondary transition-colors inline-flex"
+              title={t("openLibrary")}
+              aria-label={t("openLibrary")}
+            >
+              <Library size={14} />
+            </Link>
             {onAskAbout && (
               <button
                 onClick={() => onAskAbout(artifact)}
@@ -314,14 +433,8 @@ export default function ArtifactPanel({ artifact, artifacts, onSelect, onClose, 
 
         {/* Code content */}
         <div className="flex-1 overflow-auto custom-scrollbar">
-          {showPreview && isHtml ? (
-            <iframe
-              srcDoc={code}
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-              className="w-full h-full bg-white"
-              title={t("htmlPreviewTitle")}
-              tabIndex={0}
-            />
+          {showPreview && canPreview ? (
+            <ArtifactPreview kind={kind} code={code} t={t} />
           ) : code ? (
             <div className="flex text-xs font-mono p-3">
               <LineNumbers count={lines.length} />

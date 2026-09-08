@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useEffect, useState } from "react";
+import { useTranslations } from "use-intl";
 import { useChat } from "@/hooks/useChat";
-import { Wrench, PenLine } from "lucide-react";
+import { Wrench, PenLine, Hourglass } from "lucide-react";
 import ThinkingOctopus from "./ThinkingOctopus";
 
 function AnimatedDots() {
@@ -16,7 +17,8 @@ function AnimatedDots() {
 }
 
 export default function AgentStatusBar() {
-  const { messages, streamingMessageId } = useChat();
+  const t = useTranslations("AgentStatusBar");
+  const { messages, streamingMessageId, streamInfo } = useChat();
   const [visible, setVisible] = useState(false);
 
   const phase = useMemo(() => {
@@ -25,49 +27,64 @@ export default function AgentStatusBar() {
     const msg = messages.find((m) => m.id === streamingMessageId);
     if (!msg) return null;
 
-    const hasContent = msg.content && msg.content.trim().length > 0;
-    const hasToolCalls = msg.toolCalls && msg.toolCalls.length > 0;
-    const hasThinking = msg.thinking && msg.thinking.trim().length > 0;
+    // A backend-side pause (provider rate limit) beats every other phase: the
+    // user must know why nothing moves.
+    if (streamInfo?.kind === "rate_limit_retry") {
+      return {
+        label: t("rateLimited", {
+          seconds: streamInfo.delaySeconds ?? "?",
+          attempt: streamInfo.attempt ?? 1,
+          max: streamInfo.maxAttempts ?? 1,
+        }),
+        icon: Hourglass,
+        color: "text-amber-300",
+        bg: "bg-amber-500/10",
+        border: "border-amber-500/20",
+        noDots: true,
+      };
+    }
 
+    const hasContent = msg.content && msg.content.trim().length > 0;
+    const runningTool = (msg.steps || []).slice().reverse().find((s) => s.kind === "tool" && s.status === "running");
+    const hasToolCalls = msg.toolCalls && msg.toolCalls.length > 0;
+
+    if (runningTool) {
+      return {
+        label: t("usingTool", { name: runningTool.name }),
+        icon: Wrench,
+        color: "text-brand",
+        bg: "bg-brand/10",
+        border: "border-brand/20",
+      };
+    }
     if (hasContent) {
       return {
-        label: "Generating response",
+        label: t("generating"),
         icon: PenLine,
-        color: "text-blue-400",
-        bg: "bg-blue-500/10",
-        border: "border-blue-500/20",
+        color: "text-brand",
+        bg: "bg-brand/10",
+        border: "border-brand/20",
       };
     }
     if (hasToolCalls) {
       const lastTool = msg.toolCalls[msg.toolCalls.length - 1];
       return {
-        label: `Using ${lastTool.name}`,
+        label: t("usingTool", { name: lastTool.name }),
         icon: Wrench,
-        color: "text-purple-400",
-        bg: "bg-purple-500/10",
-        border: "border-purple-500/20",
+        color: "text-brand",
+        bg: "bg-brand/10",
+        border: "border-brand/20",
       };
     }
-    if (hasThinking) {
-      return {
-        label: "Thinking",
-        icon: null,
-        octopus: true,
-        color: "text-purple-400",
-        bg: "bg-purple-500/10",
-        border: "border-purple-500/20",
-      };
-    }
-
     return {
-      label: "Thinking",
+      label: t("thinking"),
       icon: null,
       octopus: true,
-      color: "text-purple-400",
-      bg: "bg-purple-500/10",
-      border: "border-purple-500/20",
+      color: "text-brand",
+      bg: "bg-brand/10",
+      border: "border-brand/20",
     };
-  }, [streamingMessageId, messages]);
+  }, [streamingMessageId, messages, streamInfo, t]);
 
   // Track previous phase for exit animation
   const [prevPhase, setPrevPhase] = useState(null);
@@ -122,16 +139,18 @@ export default function AgentStatusBar() {
       }}
     >
       <div
-        className={`mx-4 mb-2 px-3 py-1.5 ${display.bg} border ${display.border} rounded-lg flex items-center gap-2`}
+        role="status"
+        aria-live="polite"
+        className={`mx-auto w-full max-w-3xl px-3 py-1.5 mb-2 ${display.bg} border ${display.border} rounded-lg flex items-center gap-2`}
       >
         {display.octopus ? (
-          <ThinkingOctopus size={28} className="shrink-0" />
+          <ThinkingOctopus size={26} className="shrink-0" />
         ) : (
           Icon && <Icon size={14} className={`${display.color} shrink-0`} />
         )}
         <span className={`text-xs font-medium ${display.color}`}>
           {display.label}
-          <AnimatedDots />
+          {!display.noDots && <AnimatedDots />}
         </span>
       </div>
     </div>

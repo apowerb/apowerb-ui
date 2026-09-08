@@ -48,124 +48,32 @@ const ACTION_CARD_TOOL_TO_KIND = {
   request_location: "location_request",
 };
 
+// What "Continue" sends when a reply stopped short. Written as a plain user
+// turn so every backend understands it; rendered as a small synthetic line.
+export const CONTINUE_PROMPT = "Continue exactly where you stopped, without repeating what you already wrote.";
+
 export function useChat({ onArtifactSaved } = {}) {
   const { state, dispatch, persistToStorage } = useChatContext();
   const { startStreaming, abortStreaming } = useStreaming();
   const toast = useToast();
 
   /**
-   * Primary send function — SSE streaming with optional file upload.
+   * Run one assistant turn: stream the answer for `sentContent` into the
+   * assistant message `assistantMessageId`, wiring every SSE callback to the
+   * reducer. Shared by sendMessage (fresh message) and regenerate (same
+   * message id, new branch).
    */
-  const sendMessage = useCallback(
-    async (content, files, opts = {}) => {
-      // Un envoi fichiers-seuls (sans texte) est valide : ChatInput.handleSubmit
-      // l'autorise déjà. Ne pas le bloquer ici sinon clic = rien (no-op silencieux).
-      const hasFiles = Array.isArray(files) && files.length > 0;
-      if (!state.activeSessionId || (!content.trim() && !hasFiles)) return;
-      const { isSynthetic = false } = opts;
-
-      const session = state.sessions.get(state.activeSessionId);
-      if (!session) return;
-
-      const sessionId = state.activeSessionId;
-
-      // Première prise de parole réelle de l'utilisateur dans cette session :
-      // déclenche la génération du titre (best-effort, non bloquant).
-      const isFirstUserMessage =
-        (session.messages?.length ?? 0) === 0 && !isSynthetic;
-
-      // Upload files first and build attachment metadata
-      let enrichedContent = content.trim();
-      let attachments;
-
-      if (files && files.length > 0) {
-        const uploaded = [];
-        for (const f of files) {
-          try {
-            const fileObj = f.file || f;
-            const result = await uploadFileChunked(fileObj, session.agentId, (progress) => {
-              dispatch({
-                type: ACTIONS.UPDATE_UPLOAD_PROGRESS,
-                payload: { sessionId, fileId: f.id, progress },
-              });
-            });
-            uploaded.push({
-              name: result.filename,
-              type: f.type || "",
-              size: result.size || f.size || 0,
-              preview: f.preview || null,
-              downloadPath: result.path,
-            });
-          } catch (err) {
-            console.error("[useChat] File upload failed:", err);
-          }
-        }
-        if (uploaded.length > 0) {
-          attachments = uploaded;
-          enrichedContent = `[Uploaded files: ${uploaded.map((u) => u.name).join(", ")}]\n\n${enrichedContent}`;
-        }
-      }
-
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-      dispatch({ type: ACTIONS.CLEAR_ERROR });
-
-      // Add user message with attachments (display original text, not enriched)
-      const userMessage = {
-        id: `msg_user_${Date.now()}`,
-        role: "user",
-        content: content.trim(),
-        timestamp: Date.now(),
-        isStreaming: false,
-        ...(attachments && { attachments }),
-        ...(isSynthetic && { isSynthetic: true }),
-      };
-
-      dispatch({
-        type: ACTIONS.ADD_MESSAGE,
-        payload: { sessionId, message: userMessage },
-      });
-
-      // Titre auto-généré à partir du 1er message (fire-and-forget : n'impacte
-      // ni l'envoi ni le streaming). Persisté via le store (localStorage).
-      if (isFirstUserMessage) {
-        generateTitle(content.trim(), session.agentId)
-          .then((res) => {
-            const title = res?.title?.trim();
-            if (title) {
-              dispatch({
-                type: ACTIONS.UPDATE_SESSION_TITLE,
-                payload: { sessionId, title },
-              });
-            }
-          })
-          .catch(() => {});
-      }
-
-      // Create placeholder for assistant response
-      const assistantMessageId = `msg_assistant_${Date.now()}`;
-      const startTime = Date.now();
-      const assistantMessage = {
-        id: assistantMessageId,
-        role: "assistant",
-        content: "",
-        thinking: "",
-        toolCalls: [],
-        meta: { startTime },
-        timestamp: Date.now(),
-        isStreaming: true,
-      };
-
-      dispatch({
-        type: ACTIONS.ADD_MESSAGE,
-        payload: { sessionId, message: assistantMessage },
-      });
-
-      // Start SSE streaming
+  const runTurn = useCallback(
+    async ({ session, sessionId, assistantMessageId, sentContent, startTime }) => {
+      // Remembered here, not read back from `state`: the closure below would
+      // see the state captured when the turn started, never the error that
+      // arrived mid-stream.
+      let streamError = null;
       await startStreaming({
         agentId: session.agentId,
         userId: String(session.userId),
         sessionId,
-        message: { role: "user", parts: [{ text: enrichedContent }] },
+        message: { role: "user", parts: [{ text: sentContent }] },
         onChunk: (chunk) => {
           dispatch({
             type: ACTIONS.APPEND_TO_STREAMING,
@@ -256,7 +164,26 @@ export function useChat({ onArtifactSaved } = {}) {
             },
           });
         },
-        onComplete: () => {
+        onInfo: (info) => {
+          // e.g. a rate-limit pause the backend is waiting out — shown in the
+          // status bar, never written into the transcript.
+          dispatch({ type: ACTIONS.SET_STREAM_INFO, payload: info });
+        },
+        onStreamError: (err) => {
+          // The backend reported a failure inside the stream: the message
+          // keeps what was received and shows the error with a Retry.
+          streamError = err?.message || "error";
+          dispatch({
+            type: ACTIONS.SET_MESSAGE_STATUS,
+            payload: {
+              sessionId,
+              messageId: assistantMessageId,
+              status: "error",
+              error: err?.message || "error",
+            },
+          });
+        },
+        onComplete: (info) => {
           const finalDuration = Date.now() - startTime;
           dispatch({
             type: ACTIONS.SET_MESSAGE_META,
@@ -272,29 +199,210 @@ export function useChat({ onArtifactSaved } = {}) {
           });
           dispatch({
             type: ACTIONS.FINISH_STREAMING,
-            payload: { sessionId, messageId: assistantMessageId },
+            payload: {
+              sessionId,
+              messageId: assistantMessageId,
+              outcome: info?.interrupted ? "interrupted" : streamError ? "error" : "done",
+              ...(streamError && { error: streamError }),
+            },
           });
           persistToStorage();
         },
         onArtifactSaved: onArtifactSaved || undefined,
         onError: (error) => {
-          dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
+          // Quota refusals and lost sessions need the prominent banner (they
+          // explain what to do next); any other failure lives on the message.
+          if (error?.quota || error?.code === "session_expired") {
+            dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
+          }
           dispatch({
             type: ACTIONS.FINISH_STREAMING,
-            payload: { sessionId, messageId: assistantMessageId },
+            payload: {
+              sessionId,
+              messageId: assistantMessageId,
+              outcome: "error",
+              error: error?.message || String(error),
+            },
           });
         },
       });
     },
-    [
-      state.activeSessionId,
-      state.sessions,
-      dispatch,
-      startStreaming,
-      persistToStorage,
-      onArtifactSaved,
-      toast,
-    ],
+    [dispatch, startStreaming, persistToStorage, onArtifactSaved, toast],
+  );
+
+  /**
+   * Primary send function — SSE streaming with optional file upload.
+   */
+  const sendMessage = useCallback(
+    async (content, files, opts = {}) => {
+      // Un envoi fichiers-seuls (sans texte) est valide : ChatInput.handleSubmit
+      // l'autorise déjà. Ne pas le bloquer ici sinon clic = rien (no-op silencieux).
+      const hasFiles = Array.isArray(files) && files.length > 0;
+      if (!state.activeSessionId || (!content.trim() && !hasFiles)) return;
+      const { isSynthetic = false } = opts;
+
+      const session = state.sessions.get(state.activeSessionId);
+      if (!session) return;
+
+      const sessionId = state.activeSessionId;
+
+      // Première prise de parole réelle de l'utilisateur dans cette session :
+      // déclenche la génération du titre (best-effort, non bloquant).
+      const isFirstUserMessage =
+        (session.messages?.length ?? 0) === 0 && !isSynthetic;
+
+      // Upload files first and build attachment metadata
+      let enrichedContent = content.trim();
+      let attachments;
+
+      if (files && files.length > 0) {
+        const uploaded = [];
+        for (const f of files) {
+          try {
+            const fileObj = f.file || f;
+            const result = await uploadFileChunked(fileObj, session.agentId, (progress) => {
+              dispatch({
+                type: ACTIONS.UPDATE_UPLOAD_PROGRESS,
+                payload: { sessionId, fileId: f.id, progress },
+              });
+            });
+            uploaded.push({
+              name: result.filename,
+              type: f.type || "",
+              size: result.size || f.size || 0,
+              preview: f.preview || null,
+              downloadPath: result.path,
+            });
+          } catch (err) {
+            console.error("[useChat] File upload failed:", err);
+          }
+        }
+        if (uploaded.length > 0) {
+          attachments = uploaded;
+          enrichedContent = `[Uploaded files: ${uploaded.map((u) => u.name).join(", ")}]\n\n${enrichedContent}`;
+        }
+      }
+
+      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+      dispatch({ type: ACTIONS.CLEAR_ERROR });
+
+      // Add user message with attachments (display original text, not enriched).
+      // `sentContent` keeps what the agent actually received, so Regenerate
+      // can replay the exact turn (attachments prefix included).
+      const userMessage = {
+        id: `msg_user_${Date.now()}`,
+        role: "user",
+        content: content.trim(),
+        timestamp: Date.now(),
+        isStreaming: false,
+        ...(enrichedContent !== content.trim() && { sentContent: enrichedContent }),
+        ...(attachments && { attachments }),
+        ...(isSynthetic && { isSynthetic: true }),
+      };
+
+      dispatch({
+        type: ACTIONS.ADD_MESSAGE,
+        payload: { sessionId, message: userMessage },
+      });
+
+      // Titre auto-généré à partir du 1er message (fire-and-forget : n'impacte
+      // ni l'envoi ni le streaming). Persisté via le store (localStorage).
+      if (isFirstUserMessage) {
+        generateTitle(content.trim(), session.agentId)
+          .then((res) => {
+            const title = res?.title?.trim();
+            if (title) {
+              dispatch({
+                type: ACTIONS.UPDATE_SESSION_TITLE,
+                payload: { sessionId, title },
+              });
+            }
+          })
+          .catch(() => {});
+      }
+
+      // Create placeholder for assistant response
+      const assistantMessageId = `msg_assistant_${Date.now()}`;
+      const startTime = Date.now();
+      const assistantMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        thinking: "",
+        toolCalls: [],
+        steps: [],
+        status: "streaming",
+        meta: { startTime },
+        timestamp: Date.now(),
+        isStreaming: true,
+      };
+
+      dispatch({
+        type: ACTIONS.ADD_MESSAGE,
+        payload: { sessionId, message: assistantMessage },
+      });
+
+      await runTurn({ session, sessionId, assistantMessageId, sentContent: enrichedContent, startTime });
+    },
+    [state.activeSessionId, state.sessions, dispatch, runTurn],
+  );
+
+  /**
+   * Ask the agent again for the same user turn. The previous answer stays
+   * reachable as a branch (◂ 1/2 ▸ under the message). Defaults to the last
+   * assistant message of the active conversation.
+   */
+  const regenerate = useCallback(
+    async (messageId) => {
+      const sessionId = state.activeSessionId;
+      const session = sessionId ? state.sessions.get(sessionId) : null;
+      if (!session || state.streamingMessageId) return;
+      const messages = session.messages || [];
+      let idx = messageId
+        ? messages.findIndex((m) => m.id === messageId)
+        : messages.map((m) => m.role).lastIndexOf("assistant");
+      if (idx === -1 || messages[idx].role !== "assistant") return;
+      // The user turn this answer replied to.
+      let userIdx = idx - 1;
+      while (userIdx >= 0 && messages[userIdx].role !== "user") userIdx -= 1;
+      if (userIdx < 0) return;
+      const userMsg = messages[userIdx];
+      const sentContent = userMsg.sentContent || userMsg.content || "";
+      if (!sentContent.trim()) return;
+
+      dispatch({ type: ACTIONS.CLEAR_ERROR });
+      dispatch({
+        type: ACTIONS.REGENERATE_MESSAGE,
+        payload: { sessionId, messageId: messages[idx].id },
+      });
+      await runTurn({
+        session,
+        sessionId,
+        assistantMessageId: messages[idx].id,
+        sentContent,
+        startTime: Date.now(),
+      });
+    },
+    [state.activeSessionId, state.sessions, state.streamingMessageId, dispatch, runTurn],
+  );
+
+  /** Pick up where an interrupted or truncated answer stopped. */
+  const continueResponse = useCallback(async () => {
+    if (state.streamingMessageId) return;
+    await sendMessage(CONTINUE_PROMPT, undefined, { isSynthetic: true });
+  }, [sendMessage, state.streamingMessageId]);
+
+  /** Show another regeneration of a message (◂ ▸ navigator). */
+  const setBranchIndex = useCallback(
+    (messageId, index) => {
+      const sessionId = state.activeSessionId;
+      if (!sessionId) return;
+      dispatch({
+        type: ACTIONS.SET_BRANCH_INDEX,
+        payload: { sessionId, messageId, index },
+      });
+    },
+    [state.activeSessionId, dispatch],
   );
 
   const clearError = useCallback(() => {
@@ -374,8 +482,12 @@ export function useChat({ onArtifactSaved } = {}) {
     messages: activeSession?.messages || [],
     isLoading: state.isLoading,
     streamingMessageId: state.streamingMessageId,
+    streamInfo: state.streamInfo || null,
     error: state.error,
     sendMessage,
+    regenerate,
+    continueResponse,
+    setBranchIndex,
     abortStreaming,
     clearError,
     respondToActionCard,
