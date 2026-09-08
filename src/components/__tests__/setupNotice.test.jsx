@@ -118,6 +118,28 @@ describe("RequiresSetup", () => {
     expect(screen.getByText("noticeUser")).toBeInTheDocument();
   });
 
+  it("n'affiche pas l'écran avant de savoir : il partirait chercher un 503", async () => {
+    // Le statut n'est pas encore connu : ni l'écran, ni le refus -- un carré
+    // d'attente. Monter l'écran ferait partir ses appels sur une installation
+    // qui n'a pas la capacité, et le 503 arriverait jusqu'à l'utilisateur.
+    currentUser = { role: "USER" };
+    let resolve;
+    getSetupStatus.mockReturnValue(new Promise((r) => { resolve = r; }));
+    const pending = invalidateSetupStatus();
+
+    render(
+      <RequiresSetup capability="orchestration">
+        <p>tâches planifiées</p>
+      </RequiresSetup>,
+    );
+    expect(screen.queryByText("tâches planifiées")).toBeNull();
+    expect(screen.queryByTestId("requires-setup")).toBeNull();
+
+    resolve(ORCHESTRATION_MISSING);
+    await pending;
+    expect(await screen.findByTestId("requires-setup")).toBeInTheDocument();
+  });
+
   it("laisse l'écran quand la capacité est configurée", async () => {
     await serve({
       items: [

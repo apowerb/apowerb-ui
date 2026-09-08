@@ -7,6 +7,7 @@ import { isAdminUser } from "@/lib/roles";
 import { useSetupStatus } from "@/hooks/useSetupStatus";
 import { missingCapabilities } from "@/lib/setup";
 import EmptyState from "@/components/EmptyState";
+import { Skeleton } from "@/components/Skeleton";
 
 /**
  * « Pas encore configuré » — le seul visage que doit avoir une fonctionnalité
@@ -98,9 +99,17 @@ export function RequiresSetup({ capability: key, children }) {
   const { status, loading } = useSetupStatus();
   const missing = missingCapabilities(status, [key]);
 
-  // Tant que la réponse n'est pas là, l'écran reste tel qu'il était : une
-  // checklist lente ne doit pas faire clignoter un écran qui marche.
-  if (loading || missing.length === 0) return children;
+  // Premier chargement : on ne monte pas encore l'écran. Le monter reviendrait
+  // à lancer ses appels avant de savoir si la capacité existe -- et sur une
+  // installation qui ne l'a pas, l'utilisateur verrait passer le 503 que tout
+  // ceci sert justement à ne jamais lui montrer.
+  if (loading && !status) {
+    return <Skeleton className="m-6 h-64 rounded-2xl" />;
+  }
+
+  // Ensuite, la réponse est connue (ou définitivement absente) : un
+  // rafraîchissement en cours ne doit pas faire clignoter un écran qui marche.
+  if (missing.length === 0) return children;
 
   const item = missing[0];
   const admin = isAdminUser(user);
