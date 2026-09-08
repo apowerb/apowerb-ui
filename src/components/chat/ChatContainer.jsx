@@ -22,9 +22,43 @@ import ArtifactPanel from "./ArtifactPanel";
 import NotificationToast from "./NotificationToast";
 import SessionTabs from "./SessionTabs";
 import KnowledgeWizard from "./KnowledgeWizard";
+import ShortcutsHelp from "./ShortcutsHelp";
+import ConfirmToast from "@/components/ConfirmToast";
+import { ChatUiProvider, useChatUi } from "@/contexts/ChatUiContext";
+import { useChatCommands } from "@/hooks/useChatCommands";
+import { useTranslations } from "use-intl";
+
+// Global keyboard shortcuts of the chat screen (⌘⇧O new chat, ⌘⇧F find in
+// thread, ⌘/ help). ⌘K lives in the palette, "/" and Esc in the composer.
+function ChatKeyboardShortcuts({ onNewChat }) {
+  const ui = useChatUi();
+  useEffect(() => {
+    const onKey = (e) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (e.shiftKey && key === "o") {
+        e.preventDefault();
+        onNewChat();
+      } else if (e.shiftKey && key === "f") {
+        e.preventDefault();
+        ui.openThreadSearch("");
+      } else if (!e.shiftKey && (e.key === "/" || e.key === "?")) {
+        e.preventDefault();
+        ui.setShortcutsOpen((v) => !v);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onNewChat, ui]);
+  return null;
+}
 
 function ChatLayout({ agentFilter, filterLabel, sessionKeywords, initialAgent, initialSession, initialDashboard }) {
-  const [showAgentSelector, setShowAgentSelector] = useState(false);
+  const ui = useChatUi();
+  const tCommon = useTranslations("ChatContainer");
+  const showAgentSelector = ui.agentPickerOpen;
+  const setShowAgentSelector = ui.setAgentPickerOpen;
   const [editingText, setEditingText] = useState("");
   const CHAT_TABS = ["sources", "chat"];
   const [activeTab, setActiveTabRaw] = useState(() => {
@@ -50,14 +84,40 @@ function ChatLayout({ agentFilter, filterLabel, sessionKeywords, initialAgent, i
 
   const { messages, notifications, dismissNotification, isLoading } = useChat({ onArtifactSaved: handleArtifactSaved });
   const { state, dispatch, actions } = useChatContext();
-  const { setActiveSession, createSession } = useChatSessions();
+  const { setActiveSession, createSession, deleteSession } = useChatSessions();
+  const openAgentPicker = useCallback(() => setShowAgentSelector(true), [setShowAgentSelector]);
+  const { commands, runCommand } = useChatCommands({ onNewChat: openAgentPicker });
+  const router = useRouter();
+
+  // "@agent" in the composer or a pick in the palette: start a conversation
+  // with that agent, carrying over what was typed.
+  const handlePickAgent = useCallback(
+    async (agent, draft) => {
+      if (!agent) return;
+      const numericId = agent.agent_id;
+      const agentId = numericId != null ? `agent${numericId}` : agent.agent_name;
+      const agentName = agent.agent_name || agentId;
+      let tags = [];
+      try {
+        tags = agent.tags ? JSON.parse(agent.tags) : [];
+      } catch {
+        tags = [];
+      }
+      if (draft) ui.setPendingComposerText(draft);
+      await createSession(agentId, agentName, null, {
+        agentType: agent.agent_type || "base",
+        superagentTemplateId: agent.superagent_template_id || null,
+        tags,
+      });
+    },
+    [createSession, ui],
+  );
   const { user } = useAuth();
   const activeSession = state.activeSessionId ? state.sessions.get(state.activeSessionId) : null;
   const isRag = isRagSession(activeSession);
 
   // Handle URL params for deep-linking into a specific agent/session (e.g. from webhook notifications)
   const deepLinkHandled = useRef(false);
-  const router = useRouter();
   useEffect(() => {
     if (!initialAgent || deepLinkHandled.current) return;
 
@@ -238,6 +298,21 @@ function ChatLayout({ agentFilter, filterLabel, sessionKeywords, initialAgent, i
     injectRef.current = injectArtifact;
   });
 
+  // The header badge and the /artifacts command read the count from the UI
+  // context; a request from either opens the most recent artifact.
+  useEffect(() => {
+    ui.setArtifactCount(artifacts.length);
+  }, [artifacts.length, ui]);
+  const [seenArtifactsRequest, setSeenArtifactsRequest] = useState(ui.artifactsRequest);
+  if (ui.artifactsRequest !== seenArtifactsRequest) {
+    setSeenArtifactsRequest(ui.artifactsRequest);
+    if (selectedArtifact) {
+      clearSelection();
+    } else if (artifacts.length) {
+      selectArtifact(artifacts[artifacts.length - 1].id);
+    }
+  }
+
   const handleEditPrompt = useCallback((text) => {
      setEditingText(text);
   }, []);
@@ -303,7 +378,7 @@ function ChatLayout({ agentFilter, filterLabel, sessionKeywords, initialAgent, i
           />
         ) : (
           <>
-            <ChatSessionHeader />
+            <ChatSessionHeader commands={commands} runCommand={runCommand} />
             <ChatMessages
              onEditPrompt={handleEditPrompt}
              onOpenArtifact={handleOpenArtifact}
@@ -313,6 +388,9 @@ function ChatLayout({ agentFilter, filterLabel, sessionKeywords, initialAgent, i
             <ChatInput
              editingText={editingText}
              onEditingTextClear={clearEditingText}
+             commands={commands}
+             runCommand={runCommand}
+             onPickAgent={handlePickAgent}
             />
           </>
         )}
@@ -330,17 +408,38 @@ function ChatLayout({ agentFilter, filterLabel, sessionKeywords, initialAgent, i
         />
       )}
 
-      {/* Agent selector modal */}
+      {/* Command palette (⌘K) */}
       <CommandPalette
-        onNewChat={() => setShowAgentSelector(true)}
+        onNewChat={openAgentPicker}
         sessionFilter={sessionFilter}
+        commands={commands}
+        runCommand={runCommand}
+        onPickAgent={handlePickAgent}
+        navigate={(href) => router.push(href)}
+      />
+
+      <ChatKeyboardShortcuts onNewChat={openAgentPicker} />
+      <ShortcutsHelp open={ui.shortcutsOpen} onClose={() => ui.setShortcutsOpen(false)} />
+
+      <ConfirmToast
+        message={ui.deleteRequest ? tCommon("deleteConversationConfirm") : null}
+        onConfirm={() => {
+          const id = ui.deleteRequest;
+          ui.clearDeleteRequest();
+          if (id) deleteSession(id);
+        }}
+        onCancel={() => ui.clearDeleteRequest()}
       />
 
       {showAgentSelector && (
         <AgentSelector
-          onClose={() => setShowAgentSelector(false)}
+          onClose={() => {
+            setShowAgentSelector(false);
+            ui.setAgentPickerQuery("");
+          }}
           agentFilter={agentFilter}
           filterLabel={filterLabel}
+          initialSearch={ui.agentPickerQuery}
         />
       )}
 
@@ -356,6 +455,7 @@ function ChatLayout({ agentFilter, filterLabel, sessionKeywords, initialAgent, i
 export default function ChatContainer({ agentFilter, filterLabel, sessionKeywords, initialAgent, initialSession, initialDashboard }) {
   return (
     <MaybeChatProvider>
+      <ChatUiProvider>
       <ChatLayout
         agentFilter={agentFilter}
         filterLabel={filterLabel}
@@ -364,6 +464,7 @@ export default function ChatContainer({ agentFilter, filterLabel, sessionKeyword
         initialDashboard={initialDashboard}
         initialSession={initialSession}
       />
+      </ChatUiProvider>
     </MaybeChatProvider>
   );
 }

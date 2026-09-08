@@ -6,12 +6,12 @@ import { X, Bot, Loader2, Search, AlertCircle } from "lucide-react";
 import { listAgents } from "@/lib/api";
 import { useChatSessions } from "@/hooks/useChatSessions";
 
-export default function AgentSelector({ onClose, agentFilter, filterLabel }) {
+export default function AgentSelector({ onClose, agentFilter, filterLabel, initialSearch = "" }) {
   const t = useTranslations("AgentSelector");
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const { createSession } = useChatSessions();
 
   useEffect(() => {
