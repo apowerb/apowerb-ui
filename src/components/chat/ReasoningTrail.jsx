@@ -165,7 +165,7 @@ export default function ReasoningTrail({ message, isStreaming, defaultOpen }) {
             const isLast = i === steps.length - 1;
             const live = isStreaming && isLast && step.kind === "thinking" && !step.endedAt;
             return (
-              <li key={step.id || i} className="relative">
+              <li key={step.id || i} className="relative pl-3">
                 <StepMarker step={step} isLast={isLast} live={isStreaming && isLast} />
                 {step.kind === "thinking" && <ThinkingStep step={step} live={live} />}
                 {step.kind === "handoff" && <HandoffStep step={step} />}
