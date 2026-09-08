@@ -3125,5 +3125,11 @@
     "downloadedToast": "Download started",
     "agentReloadedToast": "Agent reloaded — next message will use the latest config",
     "agentReloadFailedToast": "Failed to reload agent: {message}"
+  },
+  "DefaultLlmUsageMeter": {
+    "title": "Shared model",
+    "thisMonth": "{used} this month",
+    "remaining": "{percent}% left",
+    "resets": "Resets on {date}"
   }
 }

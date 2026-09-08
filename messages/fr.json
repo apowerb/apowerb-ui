@@ -3125,5 +3125,11 @@
     "downloadedToast": "Téléchargement lancé",
     "agentReloadedToast": "Agent rechargé — le prochain message utilisera la dernière configuration",
     "agentReloadFailedToast": "Échec du rechargement de l'agent : {message}"
+  },
+  "DefaultLlmUsageMeter": {
+    "title": "Modèle mutualisé",
+    "thisMonth": "{used} ce mois-ci",
+    "remaining": "{percent} % restants",
+    "resets": "Remise à zéro le {date}"
   }
 }
