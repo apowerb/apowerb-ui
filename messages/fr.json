@@ -2937,7 +2937,8 @@
     "userHeader": "Utilisateur",
     "windowDays": "{days} j",
     "scopeBounded": "Administrateur — vous ne gérez que votre propre compte.",
-    "scopeOrg": "Administrateur de {org} — vous ne gérez que les utilisateurs de cette organisation."
+    "scopeOrg": "Administrateur de {org} — vous ne gérez que les utilisateurs de cette organisation.",
+    "tabConfiguration": "Configuration"
   },
   "ReasoningTrail": {
     "ariaLabel": "Piste de raisonnement",
@@ -3125,5 +3126,49 @@
     "downloadedToast": "Téléchargement lancé",
     "agentReloadedToast": "Agent rechargé — le prochain message utilisera la dernière configuration",
     "agentReloadFailedToast": "Échec du rechargement de l'agent : {message}"
+  },
+  "Setup": {
+    "allSet": "Tout est configuré sur ce serveur.",
+    "badge": "{count, plural, one {# élément à configurer} other {# éléments à configurer}}",
+    "blockedAdmin": "Posez les variables ci-dessous, puis redémarrez le service.",
+    "blockedTitle": "{feature} n'est pas encore configuré",
+    "docs": "Documentation",
+    "noValuesEver": "Cette page n'affiche que des noms de variables — jamais leur valeur.",
+    "noticeAdmin": "Variables à poser sur ce serveur :",
+    "noticeTitle": "{features} : pas encore configuré sur ce serveur.",
+    "noticeUser": "Pas encore configuré — contactez votre administrateur.",
+    "refresh": "Actualiser",
+    "storageConfigureS3": "Configurer un stockage S3",
+    "storageLocal": "Les fichiers importés sont stockés dans un dossier local du serveur : ils disparaissent avec le conteneur.",
+    "subtitle": "Ce que cette installation sait faire, et ce qui lui manque.",
+    "summary": "{count, plural, one {# élément reste à configurer} other {# éléments restent à configurer}}",
+    "unavailable": "État de configuration indisponible pour l'instant.",
+    "capability": {
+      "default_llm": "Modèle mutualisé",
+      "google_integration": "Google (Drive, Gmail, Agenda)",
+      "microsoft_integration": "Microsoft (Outlook, OneDrive)",
+      "object_storage": "Stockage des fichiers",
+      "observability": "Journaux et traces",
+      "orchestration": "Orchestrateur (th2etl)",
+      "system_mail": "Courrier système"
+    },
+    "description": {
+      "default_llm": "Le modèle proposé par défaut aux agents, sans clé API de l'utilisateur.",
+      "google_integration": "Connexions Google et déclencheurs associés.",
+      "microsoft_integration": "Connexions Microsoft, déclencheurs Outlook et envoi de campagnes.",
+      "object_storage": "Où vont les fichiers importés : dossier local par défaut, S3 si configuré.",
+      "observability": "L'écran Journaux, alimenté par un collecteur OpenTelemetry.",
+      "orchestration": "Pipelines planifiés et exécutions programmées.",
+      "system_mail": "Vérification d'adresse et réinitialisation de mot de passe."
+    },
+    "mode": {
+      "local": "dossier local",
+      "s3": "S3"
+    },
+    "state": {
+      "missing": "à configurer",
+      "ok": "configuré",
+      "optional": "optionnel"
+    }
   }
 }

@@ -209,6 +209,11 @@ export const getModels = () => request("/api/models");
 // il ne plafonne pas.
 export const getDefaultLlmUsage = () => request("/api/config/default-llm/usage");
 
+// Ce que cette installation a configure, capacite par capacite. Jamais une
+// valeur : le coeur sert des drapeaux, et les NOMS des variables manquantes
+// aux seuls administrateurs.
+export const getSetupStatus = () => request("/api/config/setup");
+
 // --- MCP Configs ---
 export const listMcpConfigs = () => request("/api/mcp_configs");
 
