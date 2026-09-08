@@ -34,6 +34,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
 import NotificationBell from "./NotificationBell";
 import DefaultLlmUsageMeter from "./DefaultLlmUsageMeter";
+import SetupBadge from "./SetupBadge";
 import Slot from "@/extensions/Slot";
 import { navItemsFor } from "@/extensions/registry";
 
@@ -177,6 +178,9 @@ function AppContent({ children }) {
               {label}
             </span>
           </div>
+          {/* Ce qui reste a configurer se voit depuis n'importe quel ecran,
+              sinon la checklist n'existe que pour qui la cherche deja. */}
+          {item.path === "/admin" && <SetupBadge collapsed={isCollapsed} />}
         </div>
       </Link>
     );

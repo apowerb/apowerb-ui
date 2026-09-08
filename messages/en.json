@@ -2937,7 +2937,8 @@
     "userHeader": "User",
     "windowDays": "{days} d",
     "scopeBounded": "Administrator — you manage your own account only.",
-    "scopeOrg": "Administrator of {org} — you manage that organisation's users only."
+    "scopeOrg": "Administrator of {org} — you manage that organisation's users only.",
+    "tabConfiguration": "Configuration"
   },
   "ReasoningTrail": {
     "ariaLabel": "Reasoning trail",
@@ -3131,5 +3132,49 @@
     "thisMonth": "{used} this month",
     "remaining": "{percent}% left",
     "resets": "Resets on {date}"
+  },
+  "Setup": {
+    "allSet": "Everything is configured on this server.",
+    "badge": "{count, plural, one {# item to configure} other {# items to configure}}",
+    "blockedAdmin": "Set the variables below, then restart the service.",
+    "blockedTitle": "{feature} is not configured yet",
+    "docs": "Documentation",
+    "noValuesEver": "This page only ever shows variable names — never their values.",
+    "noticeAdmin": "Variables to set on this server:",
+    "noticeTitle": "{features}: not configured yet on this server.",
+    "noticeUser": "Not configured yet — contact your administrator.",
+    "refresh": "Refresh",
+    "storageConfigureS3": "Configure S3 storage",
+    "storageLocal": "Uploaded files are stored in a local directory on the server: they go away with the container.",
+    "subtitle": "What this installation can do, and what it is missing.",
+    "summary": "{count, plural, one {# item still to configure} other {# items still to configure}}",
+    "unavailable": "Configuration status unavailable right now.",
+    "capability": {
+      "default_llm": "Shared model",
+      "google_integration": "Google (Drive, Gmail, Calendar)",
+      "microsoft_integration": "Microsoft (Outlook, OneDrive)",
+      "object_storage": "File storage",
+      "observability": "Logs and traces",
+      "orchestration": "Orchestrator (th2etl)",
+      "system_mail": "System mail"
+    },
+    "description": {
+      "default_llm": "The model offered to agents by default, without a user API key.",
+      "google_integration": "Google connections and their triggers.",
+      "microsoft_integration": "Microsoft connections, Outlook triggers and campaign sending.",
+      "object_storage": "Where uploaded files go: a local directory by default, S3 once configured.",
+      "observability": "The Logging screen, fed by an OpenTelemetry collector.",
+      "orchestration": "Scheduled pipelines and planned runs.",
+      "system_mail": "E-mail verification and password reset."
+    },
+    "mode": {
+      "local": "local directory",
+      "s3": "S3"
+    },
+    "state": {
+      "missing": "to configure",
+      "ok": "configured",
+      "optional": "optional"
+    }
   }
 }

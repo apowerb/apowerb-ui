@@ -41,6 +41,7 @@ import { isAdminUser } from "@/lib/roles";
 import { Skeleton } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import DashboardTab from "@/components/admin/DashboardTab";
+import ConfigurationTab from "@/components/admin/ConfigurationTab";
 
 // "SUPERADMIN" is not a value of the core's role enum — it is ADMIN plus a
 // row in admin_superadmin. The API accepts it here and writes both sides, so
@@ -207,7 +208,7 @@ export default function AdminPage() {
       </header>
 
       <div className="flex gap-2 mb-5">
-        {["dashboard", "users", "groups"].map((key) => (
+        {["dashboard", "users", "groups", "configuration"].map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -222,7 +223,9 @@ export default function AdminPage() {
                 ? "tabDashboard"
                 : key === "users"
                   ? "tabUsers"
-                  : "tabGroups",
+                  : key === "groups"
+                    ? "tabGroups"
+                    : "tabConfiguration",
             )}
           </button>
         ))}
@@ -259,6 +262,8 @@ export default function AdminPage() {
         />
       ) : tab === "dashboard" ? (
         <DashboardTab />
+      ) : tab === "configuration" ? (
+        <ConfigurationTab />
       ) : (
         <GroupsTab
           t={t}
