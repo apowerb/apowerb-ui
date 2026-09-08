@@ -2,7 +2,6 @@ import { useTranslations } from "use-intl";
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import {
   User,
-  Bot,
   Loader2,
   Copy,
   Check,
@@ -17,18 +16,23 @@ import {
   Image as ImageIcon,
   File as FileIcon,
   Download,
+  RefreshCw,
+  StepForward,
+  CircleSlash2,
+  AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import ToolCallCard from "./ToolCallCard";
 import ApprovalCard from "./ApprovalCard";
 import IntegrationConnectCard from "./IntegrationConnectCard";
 import ActionCard from "./action-cards/ActionCard";
-import AgentHandoff from "./AgentHandoff";
 import BranchNavigator from "./BranchNavigator";
 import { JsonBlock } from "./StructuredOutput";
-import { ExternalLink, Bot as BotIcon } from "lucide-react";
-import ThinkingOctopus from "./ThinkingOctopus";
+import { ExternalLink } from "lucide-react";
+import ReasoningTrail from "./ReasoningTrail";
+import InlineChart from "./InlineChart";
+import { deriveMessageStatus } from "@/lib/reasoningSteps";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { formatDateTime } from "@/lib/datetime";
@@ -466,10 +470,75 @@ function FileAttachment({ att }) {
   );
 }
 
+
+// ── Response state notice (empty / interrupted / error) ────────────────────
+function ResponseStateNotice({ status, error, canAct, onRegenerate, onContinue }) {
+  const t = useTranslations("ChatMessage");
+  if (status !== "empty" && status !== "interrupted" && status !== "error") return null;
+  const tone =
+    status === "error"
+      ? "border-red-500/30 bg-red-500/[0.06] text-red-300"
+      : status === "interrupted"
+        ? "border-amber-500/30 bg-amber-500/[0.06] text-amber-300"
+        : "border-dashed th-border th-bg-surface th-text-muted";
+  const Icon = status === "error" ? AlertTriangle : status === "interrupted" ? CircleSlash2 : Sparkles;
+  const label =
+    status === "error"
+      ? t("stateError")
+      : status === "interrupted"
+        ? t("stateInterrupted")
+        : t("stateEmpty");
+  const hint =
+    status === "error"
+      ? error || t("stateErrorHint")
+      : status === "interrupted"
+        ? t("stateInterruptedHint")
+        : t("stateEmptyHint");
+  const btn =
+    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors";
+  return (
+    <div
+      role="status"
+      data-state={status}
+      className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2 ${tone}`}
+    >
+      <Icon size={14} className="shrink-0" />
+      <div className="min-w-0 flex-1">
+        <span className="text-xs font-semibold">{label}</span>
+        <span className="text-[11px] opacity-80 ml-2 break-words">{hint}</span>
+      </div>
+      {canAct && (
+        <div className="flex items-center gap-1.5">
+          {status === "interrupted" && onContinue && (
+            <button type="button" onClick={onContinue} className={`${btn} border-amber-400/40 hover:bg-amber-500/15`}>
+              <StepForward size={12} /> {t("continue")}
+            </button>
+          )}
+          {onRegenerate && (
+            <button
+              type="button"
+              onClick={onRegenerate}
+              className={`${btn} ${
+                status === "error"
+                  ? "border-red-400/40 hover:bg-red-500/15"
+                  : "th-border-hover hover:th-bg-surface-hover"
+              }`}
+            >
+              <RefreshCw size={12} /> {status === "error" ? t("retry") : t("regenerate")}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Message ────────────────────────────────────────────────────────────────
 export default memo(function ChatMessage({
   message,
   messageIndex,
   isStreaming,
+  isLastAssistant = false,
   onEditPrompt,
   onOpenArtifact,
   onApprove,
@@ -478,12 +547,12 @@ export default memo(function ChatMessage({
   onConnectIntegration,
   onRespondToActionCard,
   onNavigateBranch,
+  onRegenerate,
+  onContinue,
   agentName,
 }) {
   const t = useTranslations("ChatMessage");
   const [copied, setCopied] = useState(false);
-  const [showThinking, setShowThinking] = useState(false);
-  const prevStreamingRef = useRef(isStreaming);
   const onOpenArtifactRef = useRef(onOpenArtifact);
   useEffect(() => {
     onOpenArtifactRef.current = onOpenArtifact;
@@ -493,25 +562,16 @@ export default memo(function ChatMessage({
 
   const displayContent = cleanContent(message.content);
   const hasAttachments = isUser && message.attachments && message.attachments.length > 0;
-  const hasThinking = message.thinking && message.thinking.trim().length > 0;
-  const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
   const hasApprovals = message.approvals && message.approvals.length > 0;
-  const hasHandoffs = message.handoffs && message.handoffs.length > 0;
   const hasMeta = message.meta && (message.meta.duration || message.meta.tokens);
   const hasBranches = message._branches && message._branches.length > 1;
-
-  // Auto-expand thinking during streaming, auto-collapse when done
-  useEffect(() => {
-    if (isStreaming && hasThinking) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: expand thinking panel when streaming starts
-      setShowThinking(true);
-    }
-    // Auto-collapse when streaming ends
-    if (prevStreamingRef.current && !isStreaming) {
-      setShowThinking(false);
-    }
-    prevStreamingRef.current = isStreaming;
-  }, [isStreaming, hasThinking]);
+  const status = isUser ? "done" : isStreaming ? "streaming" : deriveMessageStatus(message);
+  const hasTrail =
+    !isUser &&
+    ((message.steps && message.steps.length > 0) ||
+      (message.thinking && message.thinking.trim().length > 0) ||
+      (message.toolCalls && message.toolCalls.length > 0) ||
+      (message.handoffs && message.handoffs.length > 0));
 
   // --- Throttle markdown rendering during streaming (~20fps) ---
   const displayContentRef = useRef(displayContent);
@@ -555,10 +615,14 @@ export default memo(function ChatMessage({
       code: ({ node, inline, className, children, ...props }) => {
         const match = /language-(\w+)/.exec(className || "");
         if (!inline && match) {
-          // Detect JSON blocks and render as structured output
           const lang = match[1];
+          const raw = String(children).replace(/\n$/, "");
+          // ```chart — a small JSON spec rendered as a native chart.
+          if (lang === "chart") {
+            return <InlineChart source={raw} />;
+          }
+          // Detect JSON blocks and render as structured output
           if (lang === "json") {
-            const raw = String(children).replace(/\n$/, "");
             try {
               JSON.parse(raw);
               return <JsonBlock content={raw} />;
@@ -615,56 +679,89 @@ export default memo(function ChatMessage({
     }
   };
 
+  const iconBtn =
+    "p-1.5 rounded-lg th-text-faint hover:th-text-secondary hover:th-bg-surface-hover transition-colors focus-visible:ring-2 focus-visible:ring-brand/50 outline-none";
+
   if (isSynthetic) {
     return (
-      <div className="flex justify-end mb-2 px-1">
-        <span className="italic th-text-ghost text-[10px] max-w-[80%] truncate">
+      <div className="flex justify-end my-1 px-1" id={`chat-msg-${message.id}`}>
+        <span className="italic th-text-ghost text-[11px] max-w-[80%] truncate">
           ↳ {displayContent}
         </span>
       </div>
     );
   }
 
-  return (
-    <div
-      id={`chat-msg-${message.id}`}
-      className={`group flex gap-3 mb-4 ${isUser ? "flex-row-reverse" : ""}`}
-    >
-      {/* Avatar */}
-      <div
-        className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-          isUser
-            ? "bg-linear-to-r from-blue-500 to-blue-400"
-            : "bg-linear-to-r from-purple-500 to-violet-500"
-        }`}
-      >
-        {isUser ? (
-          <User size={16} className="text-white" />
-        ) : (
-          <Bot size={16} className="text-white" />
-        )}
-      </div>
-
-      {/* Message bubble */}
-      <div className="flex flex-col max-w-[80%]">
-        {/* Tool call cards */}
-        {hasToolCalls && (
-          <div className="flex flex-col gap-1.5 mb-2 w-full max-w-xl">
-            {message.toolCalls.map((tool, idx) => (
-              <ToolCallCard
-                key={idx}
-                tool={tool}
-                isStreaming={isStreaming && idx === message.toolCalls.length - 1}
-              />
-            ))}
+  // ── User turn: compact bubble on the right ─────────────────────────────
+  if (isUser) {
+    return (
+      <div id={`chat-msg-${message.id}`} className="group flex justify-end my-3 pl-10">
+        <div className="flex flex-col items-end max-w-[78%] min-w-0">
+          <div className="relative rounded-2xl rounded-br-md px-4 py-2.5 border border-brand/25 bg-brand/[0.12] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+            {hasAttachments && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {message.attachments.map((att, idx) => (
+                  <FileAttachment key={idx} att={att} />
+                ))}
+              </div>
+            )}
+            <div className="text-sm break-words markdown-content user-bubble-md th-text">
+              {renderedMarkdown}
+            </div>
           </div>
-        )}
+          <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+            <span className="text-[10px] th-text-ghost tabular-nums mr-1">
+              {formatDateTime(message.timestamp)}
+            </span>
+            <button onClick={handleCopy} className={iconBtn} title={t("copyMessage")} aria-label={t("copyMessage")}>
+              {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+            </button>
+            {onEditPrompt && (
+              <button onClick={handleEdit} className={iconBtn} title={t("editAndResend")} aria-label={t("editAndResend")}>
+                <Edit2 size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-        {/* Agent handoff indicators */}
-        {hasHandoffs &&
-          message.handoffs.map((h, idx) => (
-            <AgentHandoff key={idx} handoff={h} />
-          ))}
+  // ── Assistant turn: full-width prose ───────────────────────────────────
+  const canAct = isLastAssistant && !isStreaming;
+  return (
+    <article
+      id={`chat-msg-${message.id}`}
+      data-status={status}
+      className="group relative my-3 pr-2"
+      aria-busy={isStreaming || undefined}
+    >
+      {/* Identity row */}
+      <header className="flex items-center gap-2 mb-1.5">
+        <span className="w-5 h-5 rounded-md bg-brand/15 border border-brand/25 flex items-center justify-center shrink-0">
+          <Sparkles size={11} className="text-brand" />
+        </span>
+        <span className="text-[11px] font-semibold th-text-secondary truncate">
+          {agentName || t("assistant")}
+        </span>
+        <span className="text-[10px] th-text-ghost tabular-nums">
+          {formatDateTime(message.timestamp)}
+        </span>
+        {status === "interrupted" && (
+          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            {t("badgeInterrupted")}
+          </span>
+        )}
+        {status === "error" && (
+          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-300 border border-red-500/30">
+            {t("badgeError")}
+          </span>
+        )}
+      </header>
+
+      <div className="pl-7">
+        {/* Reasoning trail: thoughts, tools, hand-offs in order */}
+        {hasTrail && <ReasoningTrail message={message} isStreaming={isStreaming} />}
 
         {/* Approval cards (HITL) */}
         {hasApprovals &&
@@ -708,98 +805,65 @@ export default memo(function ChatMessage({
           </div>
         )}
 
-        {/* Thinking section - collapsible with animated octopus */}
-        {hasThinking && (
-          <div className="mb-2">
-            <button
-              onClick={() => setShowThinking(!showThinking)}
-              className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-purple-300 hover:text-purple-200 bg-purple-500/10 hover:bg-purple-500/20 rounded-lg transition-colors"
-            >
-              {isStreaming && hasThinking ? (
-                <span className="flex items-center gap-2">
-                  <ThinkingOctopus size={24} />
-                  <span>{t("reasoningStreaming")}</span>
-                </span>
-              ) : (
-                <>
-                  {showThinking ? (
-                    <ChevronDown size={14} />
-                  ) : (
-                    <ChevronRight size={14} />
-                  )}
-                  <ThinkingOctopus size={18} />
-                  <span>{t("reasoning")}</span>
-                  {!showThinking && (
-                    <span className="text-purple-400/60 ml-1">
-                      {t("charsCount", { count: message.thinking.length })}
-                    </span>
-                  )}
-                </>
-              )}
-            </button>
-            {showThinking && (
-              <div className="mt-2 p-3 border-l-2 border-purple-500/40 th-bg-surface rounded-r-xl text-xs th-text-muted whitespace-pre-wrap max-h-[200px] overflow-y-auto custom-scrollbar">
-                {message.thinking}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div
-          className={`relative px-4 py-3 rounded-2xl ${
-            isUser
-              ? "bg-linear-to-r from-brand/80 to-brand-secondary/80 text-white rounded-br-md"
-              : "th-bg-surface th-text-secondary border th-border rounded-bl-md"
-          }`}
-        >
-          {/* File attachments */}
-          {hasAttachments && (
-            <div className="flex flex-wrap gap-2 mb-2">
-              {message.attachments.map((att, idx) => (
-                <FileAttachment key={idx} att={att} />
-              ))}
-            </div>
-          )}
-
-          <div className={`text-sm break-words markdown-content ${isUser ? "user-bubble-md" : ""}`}>
+        {/* The answer */}
+        {(markdownContent || isStreaming) && (
+          <div className="text-sm leading-relaxed break-words markdown-content th-text-secondary">
             {renderedMarkdown}
             {isStreaming && (
-              <span className="inline-flex items-center ml-1">
+              <span className="inline-flex items-center ml-1 align-middle">
                 <span className="w-2 h-4 bg-brand/60 animate-pulse rounded-sm" />
               </span>
             )}
           </div>
+        )}
 
-          {/* Timestamp and metrics footer */}
-          <div
-            className={`flex items-center gap-3 mt-2 text-[10px] ${
-              isUser ? "text-white/50" : "th-text-faint"
+        {/* Empty / interrupted / error */}
+        {!isStreaming && (
+          <ResponseStateNotice
+            status={status}
+            error={message.error}
+            canAct={canAct}
+            onRegenerate={onRegenerate ? () => onRegenerate(message.id) : undefined}
+            onContinue={onContinue}
+          />
+        )}
+
+        {/* Footer: actions (on hover / focus) + metrics */}
+        {!isStreaming && (
+          <footer
+            className={`flex items-center gap-1 mt-1.5 -ml-1.5 transition-opacity ${
+              hasBranches ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
             }`}
           >
-            <span>
-              {formatDateTime(message.timestamp)}
-            </span>
-
-            {/* Agent name */}
-            {!isUser && agentName && (
-              <span className="flex items-center gap-1">
-                <BotIcon size={10} />
-                {agentName}
-              </span>
+            {message.content && (
+              <button onClick={handleCopy} className={iconBtn} title={t("copyMessage")} aria-label={t("copyMessage")}>
+                {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+              </button>
             )}
-
-            {/* Branch navigator */}
+            {canAct && onRegenerate && status === "done" && (
+              <button
+                onClick={() => onRegenerate(message.id)}
+                className={iconBtn}
+                title={t("regenerate")}
+                aria-label={t("regenerate")}
+              >
+                <RefreshCw size={13} />
+              </button>
+            )}
+            {canAct && onContinue && status === "done" && message.content && (
+              <button onClick={onContinue} className={iconBtn} title={t("continue")} aria-label={t("continue")}>
+                <StepForward size={13} />
+              </button>
+            )}
             {hasBranches && (
               <BranchNavigator
                 branchCount={message._branches.length}
-                currentBranch={message._activeBranch || 0}
-                onNavigate={(idx) => onNavigateBranch?.(messageIndex, idx)}
+                currentBranch={message._activeBranch ?? message._branches.length - 1}
+                onNavigate={(idx) => onNavigateBranch?.(message.id, idx)}
               />
             )}
-
-            {/* Metrics for assistant messages */}
-            {!isUser && !isStreaming && hasMeta && (
-              <>
+            {hasMeta && (
+              <span className="ml-auto flex items-center gap-3 text-[10px] th-text-ghost tabular-nums">
                 {message.meta.duration && (
                   <span className="flex items-center gap-1">
                     <Clock size={10} />
@@ -813,42 +877,11 @@ export default memo(function ChatMessage({
                   </span>
                 )}
                 {/* Cost is intentionally not shown (product decision). */}
-              </>
+              </span>
             )}
-          </div>
-        </div>
-
-        {/* Action buttons - visible on hover */}
-        {!isStreaming && message.content && (
-          <div
-            className={`flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${
-              isUser ? "justify-end" : "justify-start"
-            }`}
-          >
-            <button
-              onClick={handleCopy}
-              className="p-1.5 rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-faint hover:th-text-secondary transition-colors"
-              title={t("copyMessage")}
-            >
-              {copied ? (
-                <Check size={14} className="text-blue-400" />
-              ) : (
-                <Copy size={14} />
-              )}
-            </button>
-
-            {isUser && onEditPrompt && (
-              <button
-                onClick={handleEdit}
-                className="p-1.5 rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-faint hover:th-text-secondary transition-colors"
-                title={t("editAndResend")}
-              >
-                <Edit2 size={14} />
-              </button>
-            )}
-          </div>
+          </footer>
         )}
       </div>
-    </div>
+    </article>
   );
 });

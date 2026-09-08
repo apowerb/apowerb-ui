@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslations } from "use-intl";
-import { Wrench, ChevronDown, ChevronRight, Loader2, Check, Download, BarChart3, Table2, Eye, EyeOff, Maximize2, Minimize2 } from "lucide-react";
+import { Wrench, ChevronDown, ChevronRight, Loader2, Check, Download, BarChart3, Table2, Eye, EyeOff, Maximize2, Minimize2, AlertTriangle, Copy, Clock } from "lucide-react";
+import { formatDuration, isToolResultError } from "@/lib/reasoningSteps";
 import { DataTable } from "./StructuredOutput";
 import AudioPlayer from "./AudioPlayer";
 
@@ -409,13 +410,36 @@ function parseToolResult(raw) {
   return null;
 }
 
-export default function ToolCallCard({ tool, isStreaming }) {
+export default function ToolCallCard({ tool, isStreaming, compact = false }) {
+  const t = useTranslations("ToolCallCard");
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const hasArgs = tool.args && Object.keys(tool.args).length > 0;
   const result = parseToolResult(tool.result);
+  const hasResult = tool.result !== undefined && tool.result !== null;
   const downloadPath = result?.download_path;
   const resultFilename = result?.filename;
+
+  // running | done | error — explicit when the reducer set it, derived otherwise.
+  const status = isStreaming
+    ? "running"
+    : tool.status && tool.status !== "running"
+      ? tool.status
+      : isToolResultError(result ?? tool.result)
+        ? "error"
+        : "done";
+  const errorText =
+    status === "error"
+      ? typeof result?.error === "string"
+        ? result.error
+        : typeof tool.result === "string"
+          ? tool.result
+          : result?.error
+            ? JSON.stringify(result.error)
+            : ""
+      : "";
+  const duration = formatDuration(tool.durationMs);
 
   // Detect chart for inline preview (HTML download or chart_json)
   const chartJson = result?.chart_json;
@@ -442,33 +466,85 @@ export default function ToolCallCard({ tool, isStreaming }) {
     || result?.audio_format
     || (result?.file_name && /\.(mp3|wav|ogg|webm|m4a|flac|aac)$/i.test(result.file_name));
 
+  // A generic result (no dedicated preview) is shown as pretty JSON on demand.
+  const hasGenericPreview = hasResult && !isChart && !hasSqlResult && !isImageResult && !isAudioResult && !downloadPath;
+  const canExpand = hasArgs || hasGenericPreview || !!errorText;
+
+  const handleCopyResult = async (e) => {
+    e.stopPropagation();
+    try {
+      const text = typeof tool.result === "string" ? tool.result : JSON.stringify(result ?? tool.result, null, 2);
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {}
+  };
+
+  const statusIcon =
+    status === "running" ? (
+      <Loader2 size={13} className="text-brand animate-spin shrink-0" />
+    ) : status === "error" ? (
+      <AlertTriangle size={13} className="text-red-400 shrink-0" />
+    ) : status === "interrupted" ? (
+      <AlertTriangle size={13} className="text-amber-400 shrink-0" />
+    ) : (
+      <Check size={13} className="text-emerald-400 shrink-0" />
+    );
+
+  const frame = compact
+    ? "rounded-lg border th-border-secondary th-bg-surface overflow-hidden"
+    : `rounded-xl border overflow-hidden ${status === "error" ? "border-red-500/30 bg-red-500/5" : "th-border th-bg-surface"}`;
+
   return (
-    <div className="th-bg-surface border th-border rounded-xl overflow-hidden">
+    <div className={frame} data-status={status}>
       <button
-        onClick={() => hasArgs && setExpanded(!expanded)}
-        className={`w-full flex items-center gap-2 px-3 py-2 text-left ${
-          hasArgs ? "hover:th-bg-surface cursor-pointer" : "cursor-default"
+        type="button"
+        onClick={() => canExpand && setExpanded(!expanded)}
+        aria-expanded={canExpand ? expanded : undefined}
+        className={`w-full flex items-center gap-2 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"} text-left ${
+          canExpand ? "hover:th-bg-surface-hover cursor-pointer" : "cursor-default"
         } transition-colors`}
       >
-        <Wrench size={14} className="text-blue-400 shrink-0" />
-        <span className="text-xs font-medium text-blue-200 flex-1 truncate">
+        <Wrench size={13} className={`${status === "error" ? "text-red-400" : "text-brand"} shrink-0`} />
+        <span className="text-xs font-medium th-text-secondary truncate">
           {tool.name}
         </span>
-
-        {/* Status indicator */}
-        {isStreaming ? (
-          <Loader2 size={14} className="text-blue-400 animate-spin shrink-0" />
-        ) : (
-          <Check size={14} className="text-blue-400 shrink-0" />
-        )}
-
-        {/* Expand chevron */}
-        {hasArgs && (
-          <span className="th-text-ghost">
-            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        {hasArgs && !expanded && (
+          <span className="hidden sm:inline text-[11px] th-text-ghost truncate min-w-0 flex-1">
+            {Object.entries(tool.args)
+              .slice(0, 3)
+              .map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
+              .join("  ·  ")}
           </span>
         )}
+        <span className="ml-auto flex items-center gap-2 shrink-0">
+          {status === "running" && (
+            <span className="text-[10px] font-medium text-brand">{t("running")}</span>
+          )}
+          {status === "error" && (
+            <span className="text-[10px] font-medium text-red-400">{t("failed")}</span>
+          )}
+          {duration && status !== "running" && (
+            <span className="inline-flex items-center gap-1 text-[10px] th-text-ghost tabular-nums">
+              <Clock size={10} />
+              {duration}
+            </span>
+          )}
+          {statusIcon}
+          {canExpand && (
+            <span className="th-text-ghost">
+              {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            </span>
+          )}
+        </span>
       </button>
+
+      {/* Error text — always visible, this is the one thing the reader must see */}
+      {errorText && (
+        <div className="px-3 pb-2 text-[11px] text-red-300/90 font-mono whitespace-pre-wrap break-words">
+          {errorText.slice(0, 600)}
+        </div>
+      )}
 
       {/* Download button when tool result contains a download path */}
       {downloadPath && (
@@ -497,17 +573,41 @@ export default function ToolCallCard({ tool, isStreaming }) {
         <SqlResultPreview result={result} />
       )}
 
-      {/* Collapsible args as key-value pairs */}
-      {expanded && hasArgs && (
+      {/* Collapsible args as key-value pairs + generic result */}
+      {expanded && (
         <div className="px-3 pb-2 border-t th-border-secondary">
-          <div className="mt-2 space-y-1">
-            {Object.entries(tool.args).map(([key, val]) => (
-              <div key={key} className="flex gap-2 text-[11px] leading-relaxed">
-                <span className="text-blue-400 shrink-0 font-medium">{key}:</span>
-                <ArgValue value={val} />
+          {hasArgs && (
+            <div className="mt-2 space-y-1">
+              <div className="text-[10px] uppercase tracking-wider th-text-ghost font-semibold">{t("arguments")}</div>
+              {Object.entries(tool.args).map(([key, val]) => (
+                <div key={key} className="flex gap-2 text-[11px] leading-relaxed">
+                  <span className="text-brand shrink-0 font-medium">{key}:</span>
+                  <ArgValue value={val} />
+                </div>
+              ))}
+            </div>
+          )}
+          {hasGenericPreview && (
+            <div className="mt-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] uppercase tracking-wider th-text-ghost font-semibold">{t("result")}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyResult}
+                  className="inline-flex items-center gap-1 text-[10px] th-text-faint hover:th-text-secondary"
+                  title={t("copyResult")}
+                >
+                  {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                  {copied ? t("copied") : t("copyResult")}
+                </button>
               </div>
-            ))}
-          </div>
+              <pre className="text-[11px] th-text-muted th-bg-surface border th-border-secondary rounded-lg p-2.5 max-h-56 overflow-auto custom-scrollbar font-mono whitespace-pre-wrap break-words">
+                {typeof tool.result === "string"
+                  ? tool.result.slice(0, 4000)
+                  : JSON.stringify(result ?? tool.result, null, 2)?.slice(0, 4000)}
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </div>
