@@ -458,8 +458,11 @@ export default function ChatMessages({ onEditPrompt, onOpenArtifact }) {
     }
   }, [messages]);
 
-  if (!activeSession) {
-    return <ChatHome />;
+  // A thread that has no message yet shows the home too (a conversation is
+  // always selected in practice, so the home would otherwise never appear);
+  // its agent stays bound to the composer.
+  if (!activeSession || messages.length === 0) {
+    return <ChatHome session={activeSession} />;
   }
 
   const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;

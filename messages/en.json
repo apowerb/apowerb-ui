@@ -3000,7 +3000,8 @@
     "powerMentionDesc": "Type @ to hand the next message to another agent.",
     "powerChart": "```chart blocks",
     "powerChartDesc": "Ask for a chart: the agent's JSON becomes a live, themed graphic.",
-    "footerHint": "Conversations stay in this browser. Share a snapshot with the Share button."
+    "footerHint": "Conversations stay in this browser. Share a snapshot with the Share button.",
+    "threadEyebrow": "New conversation with {agentName}"
   },
   "ChatContainer": {
     "deleteConversationConfirm": "Delete this conversation?"
@@ -3124,11 +3125,5 @@
     "downloadedToast": "Download started",
     "agentReloadedToast": "Agent reloaded — next message will use the latest config",
     "agentReloadFailedToast": "Failed to reload agent: {message}"
-  },
-  "DefaultLlmUsageMeter": {
-    "title": "Shared model",
-    "thisMonth": "{used} this month",
-    "remaining": "{percent}% left",
-    "resets": "Resets on {date}"
   }
 }
