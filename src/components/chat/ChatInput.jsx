@@ -59,7 +59,9 @@ function isModalOpen() {
 
 export default function ChatInput({ editingText, onEditingTextClear, commands, runCommand, onPickAgent }) {
   const t = useTranslations("ChatInput");
-  const [input, setInput] = useState("");
+  const { activeSession } = useChatSessions();
+  const sessionId = activeSession?.id;
+  const [input, setInput] = useState(() => loadDraft(sessionId));
   const [caret, setCaret] = useState(0);
   const [menuIndex, setMenuIndex] = useState(0);
   const [agents, setAgents] = useState(null);
@@ -76,11 +78,9 @@ export default function ChatInput({ editingText, onEditingTextClear, commands, r
   const [recallIndex, setRecallIndex] = useState(-1);
   const textareaRef = useRef(null);
   const { sendMessage, isLoading, streamingMessageId, abortStreaming } = useChat();
-  const { activeSession } = useChatSessions();
   const { state: chatState } = useChatContext();
 
   const isStreaming = !!streamingMessageId;
-  const sessionId = activeSession?.id;
 
   // --- Composer menus (`/` commands, `@` agents) -------------------------
   const slashQuery = slashMenuQuery(input);
@@ -259,17 +259,20 @@ export default function ChatInput({ editingText, onEditingTextClear, commands, r
     return () => cancelAnimationFrame(id);
   }, [isBusy, voiceModalOpen]);
 
-  // Restore the saved draft when the active session changes (and on mount), so
-  // switching threads or reloading never loses what you were typing. Per-key
-  // saving happens in the textarea onChange; the draft is cleared on send.
-  useEffect(() => {
-    if (editingText) return; // do not clobber an in-progress message edit
-    setInput(loadDraft(sessionId));
-    setRecallIndex(-1); // a different thread has its own history
-    // editingText is read as a guard, not a trigger: restore must fire only on
-    // session change, never when an edit starts or ends.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  // Restore the saved draft when the active session changes, so switching
+  // threads never loses what you were typing (the mount case is the lazy
+  // initialiser above). Per-key saving happens in the textarea onChange; the
+  // draft is cleared on send. Done as a render-phase adjustment keyed on the
+  // session id, never in an effect, so the swap costs no extra paint.
+  const [draftSessionId, setDraftSessionId] = useState(sessionId);
+  if (draftSessionId !== sessionId) {
+    setDraftSessionId(sessionId);
+    if (!editingText) {
+      // an in-progress message edit is never clobbered
+      setInput(loadDraft(sessionId));
+      setRecallIndex(-1); // a different thread has its own history
+    }
+  }
 
   // Esc anywhere stops a running answer (the composer itself is disabled
   // while streaming, so the key never reaches its handler).
@@ -447,6 +450,16 @@ export default function ChatInput({ editingText, onEditingTextClear, commands, r
       }
     }
 
+    // Cmd/Ctrl+K: with a selection it is the Markdown "link" shortcut of the
+    // toolbar; with nothing selected the key belongs to the command palette,
+    // so the link shortcut steps aside and the event bubbles up to the
+    // palette's document listener. On a selection the reverse holds: the
+    // link is made and the palette stays closed.
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
+      if (!el || el.selectionStart === el.selectionEnd) return;
+      e.stopPropagation();
+      e.nativeEvent?.stopImmediatePropagation?.();
+    }
     // Markdown shortcuts + smart list continuation get first dibs.
     if (mdHandleKeyDown(e)) return;
     // Cmd/Ctrl+Enter sends even inside a list line.

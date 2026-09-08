@@ -6,6 +6,7 @@ const h = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   abortStreaming: vi.fn(),
   listAgents: vi.fn(),
+  mdKeyDown: vi.fn(() => false),
 }));
 
 vi.mock("@/hooks/useChat", () => ({
@@ -24,7 +25,7 @@ vi.mock("@/contexts/ChatContext", () => ({
 }));
 vi.mock("@/hooks/useMarkdownTextarea", () => ({
   useMarkdownTextarea: () => ({
-    handleKeyDown: () => false,
+    handleKeyDown: h.mdKeyDown,
     handlePaste: () => false,
     applyAction: vi.fn(),
   }),
@@ -72,6 +73,7 @@ describe("ChatInput — slash commands and @mentions", () => {
     h.sendMessage.mockClear();
     h.abortStreaming.mockClear();
     h.listAgents.mockReset();
+    h.mdKeyDown.mockClear();
     h.listAgents.mockResolvedValue([
       { agent_id: 7, agent_name: "Analyste", agent_description: "Chiffres" },
       { agent_id: 8, agent_name: "Rédacteur", agent_description: "Textes" },
@@ -143,6 +145,33 @@ describe("ChatInput — slash commands and @mentions", () => {
     expect(onPickAgent).toHaveBeenCalledTimes(1);
     expect(onPickAgent.mock.calls[0][0].agent_name).toBe("Analyste");
     expect(onPickAgent.mock.calls[0][1]).toBe("résume ça");
+  });
+
+  it("leaves Cmd+K to the palette unless text is selected (then it is the link shortcut)", () => {
+    const { container } = render(<ChatInput commands={commands} runCommand={vi.fn()} />);
+    const ta = container.querySelector("textarea");
+    const reachedDocument = vi.fn();
+    document.addEventListener("keydown", reachedDocument);
+    try {
+      type(ta, "see the docs");
+      ta.setSelectionRange(8, 8); // caret, no selection → palette
+      fireEvent.keyDown(ta, { key: "k", metaKey: true });
+      expect(h.mdKeyDown).not.toHaveBeenCalled();
+      expect(reachedDocument).toHaveBeenCalledTimes(1);
+
+      ta.setSelectionRange(8, 12); // "docs" selected → link, palette stays closed
+      fireEvent.keyDown(ta, { key: "k", metaKey: true });
+      expect(h.mdKeyDown).toHaveBeenCalledTimes(1);
+      expect(reachedDocument).toHaveBeenCalledTimes(1);
+    } finally {
+      document.removeEventListener("keydown", reachedDocument);
+    }
+  });
+
+  it("restores the per-session draft on mount", () => {
+    window.localStorage.setItem("th2chat:draft:s1", "draft one");
+    const { container } = render(<ChatInput commands={commands} runCommand={vi.fn()} />);
+    expect(container.querySelector("textarea").value).toBe("draft one");
   });
 
   it("stops the answer with Esc while streaming", () => {

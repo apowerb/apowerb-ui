@@ -155,10 +155,21 @@ export default function CommandPalette({ onNewChat, sessionFilter, commands, run
 
   // Global Cmd/Ctrl+K toggles the palette. Reset happens here (event handler),
   // never in an effect, to respect the no-setState-in-effect rule. The
-  // length === 1 guard ignores dead keys / IME ("Dead", "Process").
+  // length === 1 guard ignores dead keys / IME ("Dead", "Process"). ⌘K over
+  // a text selection belongs to the composer (Markdown link shortcut), so it
+  // is left alone whether this listener runs before React's root handler
+  // (selection still there) or after it (event already defaultPrevented) —
+  // both sit on `document`, so stopPropagation alone settles nothing.
   useEffect(() => {
     const onKey = (e) => {
+      const field = e.target;
+      const overSelection =
+        !!field &&
+        (field.tagName === "TEXTAREA" || field.tagName === "INPUT") &&
+        field.selectionStart !== field.selectionEnd;
       if (
+        !e.defaultPrevented &&
+        !overSelection &&
         (e.metaKey || e.ctrlKey) &&
         e.key.length === 1 &&
         e.key.toLowerCase() === "k"

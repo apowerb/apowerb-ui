@@ -107,4 +107,29 @@ describe("CommandPalette — modes", () => {
     const labels = screen.getAllByRole("option").map((o) => o.textContent);
     expect(labels.some((l) => l.includes("Toggle light / dark theme"))).toBe(true);
   });
+  it("leaves ⌘K alone when it was consumed upstream or pressed over a text selection", () => {
+    render(<CommandPalette onNewChat={vi.fn()} commands={commands} runCommand={vi.fn()} navigate={vi.fn()} />);
+    const consumed = new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true, cancelable: true });
+    consumed.preventDefault();
+    act(() => {
+      document.dispatchEvent(consumed);
+    });
+    expect(screen.queryByRole("dialog", { name: "Command palette" })).toBeNull();
+
+    const ta = document.createElement("textarea");
+    document.body.appendChild(ta);
+    ta.value = "see the docs";
+    ta.setSelectionRange(8, 12);
+    act(() => {
+      fireEvent.keyDown(ta, { key: "k", metaKey: true });
+    });
+    expect(screen.queryByRole("dialog", { name: "Command palette" })).toBeNull();
+
+    ta.setSelectionRange(3, 3);
+    act(() => {
+      fireEvent.keyDown(ta, { key: "k", metaKey: true });
+    });
+    expect(screen.getByRole("dialog", { name: "Command palette" })).toBeInTheDocument();
+    ta.remove();
+  });
 });

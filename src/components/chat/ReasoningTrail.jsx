@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "use-intl";
 import {
   ChevronDown,
@@ -95,22 +95,22 @@ export default function ReasoningTrail({ message, isStreaming, defaultOpen }) {
   const t = useTranslations("ReasoningTrail");
   const steps = useMemo(() => deriveSteps(message), [message]);
   const [open, setOpen] = useState(!!defaultOpen || !!isStreaming);
-  const wasStreaming = useRef(isStreaming);
   const [now, setNow] = useState(() => Date.now());
+
+  // Open on the rising edge of a stream, fold on the falling edge — the
+  // reader can always re-open by hand. A render-phase adjustment keyed on the
+  // streaming flag (the sanctioned "derived state" pattern), not an effect.
+  const [wasStreaming, setWasStreaming] = useState(isStreaming);
+  if (isStreaming !== wasStreaming) {
+    setWasStreaming(isStreaming);
+    setOpen(!!isStreaming);
+  }
 
   // Live elapsed time while the turn runs; frozen afterwards.
   useEffect(() => {
     if (!isStreaming) return undefined;
     const id = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(id);
-  }, [isStreaming]);
-
-  // Open on the rising edge of a stream, fold on the falling edge — the
-  // reader can always re-open by hand.
-  useEffect(() => {
-    if (isStreaming && !wasStreaming.current) setOpen(true);
-    if (!isStreaming && wasStreaming.current) setOpen(false);
-    wasStreaming.current = isStreaming;
   }, [isStreaming]);
 
   if (!steps.length) return null;

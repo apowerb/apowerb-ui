@@ -29,59 +29,82 @@ import { useLocale, useNow } from "use-intl";
 ───────────────────────────────────────── */
 function ShareModal({ session, messages, onClose }) {
   const t = useTranslations("ChatMessages");
-  const [status, setStatus]       = useState("idle"); // idle | loading | success | error
+  const [status, setStatus]       = useState("loading"); // loading | success | error
   const [shareUrl, setShareUrl]   = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
   const [errorMsg, setErrorMsg]   = useState("");
   const inputRef = useRef(null);
 
-  // Generate share link on mount
-  useEffect(() => {
-    generateShare();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Resolves to the public URL; every state write happens in the promise
+  // callbacks below, so neither the mount effect nor the retry handler ever
+  // sets state synchronously.
+  const createShare = async () => {
+    const payload = {
+      title: session.title,
+      agentName: session.agentName,
+      createdAt: session.createdAt,
+      isPublic: true,
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: typeof m.content === "string" ? m.content : "",
+        timestamp: m.timestamp,
+        toolCalls: m.toolCalls || [],
+      })),
+    };
 
-  const generateShare = async () => {
+    const token = authStorage.getToken();
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch("/api/conversations/share", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error || t("serverError", { status: res.status }));
+    }
+
+    const { shareId } = await res.json();
+    return `${window.location.origin}/share/${shareId}`;
+  };
+  const failureText = (err) => err.message || t("shareGenericError");
+
+  const retryShare = () => {
     setStatus("loading");
     setErrorMsg("");
-    try {
-      const payload = {
-        title: session.title,
-        agentName: session.agentName,
-        createdAt: session.createdAt,
-        isPublic: true,
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: typeof m.content === "string" ? m.content : "",
-          timestamp: m.timestamp,
-          toolCalls: m.toolCalls || [],
-        })),
-      };
-
-      const token = authStorage.getToken();
-      const headers = { "Content-Type": "application/json" };
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      const res = await fetch("/api/conversations/share", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
+    createShare()
+      .then((url) => {
+        setShareUrl(url);
+        setStatus("success");
+      })
+      .catch((err) => {
+        setErrorMsg(failureText(err));
+        setStatus("error");
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || t("serverError", { status: res.status }));
-      }
-
-      const { shareId } = await res.json();
-      const url = `${window.location.origin}/share/${shareId}`;
-      setShareUrl(url);
-      setStatus("success");
-    } catch (err) {
-      setErrorMsg(err.message || t("shareGenericError"));
-      setStatus("error");
-    }
   };
+
+  // Generate share link on mount; a modal closed mid-flight writes nothing.
+  useEffect(() => {
+    let alive = true;
+    createShare()
+      .then((url) => {
+        if (!alive) return;
+        setShareUrl(url);
+        setStatus("success");
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setErrorMsg(failureText(err));
+        setStatus("error");
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const copyLink = async () => {
     try {
@@ -215,7 +238,7 @@ function ShareModal({ session, messages, onClose }) {
                 <p className="text-sm text-red-300">{errorMsg}</p>
               </div>
               <button
-                onClick={generateShare}
+                onClick={retryShare}
                 className="w-full py-3 rounded-xl text-sm font-semibold th-text transition-all th-bg-surface border th-border hover:th-bg-surface-hover"
               >
                 {t("tryAgain")}
