@@ -98,7 +98,7 @@ jobs:
         run: node .github/scripts/lint-no-undef.mjs
 
   e2e-mock:
-    name: Parcours du chat (Playwright, backend simulé)
+    name: Parcours joués (Playwright, backend simulé)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -122,7 +122,7 @@ jobs:
       # (bloc `webServer` de la configuration). Aucun vrai backend, aucun LLM,
       # aucun identifiant : le parcours est joué de bout en bout et il est
       # reproductible.
-      - name: Jouer le parcours du chat
+      - name: Jouer les parcours
         run: npx playwright test -c playwright.mock.config.js
 
       # Sans elles, un échec en CI n'est qu'une ligne : la trace se rejoue
