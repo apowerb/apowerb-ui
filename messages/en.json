@@ -3144,12 +3144,21 @@
     "badge": "{count, plural, one {# item to configure} other {# items to configure}}",
     "blockedAdmin": "Set the variables below, then restart the service.",
     "blockedTitle": "{feature} is not configured yet",
+    "clear": "Clear the stored value",
+    "clearHint": "Removes the stored value: the variable falls back on the deployment, or on its default.",
     "docs": "Documentation",
+    "heldByDeployment": "Held by the deployment: a value stored here would have no effect. Remove it from the deployment to take control from this screen.",
+    "noSuperadminNamed": "No superadministrator is named on this installation: while that is the case every administrator would be one, and the server refuses to store a value. Set DEFAULT_SUPERADMIN_EMAIL in the deployment, restart, then come back here.",
     "noValuesEver": "This page only ever shows variable names — never their values.",
     "noticeAdmin": "Variables to set on this server:",
     "noticeTitle": "{features}: not configured yet on this server.",
     "noticeUser": "Not configured yet — contact your administrator.",
+    "pendingRestart": "awaiting restart",
+    "placeholder": "New value — it will never be shown again",
     "refresh": "Refresh",
+    "restartNeeded": "Restart the service to apply: {names}. While it runs, these variables keep their previous value.",
+    "save": "Save",
+    "setOn": "Set on {date} by {who}.",
     "storageConfigureS3": "Configure S3 storage",
     "storageLocal": "Uploaded files are stored in a local directory on the server: they go away with the container.",
     "subtitle": "What this installation can do, and what it is missing.",
@@ -3176,6 +3185,11 @@
     "mode": {
       "local": "local directory",
       "s3": "S3"
+    },
+    "source": {
+      "env": "set by the deployment",
+      "database": "set from this screen",
+      "unset": "not set yet"
     },
     "state": {
       "missing": "to configure",

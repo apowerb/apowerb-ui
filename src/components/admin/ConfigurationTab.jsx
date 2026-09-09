@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "use-intl";
 import {
   CheckCircle2,
@@ -9,18 +10,31 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
-import { useSetupStatus } from "@/hooks/useSetupStatus";
+import { useSetupStatus, invalidateSetupStatus } from "@/hooks/useSetupStatus";
+import ConfigurationVariables from "@/components/admin/ConfigurationVariables";
+import {
+  clearConfigVariable,
+  listConfigVariables,
+  setConfigVariable,
+} from "@/lib/api";
 
 /**
- * La checklist de configuration du serveur, pour un administrateur.
+ * La configuration du serveur, pour un administrateur.
  *
  * Une ligne par capacité servie par `GET /api/config/setup` : ce qui marche,
- * ce qui manque, les NOMS des variables à poser (le cœur ne sert jamais une
- * valeur, et cet écran n'en demande aucune) et le lien de documentation.
+ * ce qui manque, les NOMS des variables à poser et le lien de documentation.
  *
- * Trois états, pas deux : configuré, manquant, et « optionnel » — le stockage
- * marche sur un dossier local tant que S3 n'est pas configuré, ce n'est pas un
- * défaut à corriger mais un mode à connaître.
+ * Depuis que le cœur sait les recevoir, un **superadministrateur** peut aussi
+ * les poser ici, sous la ligne qui les nomme — le prolongement de la
+ * checklist, pas un second écran. Un administrateur d'organisation garde la
+ * checklist seule, à l'identique.
+ *
+ * L'invariant tient des deux côtés : le cœur ne rend jamais une valeur, et
+ * cet écran n'en demande, n'en garde et n'en affiche aucune.
+ *
+ * Trois états de capacité, pas deux : configuré, manquant, et « optionnel » —
+ * le stockage marche sur un dossier local tant que S3 n'est pas configuré, ce
+ * n'est pas un défaut à corriger mais un mode à connaître.
  */
 
 const ROW_ICON = {
@@ -52,10 +66,13 @@ function describe(t, key) {
   return text === `description.${key}` ? null : text;
 }
 
-function Row({ t, item }) {
+function Row({ t, item, variables, busy, onSave, onClear }) {
   const state = stateOf(item);
   const { Icon, className } = ROW_ICON[state];
   const description = describe(t, item.key);
+  // Les noms sous forme de puces ne servent qu'à celui qui ne peut pas les
+  // poser : quand les champs sont là, ils portent déjà les mêmes noms.
+  const showNames = item.missing?.length > 0 && variables.length === 0;
 
   return (
     <li
@@ -77,7 +94,7 @@ function Row({ t, item }) {
           </span>
         </div>
         {description && <p className="text-xs th-text-muted mt-0.5">{description}</p>}
-        {item.missing?.length > 0 && (
+        {showNames && (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {item.missing.map((name) => (
               <code
@@ -89,6 +106,13 @@ function Row({ t, item }) {
             ))}
           </div>
         )}
+        <ConfigurationVariables
+          t={t}
+          items={variables}
+          busy={busy}
+          onSave={onSave}
+          onClear={onClear}
+        />
       </div>
       {item.docs_url && (
         <a
@@ -105,14 +129,81 @@ function Row({ t, item }) {
   );
 }
 
-export default function ConfigurationTab() {
+export default function ConfigurationTab({ superadmin = false }) {
   const t = useTranslations("Setup");
   const { status, loading, refresh } = useSetupStatus();
+
+  // Les variables modifiables. `null` tant qu'on ne les a pas — ou pour
+  // toujours si cet administrateur n'y a pas droit : l'écran retombe alors
+  // exactement sur la checklist d'avant.
+  const [config, setConfig] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const loadConfig = useCallback(async () => {
+    // On ne demande rien quand on sait que ce sera refusé : un 403 garanti
+    // à chaque ouverture de l'onglet est du bruit dans les journaux du
+    // serveur, pas une garde.
+    if (!superadmin) return;
+    try {
+      setConfig(await listConfigVariables());
+      setError(null);
+    } catch (err) {
+      // Un rang peut être révoqué pendant que cet onglet reste ouvert : le
+      // 403 n'est pas une panne, c'est la réponse juste. On repasse en
+      // lecture seule sans crier.
+      setConfig(null);
+      if (err?.status !== 403) setError(err?.message || String(err));
+    }
+  }, [superadmin]);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  /** Rend `true` quand l'action a réussi — le champ ne se vide qu'alors. */
+  const run = useCallback(
+    async (action) => {
+      setBusy(true);
+      setError(null);
+      try {
+        await action();
+        await loadConfig();
+        // La checklist du cœur ne bougera qu'au redémarrage pour une valeur
+        // posée, mais elle doit suivre un retrait immédiatement.
+        await invalidateSetupStatus();
+        return true;
+      } catch (err) {
+        setError(err?.message || String(err));
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [loadConfig],
+  );
+
+  const save = useCallback(
+    (name, value) => run(() => setConfigVariable(name, value)),
+    [run],
+  );
+  const clear = useCallback((name) => run(() => clearConfigVariable(name)), [run]);
+
+  // Une seule passe pour ranger les variables sous leur capacité, plutôt
+  // qu'un filtre par ligne.
+  const byCapability = useMemo(() => {
+    const grouped = {};
+    for (const item of config?.items ?? []) {
+      (grouped[item.capability] ??= []).push(item);
+    }
+    return grouped;
+  }, [config]);
 
   if (loading && !status) return <Skeleton className="h-64 w-full rounded-2xl" />;
 
   const items = status?.items ?? [];
   const missingCount = status?.missing_count ?? 0;
+  const pending = config?.pending_restart ?? [];
 
   return (
     <div data-testid="configuration-tab" data-missing={missingCount}>
@@ -124,14 +215,44 @@ export default function ConfigurationTab() {
           <p className="text-xs th-text-muted mt-0.5">{t("subtitle")}</p>
         </div>
         <button
-          onClick={refresh}
-          disabled={loading}
+          onClick={() => {
+            refresh();
+            loadConfig();
+          }}
+          disabled={loading || busy}
           className="ml-auto shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border th-border th-bg-surface th-text text-xs font-medium hover:th-bg-surface-hover disabled:opacity-50"
         >
           <RefreshCw size={13} />
           {t("refresh")}
         </button>
       </div>
+
+      {/* Le verrou d'amorçage du cœur, annoncé avant qu'on le rencontre :
+          tant qu'aucun superadministrateur n'est nommé, tout administrateur
+          en serait un, et le cœur refuse d'écrire pour cette raison. */}
+      {config && !config.superadmin_named && (
+        <p
+          className="mb-3 px-4 py-2.5 rounded-xl border border-amber-500/40 text-xs text-amber-300"
+          data-testid="config-no-superadmin"
+        >
+          {t("noSuperadminNamed")}
+        </p>
+      )}
+
+      {pending.length > 0 && (
+        <p
+          className="mb-3 px-4 py-2.5 rounded-xl border border-amber-500/40 text-xs text-amber-300"
+          data-testid="config-pending-restart"
+        >
+          {t("restartNeeded", { names: pending.join(", ") })}
+        </p>
+      )}
+
+      {error && (
+        <p className="mb-3 text-xs text-amber-400" role="alert">
+          {error}
+        </p>
+      )}
 
       {/* Une installation qui ne répond pas est un fait à dire, pas une
           checklist vide qui laisserait croire que tout est en ordre. */}
@@ -142,7 +263,15 @@ export default function ConfigurationTab() {
       ) : (
         <ul className="rounded-xl border th-border th-bg-surface overflow-hidden">
           {items.map((item) => (
-            <Row key={item.key} t={t} item={item} />
+            <Row
+              key={item.key}
+              t={t}
+              item={item}
+              variables={byCapability[item.key] ?? []}
+              busy={busy}
+              onSave={save}
+              onClear={clear}
+            />
           ))}
         </ul>
       )}

@@ -3144,12 +3144,21 @@
     "badge": "{count, plural, one {# élément à configurer} other {# éléments à configurer}}",
     "blockedAdmin": "Posez les variables ci-dessous, puis redémarrez le service.",
     "blockedTitle": "{feature} n'est pas encore configuré",
+    "clear": "Effacer la valeur posée",
+    "clearHint": "Retire la valeur posée : la variable retombe sur le déploiement, ou sur son défaut.",
     "docs": "Documentation",
+    "heldByDeployment": "Imposée par le déploiement : une valeur posée ici resterait sans effet. Retirez-la du déploiement pour reprendre la main depuis cet écran.",
+    "noSuperadminNamed": "Aucun superadministrateur n'est nommé sur cette installation : tant que c'est le cas, tout administrateur en serait un, et le serveur refuse d'enregistrer une valeur. Posez DEFAULT_SUPERADMIN_EMAIL dans le déploiement, redémarrez, puis revenez ici.",
     "noValuesEver": "Cette page n'affiche que des noms de variables — jamais leur valeur.",
     "noticeAdmin": "Variables à poser sur ce serveur :",
     "noticeTitle": "{features} : pas encore configuré sur ce serveur.",
     "noticeUser": "Pas encore configuré — contactez votre administrateur.",
+    "pendingRestart": "en attente de redémarrage",
+    "placeholder": "Nouvelle valeur — elle ne sera jamais réaffichée",
     "refresh": "Actualiser",
+    "restartNeeded": "Redémarrez le service pour appliquer : {names}. Tant qu'il tourne, ces variables gardent leur ancienne valeur.",
+    "save": "Enregistrer",
+    "setOn": "Posé le {date} par {who}.",
     "storageConfigureS3": "Configurer un stockage S3",
     "storageLocal": "Les fichiers importés sont stockés dans un dossier local du serveur : ils disparaissent avec le conteneur.",
     "subtitle": "Ce que cette installation sait faire, et ce qui lui manque.",
@@ -3176,6 +3185,11 @@
     "mode": {
       "local": "dossier local",
       "s3": "S3"
+    },
+    "source": {
+      "env": "posée par le déploiement",
+      "database": "posée depuis cet écran",
+      "unset": "pas encore posée"
     },
     "state": {
       "missing": "à configurer",

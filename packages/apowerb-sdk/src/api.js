@@ -984,6 +984,37 @@ export const demandEmailVerification = (userId) =>
 export const disableAdminUserMfa = (userId) =>
   request(`/api/admin/users/${userId}/disable-mfa`, { method: "POST" });
 
+// ---- Control panel: configuration variables (write-only) ----
+//
+// Le coeur ne rend JAMAIS une valeur posee : ces trois appels servent des
+// noms, une provenance et une date. Il n'existe volontairement pas de
+// `getConfigVariable` — l'ajouter demanderait d'abord une route qui n'existe
+// pas, ce qui est exactement la friction voulue.
+
+// Ce qui est modifiable, et d'ou vient chaque variable : "env" quand le
+// deploiement l'impose, "database" quand elle a ete posee ici, "unset".
+// Superadministrateur seul.
+export const listConfigVariables = () => request("/api/admin/config/variables");
+
+// Pose une valeur. La reponse dit ce qui a ete pose et quand cela
+// s'appliquera — jamais ce qui a ete pose.
+export const setConfigVariable = (name, value) =>
+  request(`/api/admin/config/variables/${encodeURIComponent(name)}`, {
+    method: "PUT",
+    body: JSON.stringify({ value }),
+  });
+
+// Retire la valeur posee : la variable retombe sur l'environnement du
+// deploiement, ou sur son defaut.
+export const clearConfigVariable = (name) =>
+  request(`/api/admin/config/variables/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+
+// Qui a change quoi, et quand. Le nom de la variable, jamais son contenu.
+export const listConfigAudit = (limit = 50) =>
+  request(`/api/admin/config/audit?limit=${limit}`);
+
 /**
  * Fetches a file's bytes through the authenticated API and hands back a Blob.
  *
