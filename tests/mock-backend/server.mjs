@@ -14,6 +14,10 @@
  *   "lent"   / "slow"       → a rate-limit pause event, then the answer
  *   anything else           → a short markdown answer, token by token
  *
+ * It also serves the Orchestrator screen: the schedule list, creating one,
+ * activating one, and running an agent now. Enough for the journey that
+ * broke on 2026-09-08 to be played rather than described.
+ *
  * Usage: node tests/mock-backend/server.mjs [port]     (default 8100)
  * Point the front at it: API_URL=http://127.0.0.1:8100 NEXT_PUBLIC_API_URL=http://localhost:8100
  * (real auth mode: any bearer token is accepted, /api/users/me answers a demo user; seed
@@ -31,6 +35,34 @@ const AGENTS = [
 ];
 
 const sessions = new Map();
+
+// Scheduler state. In memory and per process: every run of the suite starts
+// from the same two schedules, so a test never depends on what the one before
+// it created.
+let nextScheduleId = 3;
+const schedules = [
+  {
+    id: 1,
+    agent_id: 1,
+    agent_name: "Analyste",
+    schedule_interval: "@hourly",
+    status: "active",
+    start_time: "2026-09-09T06:00:00Z",
+    next_run: "2026-09-09T14:00:00Z",
+  },
+  {
+    id: 2,
+    agent_id: 2,
+    agent_name: "Rédacteur",
+    schedule_interval: "@daily",
+    status: "inactive",
+    start_time: "2026-09-08T06:00:00Z",
+    next_run: null,
+  },
+];
+const scheduleRuns = new Map([[1, [
+  { id: 101, schedule_id: 1, status: "completed", started_at: "2026-09-09T12:00:00Z", finished_at: "2026-09-09T12:00:12Z" },
+]]]);
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
 function json(res, status, body) {
@@ -287,6 +319,79 @@ const server = http.createServer(async (req, res) => {
   if (path === "/api/v1/dashboards" || path === "/api/dashboards") return json(res, 200, { items: [{ id: 9, title: "Ventes 2026", description: "Suivi mensuel" }] });
   if (path === "/api/skills") return json(res, 200, [{ id: 1, name: "resume-executif", description: "Résumé en 5 points" }]);
   if (path.startsWith("/api/health")) return json(res, 200, { status: "ok" });
+
+  // ── Orchestrator ───────────────────────────────────────────────────────
+  // The screen is wrapped in `RequiresSetup capability="orchestration"`, so
+  // the checklist has to say it is configured or nothing renders at all --
+  // and it would render anyway on a network error, since `useSetupStatus`
+  // fails open. Served properly here so the screen appears for the right
+  // reason rather than by fallback.
+  if (path === "/api/config/setup") {
+    const docs = "https://docs.apowerb.com/configuration";
+    return json(res, 200, {
+      items: [
+        { key: "orchestration", configured: true, mode: null, optional: false, blocks: ["orchestrator"], missing: [], docs_url: `${docs}/orchestration` },
+        { key: "default_llm", configured: true, mode: null, optional: false, blocks: ["shared_model"], missing: [], docs_url: `${docs}/default-llm` },
+      ],
+      missing_count: 0,
+    });
+  }
+
+  const runsMatch = path.match(/^\/api\/pipelines\/[^/]+\/schedules\/(\d+)\/runs$/);
+  if (runsMatch) return json(res, 200, scheduleRuns.get(Number(runsMatch[1])) || []);
+
+  if (path.match(/^\/api\/pipelines\/[^/]+\/schedules$/) && req.method === "GET") {
+    return json(res, 200, schedules);
+  }
+
+  const updateMatch = path.match(/^\/api\/pipelines\/[^/]+\/schedules\/(\d+)$/);
+  if (updateMatch && req.method === "PUT") {
+    const body = await readBody(req);
+    const found = schedules.find((s) => s.id === Number(updateMatch[1]));
+    if (!found) return json(res, 404, { detail: "no such schedule" });
+    Object.assign(found, body);
+    log("schedule", found.id, "->", JSON.stringify(body));
+    return json(res, 200, found);
+  }
+
+  if (path === "/api/adk/schedule_run" && req.method === "POST") {
+    const body = await readBody(req);
+    const agent = AGENTS.find((a) => a.agent_id === Number(body.agent_id)) || AGENTS[0];
+    const created = {
+      id: nextScheduleId++,
+      agent_id: agent.agent_id,
+      agent_name: agent.agent_name,
+      schedule_interval: body.schedule_interval || "@hourly",
+      status: "active",
+      start_time: body.start_time || null,
+      next_run: "2026-09-09T15:00:00Z",
+    };
+    schedules.push(created);
+    log("scheduled", created.agent_name, created.schedule_interval, "id", created.id);
+    // The modal reads `schedule_id` -- not `id` -- off this answer to fill in
+    // its confirmation panel.
+    return json(res, 200, {
+      schedule_id: created.id,
+      agent_name: created.agent_name,
+      schedule_interval: created.schedule_interval,
+      status: "active",
+    });
+  }
+
+  if (path === "/api/adk/run_now" && req.method === "POST") {
+    const body = await readBody(req);
+    log("run now", body.agent_name, "session", body.session_id);
+    return json(res, 200, { success: true, run_id: 999, session_id: body.session_id });
+  }
+
+  if (path.startsWith("/api/pipelines/runs/")) {
+    if (path.endsWith("/logs")) return json(res, 200, { logs: "mock run log\n" });
+    if (path.endsWith("/cancel")) return json(res, 200, { cancelled: true });
+    return json(res, 200, { id: 101, status: "completed" });
+  }
+
+  if (path === "/api/pipelines") return json(res, 200, [{ uuid: "agents" }]);
+
   return json(res, 404, { detail: `mock: no route for ${req.method} ${path}` });
 });
 
