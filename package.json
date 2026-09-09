@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:no-undef": "node .github/scripts/lint-no-undef.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "npx playwright test"

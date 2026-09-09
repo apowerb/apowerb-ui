@@ -69,3 +69,30 @@ jobs:
           # required at build time and absent here would be a bug in the app,
           # not in this workflow.
           NEXT_TELEMETRY_DISABLED: '1'
+
+  lint:
+    name: Identifiants libres (no-undef)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `eslint-config-next` n'active PAS `no-undef`. Le 08/09, un correctif de
+      # sécurité a laissé deux appels à une fonction supprimée, dont un dans
+      # l'effet joué à l'ouverture du modal de planification : écran rouge dès
+      # l'ouverture, et ni le lint, ni les tests, ni le build n'ont bronché.
+      #
+      # Ce pas ne branche PAS le lint entier : `npx eslint src` rend 61 erreurs
+      # de dette existante sur `main`. Il les compte et les affiche, et n'échoue
+      # que sur un identifiant libre. Voir l'en-tête du script.
+      - name: Aucun identifiant libre sous src/
+        run: node .github/scripts/lint-no-undef.mjs
