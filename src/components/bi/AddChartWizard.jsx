@@ -101,6 +101,8 @@ function StepSource({
   organizationId,
   agentIds,
   setAgentIds,
+  agentMessage,
+  setAgentMessage,
 }) {
   const t = useTranslations("AddChartWizard");
   const fileInputRef = useRef(null);
@@ -554,12 +556,27 @@ function StepSource({
           selectedIds={agentIds}
           onChange={(ids) => setAgentIds(ids)}
         />
+        <div className="mt-4">
+          <label htmlFor="agent-chart-instruction" className="text-sm font-medium th-text-secondary">
+            {t("agentInstruction")}
+          </label>
+          <textarea
+            id="agent-chart-instruction"
+            rows={3}
+            value={agentMessage}
+            onChange={(e) => setAgentMessage(e.target.value)}
+            placeholder={t("agentInstructionPlaceholder")}
+            className="glass-input mt-1 w-full rounded-lg text-sm px-3 py-2"
+          />
+          <p className="text-xs th-text-faint mt-1">{t("agentInstructionHint")}</p>
+        </div>
         <button
           disabled={agentIds.length === 0}
           onClick={() => {
             onDataSourceSelected({
               type: "agent",
               agent_ids: agentIds,
+              message: agentMessage.trim(),
             });
           }}
           className="mt-4 w-full py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-bold disabled:opacity-40 hover:bg-indigo-500 transition"
@@ -1194,6 +1211,7 @@ export default function AddChartWizard({
   const [sourceMode, setSourceMode] = useState(null); // null | "upload" | "existing" | "database" | "agent" | "onedrive"
   const [dataSource, setDataSource] = useState(null);
   const [agentIds, setAgentIds] = useState([]);
+  const [agentMessage, setAgentMessage] = useState("");
 
   // Preview columns (saved from step 2 for step 3 KPI)
   const [previewColumns, setPreviewColumns] = useState([]);
@@ -1253,7 +1271,12 @@ export default function AddChartWizard({
         source = {
           source_type: "agent",
           query: "",
-          source_options: { agent_ids: dataSource.agent_ids },
+          source_options: {
+            agent_ids: dataSource.agent_ids,
+            // Omise plutot que vide : le coeur distingue "pas d'instruction"
+            // de "instruction vide" et sait retomber sur son contrat de sortie.
+            ...(dataSource.message ? { message: dataSource.message } : {}),
+          },
         };
       } else if (dataSource?.type === "csv") {
         source = {
@@ -1380,6 +1403,8 @@ export default function AddChartWizard({
             organizationId={organizationId}
             agentIds={agentIds}
             setAgentIds={setAgentIds}
+            agentMessage={agentMessage}
+            setAgentMessage={setAgentMessage}
           />
         )}
 

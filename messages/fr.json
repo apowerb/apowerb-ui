@@ -115,7 +115,10 @@
     "vizKpiLabel": "KPI",
     "vizKpiSubtitle": "Valeur numérique unique",
     "vizTableLabel": "Tableau",
-    "vizTableSubtitle": "Tableau de données paginé"
+    "vizTableSubtitle": "Tableau de données paginé",
+    "agentInstruction": "Que doit renvoyer l’agent ?",
+    "agentInstructionPlaceholder": "ex. Chiffre d’affaires mensuel par région sur 12 mois",
+    "agentInstructionHint": "Sans cette consigne, on demande seulement à l’agent « les dernières données » : il ne peut pas deviner ce que le graphique attend. Sa réponse doit être un tableau JSON de lignes."
   },
   "AddToolPanel": {
     "back": "← Retour",
@@ -1080,7 +1083,10 @@
     "vizKpiDescription": "Valeur numérique unique",
     "vizKpiLabel": "KPI",
     "vizTableDescription": "Tableau de données paginé",
-    "vizTableLabel": "Tableau"
+    "vizTableLabel": "Tableau",
+    "agentInstruction": "Que doit renvoyer l’agent ?",
+    "agentInstructionPlaceholder": "ex. Chiffre d’affaires mensuel par région sur 12 mois",
+    "agentInstructionHint": "Sans cette consigne, on demande seulement à l’agent « les dernières données » : il ne peut pas deviner ce que le graphique attend. Sa réponse doit être un tableau JSON de lignes."
   },
   "Error": {
     "defaultMessage": "Une erreur inattendue s'est produite. Veuillez réessayer.",

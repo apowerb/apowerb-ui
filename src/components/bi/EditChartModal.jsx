@@ -111,6 +111,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
   const [changeMode, setChangeMode] = useState(null); // "csv" | "existing" | "db" | "agent"
   const [sourceType, setSourceType] = useState(chart?.source?.source_type || "database");
   const [agentIds, setAgentIds] = useState(chart?.source?.source_options?.agent_ids || []);
+  const [agentMessage, setAgentMessage] = useState(chart?.source?.source_options?.message || "");
   const [onedriveFile, setOnedriveFile] = useState(() => {
     const opts = chart?.source?.source_options || {};
     if (chart?.source?.source_type === "onedrive_excel") {
@@ -178,7 +179,10 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
         source = {
           source_type: "agent",
           query: "",
-          source_options: { agent_ids: agentIds },
+          source_options: {
+            agent_ids: agentIds,
+            ...(agentMessage.trim() ? { message: agentMessage.trim() } : {}),
+          },
         };
       } else if (sourceType === "onedrive_excel") {
         if (!onedriveFile?.item_path) {
@@ -494,6 +498,26 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
               </div>
             )}
           </div>
+
+          {/* Ce que l'agent doit rendre -- visible hors du bloc "changer la
+              source" : sur un graphique agent deja cree, c'est la seule chose
+              qu'on vient corriger quand le graphique remonte vide. */}
+          {sourceType === "agent" && (
+            <div className="p-3 rounded-lg th-bg-surface border th-border">
+              <label htmlFor="edit-agent-instruction" className="text-sm font-medium th-text-secondary">
+                {t("agentInstruction")}
+              </label>
+              <textarea
+                id="edit-agent-instruction"
+                rows={3}
+                value={agentMessage}
+                onChange={(ev) => setAgentMessage(ev.target.value)}
+                placeholder={t("agentInstructionPlaceholder")}
+                className="glass-input mt-1 w-full rounded-lg text-sm px-3 py-2"
+              />
+              <p className="text-xs th-text-faint mt-1">{t("agentInstructionHint")}</p>
+            </div>
+          )}
 
           {/* Auto-refresh */}
           <div className="p-3 rounded-lg th-bg-surface border th-border">
