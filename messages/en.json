@@ -115,7 +115,10 @@
     "vizKpiLabel": "KPI",
     "vizKpiSubtitle": "Single numeric value",
     "vizTableLabel": "Table",
-    "vizTableSubtitle": "Paginated data table"
+    "vizTableSubtitle": "Paginated data table",
+    "agentInstruction": "What should the agent return?",
+    "agentInstructionPlaceholder": "e.g. Monthly revenue by region for the last 12 months",
+    "agentInstructionHint": "Without this the agent is only asked for “the latest data” and cannot know what the chart needs. It must answer with a JSON array of rows."
   },
   "AddToolPanel": {
     "back": "← Back",
@@ -1080,7 +1083,10 @@
     "vizKpiDescription": "Single numeric value",
     "vizKpiLabel": "KPI",
     "vizTableDescription": "Paginated data table",
-    "vizTableLabel": "Table"
+    "vizTableLabel": "Table",
+    "agentInstruction": "What should the agent return?",
+    "agentInstructionPlaceholder": "e.g. Monthly revenue by region for the last 12 months",
+    "agentInstructionHint": "Without this the agent is only asked for “the latest data” and cannot know what the chart needs. It must answer with a JSON array of rows."
   },
   "Error": {
     "defaultMessage": "An unexpected error occurred. Please try again.",
