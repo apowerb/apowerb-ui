@@ -263,7 +263,7 @@ export default function AdminPage() {
       ) : tab === "dashboard" ? (
         <DashboardTab />
       ) : tab === "configuration" ? (
-        <ConfigurationTab />
+        <ConfigurationTab superadmin={Boolean(context?.superadmin)} />
       ) : (
         <GroupsTab
           t={t}
