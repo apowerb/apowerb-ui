@@ -17,6 +17,8 @@
  * It also serves the Orchestrator screen: the schedule list, creating one,
  * activating one, and running an agent now. Enough for the journey that
  * broke on 2026-09-08 to be played rather than described.
+ * Depuis le 09/09 aussi : la Tool Box (outils, configurations) et la réserve
+ * de données (import CSV en multipart, aperçu, suppression).
  *
  * Usage: node tests/mock-backend/server.mjs [port]     (default 8100)
  * Point the front at it: API_URL=http://127.0.0.1:8100 NEXT_PUBLIC_API_URL=http://localhost:8100
@@ -63,6 +65,46 @@ const schedules = [
 const scheduleRuns = new Map([[1, [
   { id: 101, schedule_id: 1, status: "completed", started_at: "2026-09-09T12:00:00Z", finished_at: "2026-09-09T12:00:12Z" },
 ]]]);
+
+// Tool Box. `allTools` est ce que le cœur expose ; `toolConfigs` ce que
+// l'utilisateur en a fait.
+// ⚠️ La forme vient du cœur, pas d'une intuition : `tool_manager.get_all_tools`
+// rend un dictionnaire {catégorie: [NOMS]} -- des chaînes, pas des objets. Un
+// tableau d'objets ici faisait tomber l'écran sur « tools.map is not a
+// function », et un simulateur qui invente sa forme rendrait un parcours vert
+// contre une fiction.
+const ALL_TOOLS = {
+  database: ["sql_query", "sql_schema"],
+  web: ["http_get"],
+  email: ["send_mail"],
+};
+// Champs de `ToolConfigCreateSchema` et de ce que `ConfigsTab` lit :
+// `tool_config_id`, `tool_config_name`, `tool_name`, `status`. Pas
+// `config_name` ni `is_active` -- deux noms que j'avais inventés, et le
+// simulateur enregistrait alors « sans nom ».
+let nextToolConfigId = 2;
+const toolConfigs = [
+  {
+    tool_config_id: 1, tool_config_name: "base_ventes", tool_name: "sql_query",
+    tool_category: "database", status: "active", organization_id: "default",
+    owner_id: "demo@th2.ai",
+  },
+];
+
+// Réserve de données. Le téléversement d'un CSV part DIRECTEMENT au backend
+// (`uploadBiCsv` court-circuite le proxy Next pour la limite de taille), donc
+// il arrive ici en multipart et depuis une autre origine.
+let nextDatasetId = 2;
+// Champs repris de `_row_to_dataset_item` du cœur : `columns_count` et
+// `row_count`, pas `columns`/`rows`.
+const datasets = [
+  {
+    file_id: "ds-1", filename: "ventes-2025.csv", organization_id: "default",
+    project_id: null, key: "bi/ds-1.csv", content_type: "text/csv",
+    extension: "csv", columns_count: 6, row_count: 1240, separator: ",",
+    uploaded_by: "demo@th2.ai",
+  },
+];
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
 function json(res, status, body) {
@@ -81,6 +123,18 @@ function readBody(req) {
         resolve({});
       }
     });
+  });
+}
+
+// Un corps qu'on lit sans le comprendre. Le téléversement CSV arrive en
+// multipart : le simulateur n'a pas à le décoder, mais il DOIT le consommer --
+// une réponse envoyée sur une requête dont le corps n'a pas été lu laisse le
+// navigateur attendre.
+function drain(req) {
+  return new Promise((resolve) => {
+    let bytes = 0;
+    req.on("data", (c) => (bytes += c.length));
+    req.on("end", () => resolve(bytes));
   });
 }
 
@@ -391,6 +445,86 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (path === "/api/pipelines") return json(res, 200, [{ uuid: "agents" }]);
+
+  // ── Tool Box ───────────────────────────────────────────────────────────
+  if (path === "/api/tools" && req.method === "GET") return json(res, 200, ALL_TOOLS);
+  if (path === "/api/tools/docs") return json(res, 200, {});
+  // `get_tool_expected_params` rend une LISTE de paramètres attendus.
+  if (path.startsWith("/api/tools/") && path.endsWith("/params")) return json(res, 200, []);
+  if (path === "/api/mcp_configs") return json(res, 200, []);
+
+  if (path === "/api/tools_config" && req.method === "GET") return json(res, 200, toolConfigs);
+  if (path === "/api/tools_config" && req.method === "POST") {
+    const body = await readBody(req);
+    const created = {
+      tool_config_id: nextToolConfigId++,
+      tool_config_name: body.tool_config_name || "sans nom",
+      tool_name: body.tool_name || "",
+      tool_category: body.tool_category || "",
+      status: body.status || "active",
+      organization_id: body.organization_id || "default",
+      owner_id: body.owner_id || "demo@th2.ai",
+    };
+    toolConfigs.push(created);
+    log("tool config", created.tool_config_name, "->", created.tool_name);
+    return json(res, 200, created);
+  }
+  const toolConfigMatch = path.match(/^\/api\/tools_config\/(\d+)$/);
+  if (toolConfigMatch) {
+    const id = Number(toolConfigMatch[1]);
+    const i = toolConfigs.findIndex((c) => c.tool_config_id === id);
+    if (i === -1) return json(res, 404, { detail: "no such config" });
+    if (req.method === "DELETE") { toolConfigs.splice(i, 1); return json(res, 200, { deleted: true }); }
+    if (req.method === "PUT") { Object.assign(toolConfigs[i], await readBody(req)); return json(res, 200, toolConfigs[i]); }
+    return json(res, 200, toolConfigs[i]);
+  }
+
+  // ── Réserve de données (import CSV) ────────────────────────────────────
+  if (path === "/api/v1/bi/upload-csv" && req.method === "POST") {
+    const bytes = await drain(req);
+    const columns = ["mois", "region", "montant"];
+    const created = {
+      file_id: `ds-${nextDatasetId++}`, filename: "trimestre.csv",
+      organization_id: "default", project_id: null, key: "bi/trimestre.csv",
+      content_type: "text/csv", extension: "csv",
+      columns_count: columns.length, row_count: 3, separator: ",",
+      uploaded_by: "demo@th2.ai",
+    };
+    datasets.push(created);
+    log("csv reçu", bytes, "octets ->", created.file_id);
+    // La réponse du téléversement porte `columns` et `sample_rows`, que la
+    // liste ne porte pas -- deux formes voisines, et c'est le cœur qui décide.
+    return json(res, 200, {
+      ...created, columns, row_count: 3,
+      sample_rows: [
+        { mois: "janvier", region: "Est", montant: 1200 },
+        { mois: "février", region: "Est", montant: 1450 },
+        { mois: "mars", region: "Ouest", montant: 980 },
+      ],
+    });
+  }
+  if (path === "/api/v1/bi/datasets" && req.method === "GET") return json(res, 200, { datasets });
+  if (path === "/api/v1/bi/tool-configs/database") return json(res, 200, { configs: [] });
+  const datasetMatch = path.match(/^\/api\/v1\/bi\/datasets\/([^/]+)(\/preview)?$/);
+  if (datasetMatch) {
+    const [, fileId, preview] = datasetMatch;
+    if (preview) {
+      return json(res, 200, {
+        columns: ["mois", "region", "montant"],
+        rows: [
+          { mois: "janvier", region: "Est", montant: 1200 },
+          { mois: "février", region: "Est", montant: 1450 },
+          { mois: "mars", region: "Ouest", montant: 980 },
+        ],
+      });
+    }
+    if (req.method === "DELETE") {
+      const i = datasets.findIndex((d) => d.file_id === fileId);
+      if (i !== -1) datasets.splice(i, 1);
+      return json(res, 200, { deleted: true });
+    }
+  }
+
 
   return json(res, 404, { detail: `mock: no route for ${req.method} ${path}` });
 });
