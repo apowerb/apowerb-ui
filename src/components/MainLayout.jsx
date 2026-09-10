@@ -29,6 +29,7 @@ import { useTranslations } from "use-intl";
 import { ToastProvider } from "./Toast";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ChatProvider } from "@/contexts/ChatContext";
+import BugReportLauncher from "@/components/bug-report/BugReportLauncher";
 import { UserProfileModal, UserMenu } from "./auth";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
@@ -363,6 +364,11 @@ export default function MainLayout({ children }) {
             quitte le chat pour une autre fonctionnalité. */}
         <ChatProvider>
           <MainContent>{children}</MainContent>
+          {/* Monté au layout et non par écran : il tient le fil de
+              navigation et capte les erreurs du navigateur en continu.
+              Posé par écran, il ne saurait rien de l'écran précédent —
+              qui est souvent la cause du défaut signalé. */}
+          <BugReportLauncher />
         </ChatProvider>
       </ToastProvider>
     </AuthProvider>

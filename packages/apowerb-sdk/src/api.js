@@ -1,3 +1,4 @@
+import { recordApiCall } from "./diagnostics.js";
 import {
   apiUrl,
   clearAuth,
@@ -43,6 +44,44 @@ async function attemptTokenRefresh() {
   return refreshPromise;
 }
 
+
+/**
+ * `fetch` qui laisse une trace dans le journal de diagnostic.
+ *
+ * Tout appel d'API du produit passe par `request()`, donc par ici : c'est
+ * le seul endroit où brancher cette capture sans compter sur la
+ * discipline de 75 modules appelants. On relève le code, la durée et
+ * surtout le `X-Request-ID` que le serveur pose sur chaque réponse — la
+ * clé qui, dans un signalement de bug, ressort les lignes de log de CET
+ * appel plutôt que celles de la même minute.
+ *
+ * L'échec réseau est enregistré puis relancé tel quel : un diagnostic ne
+ * doit rien changer au comportement observé.
+ */
+async function tracedFetch(url, init, method) {
+  const startedAt = Date.now();
+  try {
+    const res = await fetch(url, init);
+    recordApiCall({
+      method,
+      path: url,
+      status: res.status,
+      requestId: res.headers?.get?.("X-Request-ID") || null,
+      durationMs: Date.now() - startedAt,
+    });
+    return res;
+  } catch (networkError) {
+    recordApiCall({
+      method,
+      path: url,
+      status: null,
+      durationMs: Date.now() - startedAt,
+      error: networkError?.message || "échec réseau",
+    });
+    throw networkError;
+  }
+}
+
 async function request(path, options = {}) {
   const { silent401, ...fetchOptions } = options;
   const url = apiUrl(`${path}`);
@@ -57,10 +96,11 @@ async function request(path, options = {}) {
     headers["Content-Type"] = headers["Content-Type"] || "application/json";
   }
 
-  const res = await fetch(url, {
-    headers,
-    ...fetchOptions,
-  });
+  const res = await tracedFetch(
+    url,
+    { headers, ...fetchOptions },
+    fetchOptions.method || "GET",
+  );
 
   const text = await res.text();
   let body;
@@ -100,10 +140,11 @@ async function request(path, options = {}) {
         if (fetchOptions.body) {
           retryHeaders["Content-Type"] = retryHeaders["Content-Type"] || "application/json";
         }
-        const retryRes = await fetch(url, {
-          headers: retryHeaders,
-          ...fetchOptions,
-        });
+        const retryRes = await tracedFetch(
+          url,
+          { headers: retryHeaders, ...fetchOptions },
+          fetchOptions.method || "GET",
+        );
         if (retryRes.ok) {
           const retryText = await retryRes.text();
           try {
@@ -1033,3 +1074,52 @@ export const downloadAgentFile = async (agentName, filename) => {
   }
   return res.blob();
 };
+
+
+// --- Signalement de bug ---
+// L'envoi ne crée aucune issue : il écrit dans la base du déploiement.
+// La publication est un geste d'administrateur, sur `createBugReportIssue`.
+
+export const listBugReportAreas = () => request("/api/bug-reports/areas");
+
+export const submitBugReport = (data) =>
+  request("/api/bug-reports", { method: "POST", body: JSON.stringify(data) });
+
+export const listBugReports = (params = {}) => {
+  const query = new URLSearchParams(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== ""),
+  ).toString();
+  return request(`/api/bug-reports${query ? `?${query}` : ""}`);
+};
+
+export const getBugReport = (id) => request(`/api/bug-reports/${id}`);
+
+export const updateBugReport = (id, data) =>
+  request(`/api/bug-reports/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+
+export const createBugReportIssue = (id) =>
+  request(`/api/bug-reports/${id}/issue`, { method: "POST" });
+
+/**
+ * La capture jointe, en Blob.
+ *
+ * Servie par une route authentifiée : un `src` d'image partirait sans
+ * en-tête `Authorization` et récolterait un 401. On la récupère ici, où
+ * les en-têtes d'authentification sont déjà construits — plutôt que
+ * d'exporter le jeton vers un composant, ce qui en ferait une valeur qui
+ * circule dans l'arbre React.
+ *
+ * Retourne `null` si la capture n'existe pas (404) ; lève sur le reste.
+ */
+export async function fetchBugReportScreenshot(id) {
+  const res = await fetch(apiUrl(`/api/bug-reports/${id}/screenshot`), {
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const err = new Error(`HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.blob();
+}

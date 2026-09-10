@@ -17,6 +17,7 @@
  */
 
 export * from "./api.js";
+export * from "./diagnostics.js";
 export * from "./authStorage.js";
 export {
   apiUrl,
