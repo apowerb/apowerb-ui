@@ -30,11 +30,29 @@ import http from "node:http";
 const PORT = Number(process.argv[2] || process.env.PORT || 8100);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// ⚠️ Les deux formes d'identifiant coexistent, et il a fallu les MESURER.
+//
+// `fetch_agents` (la liste) rend `_asdict()` tel quel : `agent_id` y est un
+// ENTIER. Mais l'interface construit l'URL de détail en préfixant elle-même —
+// elle appelle `GET /api/agents/agent2`. Et `register_agent` (la création)
+// rend, lui, `f"agent{agent_id}"` : la création et la liste ne parlent pas la
+// même forme.
+//
+// Servir des chaînes préfixées dans la liste produisait `/api/agents/agentagent2`,
+// visible seulement dans le journal du simulateur. La route de détail accepte
+// donc le préfixe et le retire.
 const AGENTS = [
-  { agent_id: 1, agent_name: "Analyste", label: "Analyste", agent_description: "Chiffres, tableaux, graphiques", agent_type: "base", agent_model: "mock/instant", tags: "[]" },
-  { agent_id: 2, agent_name: "Rédacteur", label: "Rédacteur", agent_description: "E-mails, résumés, traductions", agent_type: "base", agent_model: "mock/instant", tags: "[]" },
-  { agent_id: 3, agent_name: "Support Outillé", label: "Support Outillé", agent_description: "Un agent qui appelle des outils", agent_type: "base", agent_model: "mock/instant", tags: "[]" },
+  { agent_id: 1, agent_name: "Analyste", label: "Analyste", agent_description: "Chiffres, tableaux, graphiques", agent_type: "base", agent_model: "mock/instant", agent_instruction: "Tu réponds brièvement.", owner_id: "demo@th2.ai", model_api_key: "sk-mock", tags: "[]" },
+  { agent_id: 2, agent_name: "Rédacteur", label: "Rédacteur", agent_description: "E-mails, résumés, traductions", agent_type: "base", agent_model: "mock/instant", agent_instruction: "Tu réponds brièvement.", owner_id: "demo@th2.ai", model_api_key: "sk-mock", tags: "[]" },
+  { agent_id: 3, agent_name: "Support Outillé", label: "Support Outillé", agent_description: "Un agent qui appelle des outils", agent_type: "base", agent_model: "mock/instant", agent_instruction: "Tu réponds brièvement.", owner_id: "demo@th2.ai", model_api_key: "sk-mock", tags: "[]" },
+  // Les deux suivants existent pour les assertions du bandeau latéral : un type
+  // autre que `base` (le filtre par catégorie ne prouve rien si tout se
+  // ressemble) et un agent incomplet (le badge d'alerte se lit sur
+  // `integrity_errors`, et un tableau vide ne l'aurait jamais affiché).
+  { agent_id: 4, agent_name: "Chaîne Qualité", label: "Chaîne Qualité", agent_description: "Deux étapes en séquence", agent_type: "sequential", agent_model: "mock/instant", agent_instruction: "Tu réponds brièvement.", owner_id: "demo@th2.ai", model_api_key: "sk-mock", tags: "[]" },
+  { agent_id: 5, agent_name: "Brouillon", label: "Brouillon", agent_description: "Sans modèle ni instruction", agent_type: "base", agent_model: "", agent_instruction: "", owner_id: "demo@th2.ai", model_api_key: "", tags: "[]", integrity_errors: ["agent_model manquant"] },
 ];
+let nextAgentId = 6;
 
 const sessions = new Map();
 
@@ -65,6 +83,34 @@ const schedules = [
 const scheduleRuns = new Map([[1, [
   { id: 101, schedule_id: 1, status: "completed", started_at: "2026-09-09T12:00:00Z", finished_at: "2026-09-09T12:00:12Z" },
 ]]]);
+
+// Le Hub. Champs repris de `hub_main.list_hub_agents` et de ce que
+// `HubBrowser` et `CloneWizardModal` lisent réellement : `hub_id` préfixé
+// « hub », `hub_tags` déjà désérialisé en tableau, `memory_enabled` en booléen.
+const HUB_AGENTS = [
+  {
+    hub_id: "hub1", hub_name: "Analyste de ventes",
+    hub_description: "Lit un CSV et en tire trois graphiques.",
+    hub_category: "analytics", hub_tags: ["ventes", "csv"],
+    agent_name: "analyste_ventes", agent_type: "base",
+    agent_model: "google/gemini-2.0-flash", agent_tools: [],
+    agent_description: "Analyse commerciale", publisher_id: "demo@th2.ai",
+    clone_count: 12, published_at: "2026-09-01T10:00:00Z",
+    created_at: "2026-09-01T10:00:00Z",
+    memory_enabled: false, artifacts_enabled: false, sub_agents_snapshot: null,
+  },
+  {
+    hub_id: "hub2", hub_name: "Rédacteur d'offres",
+    hub_description: "Rédige une proposition à partir d'un brief.",
+    hub_category: "writing", hub_tags: ["offres"],
+    agent_name: "redacteur_offres", agent_type: "base",
+    agent_model: "openai/gpt-4o-mini", agent_tools: [],
+    agent_description: "Rédaction commerciale", publisher_id: "demo@th2.ai",
+    clone_count: 3, published_at: "2026-09-02T10:00:00Z",
+    created_at: "2026-09-02T10:00:00Z",
+    memory_enabled: false, artifacts_enabled: false, sub_agents_snapshot: null,
+  },
+];
 
 // Tool Box. `allTools` est ce que le cœur expose ; `toolConfigs` ce que
 // l'utilisateur en a fait.
@@ -285,6 +331,34 @@ async function scenario(s, text) {
 }
 
 // ── Routes ──────────────────────────────────────────────────────────────
+// Remise à zéro entre deux parcours.
+//
+// Le simulateur est UN processus pour toute la suite, et son état est en
+// mémoire : un agent créé par le parcours « cycle de vie » se retrouvait dans
+// la liste que le parcours « bandeau » comptait juste après — 6 cartes au lieu
+// de 5. Un test dont le résultat dépend de l'ordre d'exécution ne prouve rien.
+//
+// Les tableaux sont vidés et regarnis EN PLACE : les routes ci-dessus
+// referment sur ces objets, les remplacer les laisserait sur les anciens.
+const SEED = JSON.parse(JSON.stringify({
+  agents: AGENTS, toolConfigs, datasets, schedules,
+}));
+
+function resetState() {
+  AGENTS.length = 0;
+  AGENTS.push(...JSON.parse(JSON.stringify(SEED.agents)));
+  nextAgentId = 6;
+  toolConfigs.length = 0;
+  toolConfigs.push(...JSON.parse(JSON.stringify(SEED.toolConfigs)));
+  nextToolConfigId = 2;
+  datasets.length = 0;
+  datasets.push(...JSON.parse(JSON.stringify(SEED.datasets)));
+  nextDatasetId = 2;
+  schedules.length = 0;
+  schedules.push(...JSON.parse(JSON.stringify(SEED.schedules)));
+  nextScheduleId = 3;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const path = url.pathname.replace(/\/+$/, "") || "/";
@@ -328,12 +402,92 @@ const server = http.createServer(async (req, res) => {
   }
   if (path === "/api/adk/sessions/list") return json(res, 200, { sessions: [] });
   if (path === "/api/agents" && req.method === "GET") return json(res, 200, AGENTS);
-  if (/^\/api\/agents\/\d+$/.test(path)) {
-    const id = Number(path.split("/").pop());
-    const a = AGENTS.find((x) => x.agent_id === id);
-    return a ? json(res, 200, a) : json(res, 404, { detail: "Not found" });
+  // Route d'essai, sans équivalent dans le cœur : c'est ce que `signIn`
+  // appelle avant chaque parcours pour repartir du même état.
+  if (path === "/api/__reset" && req.method === "POST") {
+    resetState();
+    log("état remis à zéro");
+    return json(res, 200, { reset: true });
   }
-  if (/^\/api\/agents\/[^/]+\/reload$/.test(path)) return json(res, 200, { ok: true });
+  if (path === "/api/agents" && req.method === "POST") {
+    const body = await readBody(req);
+    const created = {
+      agent_id: nextAgentId++,
+      agent_name: body.agent_name || "sans nom",
+      label: body.agent_name || "sans nom",
+      agent_description: body.agent_description || "",
+      agent_type: body.agent_type || "base",
+      agent_model: body.agent_model || "mock/instant",
+      agent_instruction: body.agent_instruction || "",
+      tags: "[]",
+    };
+    AGENTS.push(created);
+    log("agent créé", created.agent_id, created.agent_name);
+    return json(res, 200, created);
+  }
+  // Le préfixe `agent` est optionnel : l'interface le pose, la liste ne l'a pas.
+  const agentMatch = path.match(/^\/api\/agents\/(?:agent)?(\d+)$/);
+  if (agentMatch) {
+    const id = Number(agentMatch[1]);
+    const i = AGENTS.findIndex((a) => a.agent_id === id);
+    if (i === -1) return json(res, 404, { detail: "no such agent" });
+    if (req.method === "PUT") {
+      const body = await readBody(req);
+      Object.assign(AGENTS[i], body);
+      if (body.agent_name) AGENTS[i].label = body.agent_name;
+      log("agent modifié", id, JSON.stringify(body).slice(0, 120));
+      return json(res, 200, AGENTS[i]);
+    }
+    if (req.method === "DELETE") {
+      const [gone] = AGENTS.splice(i, 1);
+      log("agent supprimé", id, gone.agent_name);
+      return json(res, 200, { deleted: true });
+    }
+    return json(res, 200, AGENTS[i]);
+  }
+  if (path.match(/^\/api\/agents\/(?:agent)?\d+\/reload$/)) return json(res, 200, { reloaded: true });
+  if (path.match(/^\/api\/agents\/(?:agent)?\d+\/template-status$/)) {
+    return json(res, 200, { is_in_sync: true, drift_fields: [] });
+  }
+  if (path === "/api/superagents") return json(res, 200, []);
+  if (path === "/api/saved-api-keys") return json(res, 200, []);
+
+  // ── Hub ────────────────────────────────────────────────────────────────
+  if (path === "/api/hub" && req.method === "GET") return json(res, 200, HUB_AGENTS);
+  if (path === "/api/hub/clone" && req.method === "POST") {
+    const body = await readBody(req);
+    const source = HUB_AGENTS.find((h) => h.hub_id === body.hub_agent_id) || HUB_AGENTS[0];
+    const created = {
+      agent_id: nextAgentId++,
+      agent_name: (body.clone_name || `${source.agent_name}_clone`).trim(),
+      label: (body.clone_name || `${source.agent_name}_clone`).trim(),
+      agent_description: source.agent_description,
+      agent_type: source.agent_type,
+      agent_model: source.agent_model,
+      tags: "[]",
+    };
+    AGENTS.push(created);
+    log("cloné depuis le hub", source.hub_id, "->", created.agent_id, created.agent_name);
+    // `clone_hub_agent` répand l'agent créé PUIS ajoute ces clés : le modal
+    // lit `agent_id`, `agent_model`, `tools_requiring_config` et
+    // `sub_agents_cloned` sur cette même réponse.
+    return json(res, 200, {
+      ...created,
+      cloned_from: source.hub_id,
+      sub_agents_cloned: 0,
+      sub_agent_ids: [],
+      agent_model: source.agent_model,
+      agent_type: source.agent_type,
+      tools_requiring_config: [],
+      message: "Agent cloned successfully.",
+    });
+  }
+  const hubMatch = path.match(/^\/api\/hub\/([^/]+)$/);
+  if (hubMatch && req.method === "GET") {
+    const found = HUB_AGENTS.find((h) => h.hub_id === hubMatch[1]);
+    return found ? json(res, 200, found) : json(res, 404, { detail: "no such hub agent" });
+  }
+
   if (path === "/api/config") return json(res, 200, { default_llm_available: false, default_llm_model_id: "mock/default" });
   if (path === "/api/config/default-llm/usage") return json(res, 404, { detail: "Not found" });
   if (path === "/api/models") return json(res, 200, []);
@@ -410,7 +564,7 @@ const server = http.createServer(async (req, res) => {
 
   if (path === "/api/adk/schedule_run" && req.method === "POST") {
     const body = await readBody(req);
-    const agent = AGENTS.find((a) => a.agent_id === Number(body.agent_id)) || AGENTS[0];
+    const agent = AGENTS.find((a) => String(a.agent_id) === String(body.agent_id)) || AGENTS[0];
     const created = {
       id: nextScheduleId++,
       agent_id: agent.agent_id,

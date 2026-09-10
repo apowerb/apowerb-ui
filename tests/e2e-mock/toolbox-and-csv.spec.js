@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import fs from "node:fs";
+import { signIn, shot, assertNoErrorScreen } from "./session.js";
 
 /**
  * Deux parcours que personne ne jouait : configurer un outil, et importer un
@@ -19,33 +19,6 @@ import fs from "node:fs";
  * « tools.map is not a function » et affichait zéro dataset -- un simulateur
  * qui invente sa forme rend un parcours vert contre une fiction.
  */
-
-const SHOTS = process.env.E2E_SHOTS_DIR || "tests/e2e-mock/shots";
-fs.mkdirSync(SHOTS, { recursive: true });
-const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: false });
-
-const DEMO_USER = {
-  id: "user_demo", email: "demo@th2.ai", username: "demo",
-  firstName: "Elom", lastName: "Demo", avatar: null, role: "user",
-  createdAt: "2026-01-15T00:00:00.000Z",
-};
-
-async function signIn(page, path) {
-  await page.goto("/login");
-  await page.evaluate((user) => {
-    localStorage.clear();
-    localStorage.setItem("th2_auth_token", "mock_token_e2e");
-    localStorage.setItem("th2_auth_user", JSON.stringify(user));
-  }, DEMO_USER);
-  await page.goto(path);
-}
-
-async function assertNoErrorScreen(page, when) {
-  await expect(
-    page.getByText(/Something went wrong|Application error|Unhandled Runtime Error/i),
-    `écran d'erreur ${when}`
-  ).toHaveCount(0);
-}
 
 test.describe("configurer un outil, contre le backend simulé", () => {
   test("l'écran lit le catalogue du cœur et enregistre une configuration", async ({ page }) => {

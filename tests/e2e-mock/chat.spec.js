@@ -1,33 +1,11 @@
 import { test, expect } from "@playwright/test";
-import fs from "node:fs";
+import { signIn, shot, DEMO_USER } from "./session.js";
 
 // Every response state of the chat, reproduced against tests/mock-backend.
 // Screenshots land in tests/e2e-mock/shots (or $E2E_SHOTS_DIR) as a visual
 // record of the run.
-const SHOTS = process.env.E2E_SHOTS_DIR || "tests/e2e-mock/shots";
-fs.mkdirSync(SHOTS, { recursive: true });
-const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: false });
-
-const DEMO_USER = {
-  id: "user_demo",
-  email: "demo@th2.ai",
-  username: "demo",
-  firstName: "Elom",
-  lastName: "Demo",
-  avatar: null,
-  role: "user",
-  createdAt: "2026-01-15T00:00:00.000Z",
-};
-
-async function signIn(page) {
-  // The mock accepts any bearer token; the SDK only needs the two keys.
-  await page.goto("/login");
-  await page.evaluate((user) => {
-    localStorage.clear();
-    localStorage.setItem("th2_auth_token", "mock_token_e2e");
-    localStorage.setItem("th2_auth_user", JSON.stringify(user));
-  }, DEMO_USER);
-  await page.goto("/chat");
+async function goHome(page) {
+  await signIn(page, "/chat");
   await expect(page.getByRole("heading", { name: /Elom/ })).toBeVisible();
 }
 
@@ -46,7 +24,7 @@ async function send(page, text) {
 
 test.describe("chat against the mock backend", () => {
   test("home, reasoning trail, chart and every response state", async ({ page }) => {
-    await signIn(page);
+    await goHome(page);
     await shot(page, "01-home");
 
     await startWith(page, "Support Outillé");
@@ -151,6 +129,9 @@ test.describe("chat against the mock backend", () => {
       localStorage.setItem("theme", "light");
       document.documentElement.classList.add("light");
     });
+    // Le seul délai fixe de la suite, et il ne synchronise rien : il laisse
+    // la transition de thème s'achever avant la CAPTURE. Aucune assertion
+    // n'en dépend.
     await page.waitForTimeout(400);
     await shot(page, "14-light-theme");
   });
