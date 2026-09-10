@@ -21,6 +21,19 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 
+# The base image lags behind the Alpine security branch: node:22-alpine still
+# ships openssl 3.5.7-r0, whose libssl3/libcrypto3 carry ten advisories all
+# fixed in 3.5.8-r0. Rebuilding on a fresh base does not pick them up, so
+# refresh the apk packages here.
+RUN apk upgrade --no-cache
+
+# The standalone build runs `node server.js` and nothing else -- npm is never
+# invoked at runtime. Its bundled dependencies (tar, pacote, sigstore,
+# picomatch, brace-expansion, ip-address) are what most of this image's CVEs
+# are reported against, including the only critical one. Dropping npm from the
+# runtime removes them without touching the application.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 ENV NODE_ENV=production
 ENV PORT=3000
 # Next's standalone `server.js` binds to whatever HOSTNAME says. Unset, it
