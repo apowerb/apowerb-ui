@@ -105,28 +105,12 @@ export default function AuthScreen({ redirectTo }) {
           <Slot name="auth.providers" redirectTo={redirectTo} />
         </div>
 
-        {/* Legal notice */}
-        <p className="th-text-faint text-xs mt-6 leading-relaxed">
-          {t("legalPrefix")}{" "}
-          <a
-            href="https://agent-dev.thaink2.fr/legal#privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-brand transition-colors"
-          >
-            {t("privacyPolicy")}
-          </a>{" "}
-          {t("legalAnd")}{" "}
-          <a
-            href="https://agent-dev.thaink2.fr/legal#terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-brand transition-colors"
-          >
-            {t("termsOfUse")}
-          </a>
-          .
-        </p>
+        {/* Mention légale — livrée par une brique, absente du noyau.
+            L'édition open source ne peut pas promettre des conditions
+            d'utilisation qu'elle ne rédige pas : celui qui déploie nomme les
+            siennes en fournissant cet emplacement. Un drapeau aurait laissé le
+            texte dans le bundle publié ; l'emplacement vide ne rend rien. */}
+        <Slot name="auth.legal" />
 
       </div>
 
