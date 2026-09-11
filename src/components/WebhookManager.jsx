@@ -887,6 +887,9 @@ function ActivityTab({ agents, subscriptions, focusLogId }) {
   const t = useTranslations("WebhookManager");
   const toast = useToast();
   const [logs, setLogs] = useState([]);
+  // Un chargement en echec n'est pas une liste vide. Sans cet etat, les
+  // deux rendaient le meme ecran « aucune activite » (Anis, 11/09/2026).
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -914,8 +917,17 @@ function ActivityTab({ agents, subscriptions, focusLogId }) {
       const fetched = data.logs || [];
       setLogs(fetched);
       setHasMore(fetched.length === ACTIVITY_PAGE_SIZE);
+      setError(null);
     } catch (err) {
-      toast.error(t("errorLoadingActivityToast", { message: err.message || t("unknownError") }));
+      // On vide la liste AVEC l'erreur : garder les lignes d'un chargement
+      // precedent sous un bandeau d'echec donnerait une page qui a l'air
+      // fraiche alors qu'elle est perimee.
+      // Pas de toast ici : le bloc ci-dessous porte deja le message, et le
+      // toast le repetait — deux fois a l'ecran, le temps que l'effet se
+      // rejoue. `loadMore` garde le sien, lui n'a pas de bloc.
+      setError(err.message || t("unknownError"));
+      setLogs([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -1111,7 +1123,20 @@ function ActivityTab({ agents, subscriptions, focusLogId }) {
       </div>
 
       {/* Log list */}
-      {logs.length === 0 ? (
+      {error ? (
+        <div className="th-bg-surface border th-border rounded-2xl p-12 text-center backdrop-blur-xl">
+          <AlertCircle size={48} className="text-red-400 mx-auto mb-4 opacity-70" />
+          <p className="th-text-secondary text-sm font-medium">{t("errorLoadingActivityTitle")}</p>
+          <p className="th-text-faint text-xs mt-1">{t("errorLoadingActivityDesc", { message: error })}</p>
+          <button
+            onClick={() => fetchLogs()}
+            className="mt-5 inline-flex items-center gap-2 px-4 py-2 th-bg-elevated border th-border th-text-secondary rounded-xl text-sm font-semibold transition-all hover:th-bg-surface-hover"
+          >
+            <RefreshCw size={14} />
+            {t("retryActivityButton")}
+          </button>
+        </div>
+      ) : logs.length === 0 ? (
         <div className="th-bg-surface border th-border rounded-2xl p-12 text-center backdrop-blur-xl">
           <Activity size={48} className="th-text-faint mx-auto mb-4 opacity-30" />
           <p className="th-text-secondary text-sm font-medium">{t("noActivityTitle")}</p>
