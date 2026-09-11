@@ -3019,6 +3019,7 @@
     "summary": "{count, plural, one {# élément reste à configurer} other {# éléments restent à configurer}}",
     "unavailable": "État de configuration indisponible pour l'instant.",
     "capability": {
+      "bug_reports": "Signalements de bugs",
       "default_llm": "Modèle mutualisé",
       "google_integration": "Google (Drive, Gmail, Agenda)",
       "microsoft_integration": "Microsoft (Outlook, OneDrive)",
@@ -3028,6 +3029,7 @@
       "system_mail": "Courrier système"
     },
     "description": {
+      "bug_reports": "Où partent les signalements : un dépôt GitHub si configuré, sinon ils restent ici.",
       "default_llm": "Le modèle proposé par défaut aux agents, sans clé API de l'utilisateur.",
       "google_integration": "Connexions Google et déclencheurs associés.",
       "microsoft_integration": "Connexions Microsoft, déclencheurs Outlook et envoi de campagnes.",
