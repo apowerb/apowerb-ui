@@ -10,6 +10,10 @@ export function useStreaming() {
   const lastChunkRef = useRef("");
   const accumulatedContentRef = useRef("");
   const turnContentRef = useRef(""); // Tracks accumulated content for current model turn
+  // True once the stream has delivered at least one `partial: true` event:
+  // the backend is sending deltas, so the non-partial event that closes the
+  // turn is the aggregated restatement and must replace, never append.
+  const sawPartialRef = useRef(false);
   // Set by abortStreaming(): tells the catch block that the AbortError it sees
   // is the user's Stop button, so the message can be marked "interrupted".
   const userAbortedRef = useRef(false);
@@ -34,6 +38,7 @@ export function useStreaming() {
       lastChunkRef.current = "";
       accumulatedContentRef.current = "";
       turnContentRef.current = "";
+      sawPartialRef.current = false;
       userAbortedRef.current = false;
       // Abort any existing stream
       if (abortControllerRef.current) {
@@ -100,11 +105,40 @@ export function useStreaming() {
           // (accumulated starts with "Hello", chunk starts with "Here")
           // causing the full turn 2 text to be appended multiple times.
           const wrappedCallbacks = {
-            onChunk: (chunk) => {
-              if (!chunk || chunk === lastChunkRef.current) return;
+            onChunk: (chunk, meta) => {
+              if (!chunk) return;
 
               const accumulated = accumulatedContentRef.current;
               const turnContent = turnContentRef.current;
+
+              // --- Aggregated end-of-turn event (ADK `partial: false`) ---
+              // Once deltas have been seen, this event restates the whole
+              // turn. It REPLACES what was accumulated: only the text the
+              // deltas did not already carry is emitted. Appending it is
+              // what showed the same answer twice.
+              if (meta?.partial === true) sawPartialRef.current = true;
+              else if (sawPartialRef.current && meta && meta.partial === false) {
+                if (chunk === turnContent) return;
+                if (turnContent.length > 0 && chunk.startsWith(turnContent)) {
+                  const tail = chunk.slice(turnContent.length);
+                  lastChunkRef.current = chunk;
+                  turnContentRef.current = chunk;
+                  accumulatedContentRef.current += tail;
+                  onChunk(tail);
+                  return;
+                }
+                if (turnContent.length > 0) {
+                  // The restatement diverges from what the reader already
+                  // saw. Keeping the streamed text is the only option that
+                  // cannot double the answer; the divergence is logged.
+                  console.debug(
+                    "[useStreaming] aggregated event diverges from streamed turn, keeping streamed text",
+                  );
+                  return;
+                }
+              }
+
+              if (chunk === lastChunkRef.current) return;
 
               // --- Per-turn dedup (handles ADK accumulated-per-turn events) ---
               // An event that restates the whole turn so far, plus new text,
@@ -449,21 +483,43 @@ export function processSSEBlock(block, callbacks) {
 
   // --- Handle ADK format: content.parts ---
   if (data.content?.parts) {
+    // ADK's `partial` flag separates a streaming delta (true) from the
+    // aggregated end-of-turn response (false), which restates the WHOLE
+    // turn. It is forwarded to onChunk, which needs it to replace the
+    // accumulated text instead of appending to it.
+    const partial = data.partial === true;
+    // The aggregated event keeps every streamed fragment as its own part.
+    // Emitting them one by one made each fragment too short for the
+    // deduplication thresholds in useStreaming, and the answer was rendered
+    // twice (live defect on k8s.apowerb.com, 2026-09-11: a stored event of
+    // 46 parts / 193 characters displayed as ~386). The text parts of one
+    // event are joined and emitted as a single chunk, in place.
+    let pending = "";
+    const flushText = () => {
+      if (!pending) return;
+      const text = pending;
+      pending = "";
+      onChunk(text, { partial });
+    };
     for (const part of data.content.parts) {
       if (part.thought && part.text) {
+        flushText();
         if (onThinking) onThinking(part.text);
       } else if (part.functionCall) {
+        flushText();
         const fc = part.functionCall;
         if (onToolCall) onToolCall({ name: fc.name, args: fc.args || {} });
       } else if (part.functionResponse) {
+        flushText();
         if (onToolResult) {
           const resp = part.functionResponse.response || {};
           onToolResult({ name: part.functionResponse.name, result: resp });
         }
       } else if (part.text) {
-        onChunk(part.text);
+        pending += part.text;
       }
     }
+    flushText();
     return;
   }
 
