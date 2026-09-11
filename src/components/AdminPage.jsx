@@ -41,6 +41,9 @@ import { isAdminUser } from "@/lib/roles";
 import { Skeleton } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import DashboardTab from "@/components/admin/DashboardTab";
+import BugReportsAdmin from "@/components/bug-report/BugReportsAdmin";
+import BugReportBadge from "@/components/bug-report/BugReportBadge";
+import useBugReportAlerts from "@/hooks/useBugReportAlerts";
 import ConfigurationTab from "@/components/admin/ConfigurationTab";
 
 // "SUPERADMIN" is not a value of the core's role enum — it is ADMIN plus a
@@ -58,6 +61,10 @@ function roleValue(user) {
  *  evaluators picker uses, so the two admin-ish screens read alike. */
 function PermissionPicker({ catalog, selected, onToggle, t }) {
   const [open, setOpen] = useState(false);
+  // Le badge de l'onglet a besoin du compte de signalements nouveaux et
+  // bloquants ; le hook fait un seul appel pour tout le panneau.
+  const bugAlerts = useBugReportAlerts();
+
   return (
     <div className="relative">
       <button
@@ -208,7 +215,7 @@ export default function AdminPage() {
       </header>
 
       <div className="flex gap-2 mb-5">
-        {["dashboard", "users", "groups", "configuration"].map((key) => (
+        {["dashboard", "bugs", "users", "groups", "configuration"].map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -221,11 +228,16 @@ export default function AdminPage() {
             {t(
               key === "dashboard"
                 ? "tabDashboard"
-                : key === "users"
-                  ? "tabUsers"
-                  : key === "groups"
-                    ? "tabGroups"
-                    : "tabConfiguration",
+                : key === "bugs"
+                  ? "tabBugs"
+                  : key === "users"
+                    ? "tabUsers"
+                    : key === "groups"
+                      ? "tabGroups"
+                      : "tabConfiguration",
+            )}
+            {key === "bugs" && (
+              <BugReportBadge news={bugAlerts.news} blockers={bugAlerts.blockers} />
             )}
           </button>
         ))}
@@ -260,6 +272,8 @@ export default function AdminPage() {
           onRoleChange={(userId, role) => run(() => changeAdminUserRole(userId, role))}
           onAct={(fn) => run(fn)}
         />
+      ) : tab === "bugs" ? (
+        <BugReportsAdmin />
       ) : tab === "dashboard" ? (
         <DashboardTab />
       ) : tab === "configuration" ? (
