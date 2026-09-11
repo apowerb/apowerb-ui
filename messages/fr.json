@@ -2944,7 +2944,8 @@
     "windowDays": "{days} j",
     "scopeBounded": "Administrateur — vous ne gérez que votre propre compte.",
     "scopeOrg": "Administrateur de {org} — vous ne gérez que les utilisateurs de cette organisation.",
-    "tabConfiguration": "Configuration"
+    "tabConfiguration": "Configuration",
+    "tabBugs": "Bugs"
   },
   "ReasoningTrail": {
     "ariaLabel": "Piste de raisonnement",
