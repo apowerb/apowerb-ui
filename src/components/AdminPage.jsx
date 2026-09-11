@@ -61,10 +61,6 @@ function roleValue(user) {
  *  evaluators picker uses, so the two admin-ish screens read alike. */
 function PermissionPicker({ catalog, selected, onToggle, t }) {
   const [open, setOpen] = useState(false);
-  // Le badge de l'onglet a besoin du compte de signalements nouveaux et
-  // bloquants ; le hook fait un seul appel pour tout le panneau.
-  const bugAlerts = useBugReportAlerts();
-
   return (
     <div className="relative">
       <button
@@ -111,6 +107,9 @@ function PermissionPicker({ catalog, selected, onToggle, t }) {
 
 export default function AdminPage() {
   const t = useTranslations("Admin");
+  // Le badge de l'onglet Bugs a besoin du compte de signalements nouveaux
+  // et bloquants ; le hook fait un seul appel pour tout le panneau.
+  const bugAlerts = useBugReportAlerts();
   const { user } = useAuth();
 
   const [users, setUsers] = useState([]);
