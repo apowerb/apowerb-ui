@@ -3019,6 +3019,7 @@
     "summary": "{count, plural, one {# item still to configure} other {# items still to configure}}",
     "unavailable": "Configuration status unavailable right now.",
     "capability": {
+      "bug_reports": "Bug reports",
       "default_llm": "Shared model",
       "google_integration": "Google (Drive, Gmail, Calendar)",
       "microsoft_integration": "Microsoft (Outlook, OneDrive)",
@@ -3028,6 +3029,7 @@
       "system_mail": "System mail"
     },
     "description": {
+      "bug_reports": "Where reports go: a GitHub repository when configured, otherwise they stay here.",
       "default_llm": "The model offered to agents by default, without a user API key.",
       "google_integration": "Google connections and their triggers.",
       "microsoft_integration": "Microsoft connections, Outlook triggers and campaign sending.",
