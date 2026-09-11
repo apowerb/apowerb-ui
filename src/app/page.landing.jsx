@@ -321,7 +321,6 @@ function Navbar() {
     { label: t("navHowItWorks"), href: "#how-it-works" },
     { label: t("navIntegrations"), href: "#integrations" },
     { label: t("navFaq"), href: "#faq" },
-    { label: t("navLegal"), href: "/legal" },
   ];
 
   return (
@@ -1177,20 +1176,12 @@ function Footer() {
         { label: t("footerLinkContact"), href: "#" },
       ],
     },
-    {
-      title: t("footerColLegalTitle"),
-      links: [
-        { label: t("footerLinkPrivacyPolicy"), href: "/legal#privacy" },
-        { label: t("footerLinkTermsOfService"), href: "/legal#terms" },
-        { label: t("footerLinkGdpr"), href: "/legal#privacy" },
-      ],
-    },
   ];
 
   return (
     <footer className="border-t border-white/[0.06] pt-14 pb-8">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/home" className="flex items-center gap-2 mb-4 group">

@@ -27,11 +27,21 @@ export default function ConnectSnippetModal({ show, agent, onClose }) {
   const agentId = agent.agent_id != null ? String(agent.agent_id) : agent.id;
   const agentName = agent.label || agent.id;
 
+  // L'exemple doit viser CETTE installation. Il nommait l'instance de
+  // developpement de l'editeur en dur : sur toute autre installation, le code
+  // propose a l'utilisateur tapait l'API de quelqu'un d'autre.
+  // Sans `NEXT_PUBLIC_API_URL`, l'origine de la page est la bonne reponse :
+  // c'est elle qui sert `/api/*`, en le relayant vers le backend.
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  const runUrl = `${apiBase}/api/adk/run`;
+
   const pythonSnippet = `import requests
 import uuid
 
 # API Configuration
-api_url = "https://api-agent-dev.thaink2.fr/api/adk/run"
+api_url = "${runUrl}"
 
 # JWT Token (obtain from /api/auth/login)
 jwt_token = "<YOUR_JWT_TOKEN>"
@@ -59,7 +69,7 @@ response = requests.post(api_url, headers=headers, json=payload)
 print(response.status_code)
 print(response.json())`;
 
-  const curlSnippet = `curl -X POST "https://api-agent-dev.thaink2.fr/api/adk/run" \\
+  const curlSnippet = `curl -X POST "${runUrl}" \\
   -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \\
   -H "Content-Type: application/json" \\
   -H "Accept: application/json" \\
