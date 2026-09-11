@@ -922,11 +922,12 @@ function ActivityTab({ agents, subscriptions, focusLogId }) {
       // On vide la liste AVEC l'erreur : garder les lignes d'un chargement
       // precedent sous un bandeau d'echec donnerait une page qui a l'air
       // fraiche alors qu'elle est perimee.
-      const message = err.message || t("unknownError");
-      setError(message);
+      // Pas de toast ici : le bloc ci-dessous porte deja le message, et le
+      // toast le repetait — deux fois a l'ecran, le temps que l'effet se
+      // rejoue. `loadMore` garde le sien, lui n'a pas de bloc.
+      setError(err.message || t("unknownError"));
       setLogs([]);
       setHasMore(false);
-      toast.error(t("errorLoadingActivityToast", { message }));
     } finally {
       setLoading(false);
       setRefreshing(false);

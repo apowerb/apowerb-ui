@@ -65,10 +65,11 @@ describe("Activity : liste vide contre chargement en échec", () => {
   it("un chargement en échec n'est PAS rendu comme une liste vide", async () => {
     listWebhookLogs.mockRejectedValue(new Error("Internal Server Error"));
     render(<WebhookManager />);
-    await waitFor(() => expect(toastSpy.error).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText("errorLoadingActivityTitle")).toBeInTheDocument());
     // Le coeur du ticket : l'echec ne doit pas emprunter l'ecran du vide.
     expect(screen.queryByText("noActivityTitle")).not.toBeInTheDocument();
-    expect(screen.getByText("errorLoadingActivityTitle")).toBeInTheDocument();
+    // Le bloc porte le message ; le toast le repetait en double.
+    expect(toastSpy.error).not.toHaveBeenCalled();
   });
 
   it("l'état d'erreur offre de réessayer, et un second appel réussi le remplace", async () => {

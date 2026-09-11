@@ -2601,7 +2601,7 @@
     "emailBodyLabel": "Email body",
     "enableTitle": "Enable",
     "errorLabel": "Error",
-    "errorLoadingActivityDesc": "The list above is not empty — it could not be fetched. Details: {message}",
+    "errorLoadingActivityDesc": "This is not an empty list — the activity could not be fetched. Details: {message}",
     "errorLoadingActivityTitle": "Could not load activity.",
     "errorLoadingActivityToast": "Error loading activity: {message}",
     "errorLoadingMoreToast": "Error loading more: {message}",

@@ -2601,7 +2601,7 @@
     "emailBodyLabel": "Corps de l'email",
     "enableTitle": "Activer",
     "errorLabel": "Erreur",
-    "errorLoadingActivityDesc": "La liste ci-dessus n'est pas vide : elle n'a pas pu être demandée. Détail : {message}",
+    "errorLoadingActivityDesc": "Ce n'est pas une absence d'activité : la liste n'a pas pu être récupérée. Détail : {message}",
     "errorLoadingActivityTitle": "Impossible de charger l'activité.",
     "errorLoadingActivityToast": "Erreur lors du chargement de l'activité : {message}",
     "errorLoadingMoreToast": "Erreur lors du chargement supplémentaire : {message}",
