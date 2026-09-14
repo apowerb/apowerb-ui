@@ -2854,8 +2854,6 @@
     "starterEmail": "Rédige un court e-mail de relance cordial à un client silencieux",
     "starterCompare": "Compare deux options dans un tableau : avantages, inconvénients, coût, risque",
     "useStarter": "Utiliser",
-    "recentTitle": "Reprendre où vous en étiez",
-    "messagesCount": "{count, plural, one {# message} other {# messages}}",
     "powerTitle": "Les gestes qui comptent",
     "powerPalette": "Palette ⌘K",
     "powerPaletteDesc": "Aller partout, lancer n'importe quelle commande, chercher dans toutes les conversations.",

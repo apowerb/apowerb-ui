@@ -6,13 +6,11 @@ import {
   Sparkles,
   Bot,
   ArrowRight,
-  MessageSquare,
   Command,
   AtSign,
   Slash,
   BarChart3,
   Plus,
-  Clock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChatSessions } from "@/hooks/useChatSessions";
@@ -32,8 +30,8 @@ function greetingKey(date = new Date()) {
   return "greetingEvening";
 }
 
-/** Recent agents and conversations, computed from the session list. */
-export function recentFromSessions(sessions, { agents = 5, conversations = 4 } = {}) {
+/** Recent agents, computed from the session list. */
+export function recentFromSessions(sessions, { agents = 5 } = {}) {
   const sorted = [...(sessions || [])]
     .filter((s) => !s.archived && !(typeof s.id === "string" && s.id.startsWith("webhook_")))
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -51,29 +49,25 @@ export function recentFromSessions(sessions, { agents = 5, conversations = 4 } =
     });
     if (recentAgents.length >= agents) break;
   }
-  return { recentAgents, recentConversations: sorted.slice(0, conversations) };
+  return { recentAgents };
 }
 
 const STARTERS = ["starterSummarize", "starterChart", "starterEmail", "starterCompare"];
 
 /**
  * What you see with no conversation open, or on a thread that has no message
- * yet (`session`): a greeting, the agents you used recently, prompt starters,
- * your latest threads, and the three power moves of this chat (`/`, `@`, ⌘K).
- * On an empty thread the starters go straight into the composer — the agent
- * is already chosen — and that thread is left out of the recent list.
+ * yet (`session`): a greeting, the agents you used recently, prompt starters
+ * and the three power moves of this chat (`/`, `@`, ⌘K). On an empty thread
+ * the starters go straight into the composer — the agent is already chosen.
+ * Older threads are not listed here: they are in the sidebar, and a preview of
+ * them on a new chat was reported as confusing (2026-09-14).
  */
 export default function ChatHome({ session = null }) {
   const t = useTranslations("ChatHome");
   const { user } = useAuth();
-  const { sessions, createSession, setActiveSession } = useChatSessions();
+  const { sessions, createSession } = useChatSessions();
   const ui = useChatUi();
-  const { recentAgents, recentConversations } = useMemo(() => {
-    const r = recentFromSessions(sessions);
-    return session
-      ? { ...r, recentConversations: r.recentConversations.filter((s) => s.id !== session.id) }
-      : r;
-  }, [sessions, session]);
+  const { recentAgents } = useMemo(() => recentFromSessions(sessions), [sessions]);
   const firstName = user?.firstName || user?.username || (user?.email ? user.email.split("@")[0] : "");
 
   const startWith = async (agent) => {
@@ -163,33 +157,6 @@ export default function ChatHome({ session = null }) {
             ))}
           </div>
         </section>
-
-        {/* Recent conversations */}
-        {recentConversations.length > 0 && (
-          <section className="mb-8" aria-label={t("recentTitle")}>
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.18em] th-text-ghost mb-2.5">{t("recentTitle")}</h2>
-            <ul className="divide-y th-border-secondary rounded-2xl border th-border overflow-hidden">
-              {recentConversations.map((s) => (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSession(s.id)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:th-bg-surface-hover transition-colors"
-                  >
-                    <MessageSquare size={14} className="th-text-faint shrink-0" />
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-sm th-text-secondary truncate">{s.title || s.agentName}</span>
-                      <span className="block text-[11px] th-text-ghost truncate">
-                        {s.agentName} · {t("messagesCount", { count: (s.messages || []).length })}
-                      </span>
-                    </span>
-                    <Clock size={12} className="th-text-ghost shrink-0" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
 
         {/* Power moves */}
         <section aria-label={t("powerTitle")}>

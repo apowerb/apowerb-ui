@@ -33,19 +33,29 @@ describe("ChatHome on an empty thread", () => {
     h.createSession.mockClear();
   });
 
-  it("names the thread's agent, sends starters straight to the composer and hides the thread from recents", () => {
+  it("names the thread's agent and sends starters straight to the composer", () => {
     render(<ChatHome session={s1} />);
     expect(screen.getByText(/Elom/)).toBeInTheDocument();
     expect(screen.getByText("New conversation with Emailer")).toBeInTheDocument();
-    const recent = screen.getByRole("region", { name: "Pick up where you left off" });
-    expect(recent).toHaveTextContent("Ventes");
-    expect(recent).not.toHaveTextContent("Emailer ·");
     const starter = screen.getByRole("region", { name: "Try one of these" }).querySelector("button");
     fireEvent.click(starter);
     expect(h.setPendingComposerText).toHaveBeenCalledTimes(1);
     expect(h.setAgentPickerOpen).not.toHaveBeenCalled();
     expect(h.createSession).not.toHaveBeenCalled();
   });
+
+  // Reported from the app on 2026-09-14: a new chat
+  // opened on a preview of older conversations — "not practical". Those
+  // threads are already one click away in the sidebar; the home no longer
+  // lists them, on an empty thread or without one.
+  it.each([["an empty thread", s1], ["no thread", null]])(
+    "shows no recent conversations on %s",
+    (_label, session) => {
+      render(<ChatHome session={session} />);
+      expect(screen.queryByRole("region", { name: "Pick up where you left off" })).toBeNull();
+      expect(screen.queryByText("Ventes")).toBeNull();
+    },
+  );
 
   it("without a thread, a starter opens the agent picker when several agents were used", () => {
     render(<ChatHome />);
