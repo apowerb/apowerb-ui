@@ -44,7 +44,7 @@ const SEVERITY_STYLE = {
   cosmetic: "th-badge-muted",
 };
 
-export default function BugReportsAdmin() {
+export default function BugReportsAdmin({ initialReportId = null }) {
   const t = useTranslations("BugReportsAdmin");
   const [items, setItems] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -84,6 +84,18 @@ export default function BugReportsAdmin() {
       setError(detailError?.message || String(detailError));
     }
   };
+
+  // Arrivée par /admin/bug-reports/<id> — le lien que porte chaque issue.
+  useEffect(() => {
+    if (!initialReportId) return undefined;
+    let cancelled = false;
+    getBugReport(initialReportId)
+      .then((report) => { if (!cancelled) setSelected(report); })
+      .catch((detailError) => {
+        if (!cancelled) setError(detailError?.message || String(detailError));
+      });
+    return () => { cancelled = true; };
+  }, [initialReportId]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-4">
