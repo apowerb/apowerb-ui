@@ -2854,8 +2854,6 @@
     "starterEmail": "Draft a short, friendly follow-up email to a client who went quiet",
     "starterCompare": "Compare two options for me in a table: pros, cons, cost, risk",
     "useStarter": "Use this",
-    "recentTitle": "Pick up where you left off",
-    "messagesCount": "{count, plural, one {# message} other {# messages}}",
     "powerTitle": "Power moves",
     "powerPalette": "⌘K palette",
     "powerPaletteDesc": "Jump anywhere, run any command, search every conversation.",
