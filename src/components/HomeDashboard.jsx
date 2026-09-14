@@ -32,6 +32,7 @@ import EmptyState from "./EmptyState";
 import { useToast } from "./Toast";
 import OnboardingTour from "./OnboardingTour";
 import { formatDate as formatDateParis } from "@/lib/datetime";
+import { isNavVisible } from "@/lib/hiddenScreens";
 
 const FEATURED_TEMPLATE_COUNT = 3;
 
@@ -522,66 +523,69 @@ export default function HomeDashboard() {
               </section>
             )}
 
-            {/* Discover — featured templates */}
-            <section
-              aria-label="Discover"
-              className="glass-card rounded-2xl p-5"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold th-text inline-flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-brand" />
-                  {t("discoverHeading")}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => router.push("/marketplace")}
-                  className="text-xs th-text-faint hover:text-brand transition-colors inline-flex items-center gap-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  {t("browseButton")}
-                  <ArrowRight size={12} />
-                </button>
-              </div>
-
-              {templatesLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
+            {/* Discover — featured templates. Caché avec Marketplace (roadmap#2) :
+                chaque bouton de l'encart y mène. */}
+            {isNavVisible("/marketplace") && (
+              <section
+                aria-label="Discover"
+                className="glass-card rounded-2xl p-5"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold th-text inline-flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-brand" />
+                    {t("discoverHeading")}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/marketplace")}
+                    className="text-xs th-text-faint hover:text-brand transition-colors inline-flex items-center gap-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    {t("browseButton")}
+                    <ArrowRight size={12} />
+                  </button>
                 </div>
-              ) : featuredTemplates.length === 0 ? (
-                <p className="text-xs th-text-muted py-4 text-center">
-                  {t("noTemplatesText")}
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {featuredTemplates.map((tpl) => {
-                    const key = tpl.template_id || tpl.id || tpl.name;
-                    return (
-                      <li key={key}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            router.push(
-                              `/marketplace?template=${encodeURIComponent(key)}`,
-                            )
-                          }
-                          className="w-full text-left p-2.5 rounded-xl th-bg-surface border th-border hover:border-brand/40 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                        >
-                          <div className="text-xs font-semibold th-text truncate">
-                            {tpl.label || tpl.name || t("templateFallback")}
-                          </div>
-                          {tpl.description && (
-                            <div className="text-[11px] th-text-muted line-clamp-2 mt-0.5">
-                              {tpl.description}
+
+                {templatesLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                  </div>
+                ) : featuredTemplates.length === 0 ? (
+                  <p className="text-xs th-text-muted py-4 text-center">
+                    {t("noTemplatesText")}
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {featuredTemplates.map((tpl) => {
+                      const key = tpl.template_id || tpl.id || tpl.name;
+                      return (
+                        <li key={key}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(
+                                `/marketplace?template=${encodeURIComponent(key)}`,
+                              )
+                            }
+                            className="w-full text-left p-2.5 rounded-xl th-bg-surface border th-border hover:border-brand/40 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                          >
+                            <div className="text-xs font-semibold th-text truncate">
+                              {tpl.label || tpl.name || t("templateFallback")}
                             </div>
-                          )}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
+                            {tpl.description && (
+                              <div className="text-[11px] th-text-muted line-clamp-2 mt-0.5">
+                                {tpl.description}
+                              </div>
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            )}
 
             {/* Shortcuts */}
             <section aria-label="Shortcuts" className="glass-card rounded-2xl p-5">
