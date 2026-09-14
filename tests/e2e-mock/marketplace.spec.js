@@ -31,7 +31,10 @@ test.describe("catalogue du marché, contre le backend simulé", () => {
     await expect(page.getByText("Analyste de ventes")).toBeVisible();
     await expect(page.getByText("Lit un CSV et en tire trois graphiques.")).toBeVisible();
     await expect(page.getByText("#ventes")).toBeVisible();
-    await expect(page.getByText("12")).toBeVisible();
+    // exact : sans lui, « 12 » attrape aussi la date relative de l agent publie
+    // le 02/09 — « 12d ago » le 14/09/2026, et le parcours virait au rouge a
+    // date fixe, sans que rien n ait change dans le code.
+    await expect(page.getByText("12", { exact: true })).toBeVisible();
     await expect(page.getByText("Rédacteur d'offres")).toBeVisible();
     await shot(page, "34-marketplace");
   });
