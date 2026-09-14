@@ -22,6 +22,7 @@
  *   insert    a template inserted into the composer instead of running
  *             (compose group). `{arg}` is replaced by the slash argument.
  */
+import { isNavVisible } from "./hiddenScreens";
 
 export const COMMAND_GROUPS = ["conversation", "agent", "compose", "navigate", "settings"];
 
@@ -304,7 +305,7 @@ export const COMMAND_DEFS = [
   { id: "go-webhooks", group: "navigate", labelKey: "goWebhooks", keywords: ["events", "triggers", "déclencheurs"], slash: "webhooks", iconName: "Webhook", run: (ctx) => ctx.navigate?.("/webhooks") },
   { id: "go-orchestrator", group: "navigate", labelKey: "goOrchestrator", keywords: ["schedule", "planifier", "cron", "runs"], slash: "schedule", iconName: "Calendar", run: (ctx) => ctx.navigate?.("/orchestrator") },
   { id: "go-logging", group: "navigate", labelKey: "goLogging", keywords: ["logs", "traces", "agentops", "monitoring"], slash: "logs", iconName: "ScrollText", when: (ctx) => ctx.isAdmin !== false, run: (ctx) => ctx.navigate?.("/logging") },
-  { id: "go-marketplace", group: "navigate", labelKey: "goMarketplace", keywords: ["hub", "store", "publish", "clone"], slash: "marketplace", iconName: "Store", run: (ctx) => ctx.navigate?.("/marketplace") },
+  { id: "go-marketplace", group: "navigate", labelKey: "goMarketplace", keywords: ["hub", "store", "publish", "clone"], slash: "marketplace", iconName: "Store", when: () => isNavVisible("/marketplace"), run: (ctx) => ctx.navigate?.("/marketplace") },
   { id: "go-admin", group: "navigate", labelKey: "goAdmin", keywords: ["users", "groups", "permissions", "utilisateurs"], slash: "admin", iconName: "ShieldCheck", when: (ctx) => ctx.isAdmin === true, run: (ctx) => ctx.navigate?.("/admin") },
   { id: "go-help", group: "navigate", labelKey: "goHelp", keywords: ["aide", "docs", "documentation"], slash: "help", iconName: "CircleHelp", run: (ctx) => ctx.navigate?.("/help") },
 
