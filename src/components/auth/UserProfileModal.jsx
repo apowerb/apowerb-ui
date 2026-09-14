@@ -28,6 +28,9 @@ export default function UserProfileModal({ onClose }) {
   const { user, token, updateProfile, uploadAvatar, refreshProfile, isLoading } = useAuth();
   const fileInputRef = useRef(null);
   const modalRef = useFocusTrap(true);
+  // The real auth client cannot store an avatar yet (only the mock can):
+  // offering the change would end in "uploadAvatar is not a function".
+  const canChangeAvatar = typeof authApi.uploadAvatar === "function";
 
   useEffect(() => {
     function handleEscape(e) {
@@ -191,8 +194,10 @@ export default function UserProfileModal({ onClose }) {
           <div className="relative group">
             {/* Avatar */}
             <div
-              onClick={handleAvatarClick}
-              className="w-24 h-24 rounded-full overflow-hidden cursor-pointer border-4 th-border hover:border-blue-500/50 transition-all"
+              onClick={canChangeAvatar ? handleAvatarClick : undefined}
+              className={`w-24 h-24 rounded-full overflow-hidden border-4 th-border transition-all ${
+                canChangeAvatar ? "cursor-pointer hover:border-blue-500/50" : ""
+              }`}
             >
               {user?.avatar ? (
                 <img
@@ -208,17 +213,19 @@ export default function UserProfileModal({ onClose }) {
               )}
 
               {/* Overlay on hover */}
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                {uploading ? (
-                  <Loader2 size={24} className="text-white animate-spin" />
-                ) : (
-                  <Camera size={24} className="text-white" />
-                )}
-              </div>
+              {canChangeAvatar && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {uploading ? (
+                    <Loader2 size={24} className="text-white animate-spin" />
+                  ) : (
+                    <Camera size={24} className="text-white" />
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Remove avatar button */}
-            {user?.avatar && (
+            {canChangeAvatar && user?.avatar && (
               <button
                 onClick={handleRemoveAvatar}
                 className="absolute -bottom-1 -right-1 p-1.5 bg-red-500 hover:bg-red-400 rounded-full shadow-lg transition-colors"
@@ -229,17 +236,21 @@ export default function UserProfileModal({ onClose }) {
             )}
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          {canChangeAvatar && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
 
-          <p className="mt-3 text-sm th-text-muted">
-            {t("clickToChangeAvatar")}
-          </p>
+              <p className="mt-3 text-sm th-text-muted">
+                {t("clickToChangeAvatar")}
+              </p>
+            </>
+          )}
         </div>
 
         {/* Messages */}
