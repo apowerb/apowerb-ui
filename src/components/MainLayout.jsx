@@ -37,6 +37,7 @@ import NotificationBell from "./NotificationBell";
 import DefaultLlmUsageMeter from "./DefaultLlmUsageMeter";
 import SetupBadge from "./SetupBadge";
 import Slot from "@/extensions/Slot";
+import { isNavVisible } from "@/lib/hiddenScreens";
 import { navItemsFor } from "@/extensions/registry";
 
 const BRAND_GRADIENT = "from-brand to-brand-secondary";
@@ -121,7 +122,7 @@ function AppContent({ children }) {
   // vaut pas de rubrique qu'une rubrique qui ne mène nulle part.
   const navGroups = NAV_GROUPS.map((group) => ({
     ...group,
-    items: [...group.items, ...navItemsFor(group.titleKey)],
+    items: [...group.items, ...navItemsFor(group.titleKey)].filter((i) => isNavVisible(i.path)),
   })).filter((group) => group.items.length > 0);
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
