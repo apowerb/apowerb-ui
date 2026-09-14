@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Globe,
   Bot,
+  MessageSquare,
 } from "lucide-react";
 import {
   listDashboards,
@@ -44,7 +45,8 @@ export default function BIReportingPage() {
 
   const [dashboards, setDashboards] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ dashboards: 0, charts: 0 });
+  // chatCharts stays null until the server splits BI and chat charts.
+  const [stats, setStats] = useState({ dashboards: 0, charts: 0, chatCharts: null });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newDashboard, setNewDashboard] = useState({ name: "", description: "" });
@@ -80,6 +82,7 @@ export default function BIReportingPage() {
         setStats({
           dashboards: s.dashboard_count ?? items.length,
           charts: s.chart_count ?? 0,
+          chatCharts: s.chat_chart_count ?? null,
         });
       } catch {
         // Stats endpoint not ready — count from lists
@@ -218,7 +221,7 @@ export default function BIReportingPage() {
         ) : (
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Stats Bar */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${stats.chatCharts === null ? "grid-cols-2" : "grid-cols-3"}`}>
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-blue-500/10">
                   <LayoutDashboard size={20} className="text-blue-400" />
@@ -237,6 +240,17 @@ export default function BIReportingPage() {
                   <p className="text-xs th-text-faint">{t("chartsStatLabel")}</p>
                 </div>
               </div>
+              {stats.chatCharts !== null && (
+                <div className="th-bg-surface border th-border rounded-xl p-4 flex items-center gap-3">
+                  <div className="p-2 rounded-lg th-bg-elevated">
+                    <MessageSquare size={20} className="th-text-muted" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black th-text">{stats.chatCharts}</p>
+                    <p className="text-xs th-text-faint">{t("chatChartsStatLabel")}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Status Filter Tabs */}
