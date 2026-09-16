@@ -1,4 +1,28 @@
+<div align="center">
+
+<img src="https://avatars.githubusercontent.com/u/310538280?v=4&s=160" alt="apowerb" width="96" />
+
 # apowerb-ui
+
+**The official web interface for apowerb — build an agent, give it tools and knowledge, run it, and watch what it did.**
+
+[![Documentation](https://img.shields.io/badge/docs-apowerb.com-blue?style=for-the-badge&logo=googledocs&logoColor=white)](https://docs.apowerb.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=for-the-badge)](LICENSE)
+[![Discord](https://img.shields.io/badge/Community-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/channels/1470717940075597896)
+
+<p align="center">
+  <a href="https://docs.apowerb.com/">Documentation</a> •
+  <a href="https://docs.apowerb.com/quickstart">Quickstart</a> •
+  <a href="https://docs.apowerb.com/api-reference/introduction">API Reference</a> •
+  <a href="https://docs.apowerb.com/deployment/dockercompose">Deployment</a> •
+  <a href="https://thaink2.com">thaink2</a>
+</p>
+
+</div>
+
+---
 
 The web interface for [**apowerb**](https://github.com/apowerb/apowerb) — build an agent,
 give it tools and knowledge, run it, and watch what it did.
