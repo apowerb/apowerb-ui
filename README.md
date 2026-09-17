@@ -9,7 +9,7 @@
 [![Documentation](https://img.shields.io/badge/docs-apowerb.com-blue?style=for-the-badge&logo=googledocs&logoColor=white)](https://docs.apowerb.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=for-the-badge)](https://github.com/apowerb/apowerb-ui/blob/main/LICENSE)
 [![Discord](https://img.shields.io/badge/Community-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/channels/1470717940075597896)
 
 <p align="center">
@@ -174,7 +174,7 @@ the product the way hand-picked screenshots do.
 
 ## License
 
-apowerb-ui is distributed under the [Apache License 2.0](./LICENSE).
+apowerb-ui is distributed under the [Apache License 2.0](https://github.com/apowerb/apowerb-ui/blob/main/LICENSE).
 Copyright 2025-2026 thaink².
 
 "apowerb" and "thaink²" are trademarks of thaink². The licence covers the code,
