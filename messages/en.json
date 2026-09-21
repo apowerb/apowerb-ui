@@ -3407,7 +3407,17 @@
     "runError_no_route": "Router {node}: no rule matched and there is no default route. Add a default route or a rule covering this input.",
     "runError_classifier_no_route": "Classifier {node} answered outside its routes ({routes}): make the route descriptions more distinct.",
     "runError_loop_items_not_list": "Loop {node}: items resolved to {type}, not a list. Point it at a list from an upstream node.",
-    "runError_convert_failed": "Convert {node} could not read its input as {to}. Check the upstream output, or pick another conversion."
+    "runError_convert_failed": "Convert {node} could not read its input as {to}. Check the upstream output, or pick another conversion.",
+    "replayTitle": "Replay",
+    "replayPlay": "Replay the run",
+    "replayPause": "Pause",
+    "replayStepBack": "Step back",
+    "replayStepForward": "Step forward",
+    "replaySpeed": "Replay speed",
+    "replayExit": "Exit replay",
+    "replayPosition": "Replay position",
+    "replayStep": "Step {index} / {total}",
+    "replayHint": "Replay the last run step by step on the canvas."
   },
   "WorkflowVersions": {
     "title": "Versions",

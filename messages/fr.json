@@ -3407,7 +3407,17 @@
     "runError_no_route": "Routeur {node} : aucune règle ne correspond et il n’y a pas de route par défaut. Ajoute une route par défaut ou une règle qui couvre cette entrée.",
     "runError_classifier_no_route": "Le classifieur {node} a répondu hors de ses routes ({routes}) : rends leurs descriptions plus distinctes.",
     "runError_loop_items_not_list": "Boucle {node} : items vaut un {type}, pas une liste. Fais-le pointer vers une liste d’un nœud amont.",
-    "runError_convert_failed": "La conversion {node} n’a pas pu lire son entrée comme {to}. Vérifie la sortie amont, ou choisis une autre conversion."
+    "runError_convert_failed": "La conversion {node} n’a pas pu lire son entrée comme {to}. Vérifie la sortie amont, ou choisis une autre conversion.",
+    "replayTitle": "Rejeu",
+    "replayPlay": "Rejouer le run",
+    "replayPause": "Pause",
+    "replayStepBack": "Étape précédente",
+    "replayStepForward": "Étape suivante",
+    "replaySpeed": "Vitesse du rejeu",
+    "replayExit": "Quitter le rejeu",
+    "replayPosition": "Position du rejeu",
+    "replayStep": "Étape {index} / {total}",
+    "replayHint": "Rejoue le dernier run pas à pas sur le canevas."
   },
   "WorkflowVersions": {
     "title": "Versions",
