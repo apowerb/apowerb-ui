@@ -3342,7 +3342,7 @@
     "title": "Test d'exécution",
     "collapse": "Réduire",
     "expand": "Agrandir",
-    "payloadTitle": "Payload",
+    "payloadTitle": "Charge utile",
     "run": "Lancer",
     "running": "Exécution…",
     "cancel": "Annuler",
