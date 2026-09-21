@@ -3129,5 +3129,12 @@
     },
     "refusalPublicRepo": "Publication refusée : le dépôt configuré est public. Un signalement contient des logs et l'adresse de son auteur.",
     "notConfigured": "Aucune sortie GitHub configurée. Renseignez BUG_REPORT_GITHUB_REPO et BUG_REPORT_GITHUB_TOKEN, ou traitez le signalement ici."
+  },
+  "ModelApiBaseField": {
+    "hint": "Endpoint compatible OpenAI : Azure AI Foundry, modèle hébergé chez vous, passerelle LiteLLM… Laissez vide pour l'URL par défaut du fournisseur.",
+    "invalid": "Saisissez une adresse complète en http(s)://, ou laissez vide.",
+    "label": "URL de l'API",
+    "optional": "(facultatif)",
+    "placeholder": "https://mon-endpoint.example.com/v1"
   }
 }

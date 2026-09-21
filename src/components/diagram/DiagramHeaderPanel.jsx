@@ -13,6 +13,7 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "use-intl";
 import SavedApiKeySelector from "../SavedApiKeySelector";
+import ModelApiBaseField from "../ModelApiBaseField";
 import DefaultLlmUsageGauge from "../agent-modal/DefaultLlmUsageGauge";
 import { DEFAULT_LLM_MODEL_ID } from "../ModelSelector";
 
@@ -138,6 +139,20 @@ export default function DiagramHeaderPanel({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* URL de l'API (optionnelle) — sans objet pour le modèle mutualisé */}
+      <div className={usesDefaultLlm ? "hidden" : undefined}>
+        <ModelApiBaseField
+          compact
+          value={templateParams.model_api_base || ""}
+          onChange={(v) =>
+            updateAgentData({
+              ...agentData,
+              template_model_params: { ...templateParams, model_api_base: v },
+            })
+          }
+        />
       </div>
 
       {/* Propagate API key toggle */}

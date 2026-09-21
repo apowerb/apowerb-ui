@@ -15,6 +15,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import SavedApiKeySelector from "../SavedApiKeySelector";
+import ModelApiBaseField from "../ModelApiBaseField";
 import ModelSelector, { DEFAULT_LLM_MODEL_ID } from "../ModelSelector";
 import DefaultLlmUsageGauge from "./DefaultLlmUsageGauge";
 import { MASKED_API_KEY } from "@/lib/apiKeyMask";
@@ -255,6 +256,17 @@ export default function AgentFormStep({
         {hasStoredApiKey && (
           <p className="text-xs th-text-ghost mt-1.5 pl-1">{t("apiKeyStoredHint")}</p>
         )}
+        <div className="mt-4">
+          <ModelApiBaseField
+            value={newAgent.template_model_params?.model_api_base || ""}
+            onChange={(v) =>
+              setNewAgent((prev) => ({
+                ...prev,
+                template_model_params: { ...(prev.template_model_params || {}), model_api_base: v },
+              }))
+            }
+          />
+        </div>
         {newAgent.subAgents?.length > 0 &&
           ["Sequential", "Parallel", "Loop", "Router"].includes(newAgent.category) && (
             <div className="flex items-center gap-2 mt-2">
