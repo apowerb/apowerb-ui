@@ -443,11 +443,21 @@ function renameInValue(value, re, newId) {
   return value;
 }
 
+// A loop body runs as its own workflow: its templates resolve against its own
+// nodes only, so a body is a separate id space and is never rewritten from here.
+function renameInConfig(node, re, newId) {
+  const config = node.data?.config || {};
+  if (!config.body) return renameInValue(config, re, newId);
+  const { body, ...rest } = config;
+  return { ...renameInValue(rest, re, newId), body };
+}
+
 /**
  * Rename a node and everything that points at it: incoming/outgoing edges and
- * every `{{oldId...}}` template in any node config (loop bodies included).
- * Route labels (`rules[].route`, `default_route`) name branches, not nodes, so
- * they are left alone. Returns new arrays; inputs are not mutated.
+ * every `{{oldId...}}` template in the configs of the same graph. Loop bodies
+ * are a separate id space and stay untouched. Route labels (`rules[].route`,
+ * `default_route`) name branches, not nodes, so they are left alone. Returns
+ * new arrays; inputs are not mutated.
  */
 export function renameNodeId(nodes, edges, oldId, newId) {
   if (oldId === newId) return { nodes, edges };
@@ -455,7 +465,7 @@ export function renameNodeId(nodes, edges, oldId, newId) {
   const nextNodes = nodes.map((n) => ({
     ...n,
     id: n.id === oldId ? newId : n.id,
-    data: { ...n.data, config: renameInValue(n.data?.config || {}, re, newId) },
+    data: { ...n.data, config: renameInConfig(n, re, newId) },
   }));
   const nextEdges = edges.map((e) => ({
     ...e,
