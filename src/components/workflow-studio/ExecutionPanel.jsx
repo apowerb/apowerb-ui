@@ -31,6 +31,26 @@ function OutputBlock({ value, t }) {
   );
 }
 
+// Codes the server sends for failures whose cause stays in its logs: the panel
+// words them itself, with the reference to quote. Other codes (the studio's
+// own written errors) are shown as the server wrote them.
+const TRANSLATED_ERRORS = new Set([
+  "internal",
+  "model_provider_auth",
+  "model_provider_rate_limit",
+  "model_provider_unavailable",
+  "no_output",
+]);
+
+function errorText(t, error) {
+  if (!error) return "";
+  if (typeof error === "string") return error;
+  if (error.code && TRANSLATED_ERRORS.has(error.code)) {
+    return t(`runError_${error.code}`, { ref: error.ref ?? "-" });
+  }
+  return error.detail || t("statusError");
+}
+
 function IterationRow({ innerId, status, duration, output, error, route, t }) {
   return (
     <div className="flex items-start gap-1.5 py-1 pl-3 border-l th-border-secondary">
@@ -41,7 +61,7 @@ function IterationRow({ innerId, status, duration, output, error, route, t }) {
           {duration != null && <span className="th-text-ghost shrink-0">{t("duration", { ms: duration })}</span>}
         </div>
         {route && <p className="text-[10px] th-text-ghost">{t("routeTaken", { route })}</p>}
-        {error && <p className="text-[10px] text-red-400">{error}</p>}
+        {error && <p className="text-[10px] text-red-400">{errorText(t, error)}</p>}
         <OutputBlock value={output} t={t} />
       </div>
     </div>
@@ -61,7 +81,7 @@ function TimelineEntry({ entry, t }) {
             {entry.duration != null && <span className="th-text-ghost text-[10px] shrink-0">{t("duration", { ms: entry.duration })}</span>}
           </div>
           {entry.route && <p className="text-[10px] th-text-ghost mt-0.5">{t("routeTaken", { route: entry.route })}</p>}
-          {entry.error && <p className="text-[10px] text-red-400 mt-0.5">{entry.error}</p>}
+          {entry.error && <p className="text-[10px] text-red-400 mt-0.5">{errorText(t, entry.error)}</p>}
           {entry.capped && (
             <p className="text-[10px] text-amber-400 mt-0.5">
               {t("loopCapped", { max: entry.capped.max, remaining: entry.capped.remaining ?? "null" })}
@@ -156,7 +176,7 @@ export default function ExecutionPanel({
               )}
             </div>
             {runState.status === "error" && runState.finalError && (
-              <p className="mt-2 text-[11px] text-red-400">{t("errorDetail")}: {String(runState.finalError)}</p>
+              <p className="mt-2 text-[11px] text-red-400">{t("errorDetail")}: {errorText(t, runState.finalError)}</p>
             )}
             {runState.status === "done" && (
               <div className="mt-2">

@@ -87,7 +87,7 @@ export function applyRunEvent(state, evt) {
 
     case "error":
       status = "error";
-      finalError = evt.detail;
+      finalError = errorOf(evt);
       break;
 
     case "cancelled":
@@ -99,6 +99,14 @@ export function applyRunEvent(state, evt) {
   }
 
   return { status, timeline, finalOutput, finalError };
+}
+
+/**
+ * An error event as the panel needs it: the server's stable `code` (translated
+ * by the panel), its English `detail` as a fallback, and the log `ref`.
+ */
+function errorOf(evt) {
+  return { code: evt.code ?? null, detail: evt.detail ?? "", ref: evt.ref ?? null };
 }
 
 function applyToEntry(entry, evt) {
@@ -114,7 +122,7 @@ function applyToEntry(entry, evt) {
       break;
     case "node_error":
       entry.status = "error";
-      entry.error = evt.detail;
+      entry.error = errorOf(evt);
       break;
     case "route":
       entry.route = evt.route;

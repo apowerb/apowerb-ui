@@ -5,10 +5,13 @@ import { X, RotateCcw, Loader2 } from "lucide-react";
 import { useTranslations, useFormatter } from "use-intl";
 import { listWorkflowRevisions, restoreWorkflowRevision } from "@/lib/api";
 
+// Why a version was archived: the change that replaced it. `update` is what
+// the first server release wrote for every edit.
 const REASON_KEY = {
-  autosave: "reasonAutosave",
-  manual: "reasonManual",
+  edit: "reasonEdit",
+  update: "reasonEdit",
   publish: "reasonPublish",
+  unpublish: "reasonUnpublish",
   restore: "reasonRestore",
 };
 
@@ -78,13 +81,13 @@ export default function VersionsDrawer({ workflowId, currentVersion, onClose, on
                       )}
                     </div>
                     <p className="text-[11px] th-text-ghost mt-0.5">
-                      {t(REASON_KEY[rev.reason] || "reasonManual")} · {format.dateTime(new Date(rev.saved_at), { dateStyle: "medium", timeStyle: "short" })}
+                      {t(REASON_KEY[rev.reason] || "reasonEdit")} · {format.dateTime(new Date(rev.saved_at), { dateStyle: "medium", timeStyle: "short" })}
                     </p>
                     {!isCurrent && (
                       confirming === rev.revision_id ? (
                         <div className="mt-2 flex flex-col gap-1.5">
                           <p className="text-[11px] th-text-secondary">
-                            {t("restoreConfirmBody", { version: rev.version, reason: t(REASON_KEY[rev.reason] || "reasonManual") })}
+                            {t("restoreConfirmBody", { version: rev.version, reason: t(REASON_KEY[rev.reason] || "reasonEdit") })}
                           </p>
                           {restoreError && <p className="text-[11px] text-red-400">{t("restoreFailed", { message: restoreError })}</p>}
                           <div className="flex gap-1.5">
