@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck } from "lucide-react";
+import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { NODE_FAMILIES, UNRUNNABLE_NODE_TYPES } from "@/lib/workflowGraph";
 
@@ -14,14 +14,17 @@ const ICONS = {
   merge: Merge,
   loop: Repeat,
   approval: UserCheck,
+  convert: ArrowRightLeft,
+  output: Flag,
 };
 
-const FAMILY_ORDER = ["trigger", "intelligence", "tools", "logic"];
+const FAMILY_ORDER = ["trigger", "intelligence", "tools", "logic", "output"];
 const FAMILY_LABEL_KEY = {
   trigger: "familyTrigger",
   intelligence: "familyIntelligence",
   tools: "familyTools",
   logic: "familyLogic",
+  output: "familyOutput",
 };
 
 const PALETTE_ITEMS = Object.entries(NODE_FAMILIES).map(([type, meta]) => ({

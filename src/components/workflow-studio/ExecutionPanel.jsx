@@ -50,6 +50,7 @@ const TRANSLATED_ERRORS = new Set([
   "no_route",
   "classifier_no_route",
   "loop_items_not_list",
+  "convert_failed",
 ]);
 
 function errorText(t, error) {

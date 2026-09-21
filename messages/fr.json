@@ -3222,7 +3222,10 @@
     "nodeApproval": "Validation humaine",
     "soon": "Bientôt",
     "dragHint": "Glisse sur le canevas, ou clique pour ajouter",
-    "noResults": "Aucun nœud ne correspond à « {query} »"
+    "noResults": "Aucun nœud ne correspond à « {query} »",
+    "familyOutput": "Sortie",
+    "nodeOutput": "Sortie",
+    "nodeConvert": "Conversion"
   },
   "WorkflowNode": {
     "untitled": "Sans titre",
@@ -3336,7 +3339,17 @@
     "nodeIdInvalid": "Commence par une lettre ; lettres, chiffres, _ et - uniquement (64 max).",
     "nodeIdDuplicate": "Cet identifiant est déjà utilisé par un autre nœud.",
     "toolSearch": "Rechercher un outil",
-    "toolSearchEmpty": "Aucun outil ne correspond à cette recherche."
+    "toolSearchEmpty": "Aucun outil ne correspond à cette recherche.",
+    "convertTo": "Convertir en",
+    "convertTo_text": "Texte",
+    "convertTo_json": "JSON",
+    "convertTo_number": "Nombre",
+    "convertTo_boolean": "Oui / non",
+    "convertTo_list": "Liste",
+    "convertInput": "Valeur à convertir",
+    "convertInputHelp": "Laisse vide pour convertir la sortie amont. Un texte devient une liste ligne par ligne ; le JSON est lu même dans un bloc ```.",
+    "outputValue": "Valeur de sortie",
+    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds."
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
@@ -3393,7 +3406,8 @@
     "runError_agent_not_found": "Agent {agent} introuvable (supprimé, ou pas à toi) : choisis un autre agent dans le nœud.",
     "runError_no_route": "Routeur {node} : aucune règle ne correspond et il n’y a pas de route par défaut. Ajoute une route par défaut ou une règle qui couvre cette entrée.",
     "runError_classifier_no_route": "Le classifieur {node} a répondu hors de ses routes ({routes}) : rends leurs descriptions plus distinctes.",
-    "runError_loop_items_not_list": "Boucle {node} : items vaut un {type}, pas une liste. Fais-le pointer vers une liste d’un nœud amont."
+    "runError_loop_items_not_list": "Boucle {node} : items vaut un {type}, pas une liste. Fais-le pointer vers une liste d’un nœud amont.",
+    "runError_convert_failed": "La conversion {node} n’a pas pu lire son entrée comme {to}. Vérifie la sortie amont, ou choisis une autre conversion."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -3440,6 +3454,8 @@
     "loopBodyMissing": "La boucle n'a pas de corps",
     "loopBodyTriggerCount": "Le corps de la boucle a besoin d'exactement un déclencheur ({value} trouvé(s))",
     "unknown": "{value}",
-    "onNode": "Sur {node} : {message}"
+    "onNode": "Sur {node} : {message}",
+    "outputHasSuccessor": "Un nœud de sortie termine le flux : retire les liens qui en partent",
+    "convertUnknownTarget": "Conversion inconnue « {value} »"
   }
 }
