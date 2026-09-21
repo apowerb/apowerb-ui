@@ -174,6 +174,14 @@ async function request(path, options = {}) {
 
     const err = new Error(errorMessage);
     err.status = res.status;
+    // Le verrou optimiste (409) et les erreurs de validation (422) renvoient
+    // un `detail` structuré ({message, current_version} / {errors:[...]}).
+    // Le stringifier dans err.message suffit pour l'afficher, pas pour le
+    // relire : on garde aussi l'objet brut pour les appelants qui doivent
+    // agir sur `current_version` sans re-parser du JSON fabriqué à la main.
+    if (detail && typeof detail === "object") {
+      err.detail = detail;
+    }
     throw err;
   }
 
@@ -1122,4 +1130,80 @@ export async function fetchBugReportScreenshot(id) {
     throw err;
   }
   return res.blob();
+}
+
+// --- Workflows (Workflow Studio) ---
+export const listWorkflowDefs = () => request("/api/workflows/defs");
+
+export const createWorkflowDef = (data) =>
+  request("/api/workflows/defs", { method: "POST", body: JSON.stringify(data) });
+
+export const getWorkflowDef = (workflowId) =>
+  request(`/api/workflows/defs/${workflowId}`);
+
+// `data` porte toujours `expected_version` (verrou optimiste) en plus des
+// champs modifiés. Un 409 laisse `err.detail = {message, current_version}`.
+export const updateWorkflowDef = (workflowId, data) =>
+  request(`/api/workflows/defs/${workflowId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+
+export const deleteWorkflowDef = (workflowId) =>
+  request(`/api/workflows/defs/${workflowId}`, { method: "DELETE" });
+
+export const duplicateWorkflowDef = (workflowId) =>
+  request(`/api/workflows/defs/${workflowId}/duplicate`, { method: "POST" });
+
+export const listWorkflowRevisions = (workflowId) =>
+  request(`/api/workflows/defs/${workflowId}/revisions`);
+
+export const restoreWorkflowRevision = (workflowId, revisionId) =>
+  request(`/api/workflows/defs/${workflowId}/revisions/${revisionId}/restore`, {
+    method: "POST",
+  });
+
+export const validateWorkflowGraph = (graph) =>
+  request("/api/workflows/defs/validate", {
+    method: "POST",
+    body: JSON.stringify({ graph }),
+  });
+
+export const cancelWorkflowRun = (workflowId) =>
+  request(`/api/workflows/${workflowId}/cancel`, { method: "POST" });
+
+/**
+ * Lance un run et retourne la Response brute (flux SSE) : `request()` ne
+ * convient pas ici, il attend un corps JSON complet. L'appelant
+ * (`workflowSse.js`) lit `response.body` lui-même.
+ */
+export async function runWorkflowDef(workflowId, payload, { signal } = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...getAuthHeaders(),
+  };
+  const res = await fetch(apiUrl(`/api/workflows/defs/${workflowId}/run`), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ payload }),
+    signal,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let detail;
+    try {
+      detail = JSON.parse(text)?.detail;
+    } catch {
+      // corps non-JSON (502/504 de proxy) — on garde le texte brut
+    }
+    const message =
+      (typeof detail === "string" ? detail : detail && JSON.stringify(detail)) ||
+      (text || "").trim().slice(0, 200) ||
+      `HTTP ${res.status}`;
+    const err = new Error(message);
+    err.status = res.status;
+    if (detail && typeof detail === "object") err.detail = detail;
+    throw err;
+  }
+  return res;
 }

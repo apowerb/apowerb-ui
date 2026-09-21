@@ -1,0 +1,577 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { addEdge } from "@xyflow/react";
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "use-intl";
+import {
+  getWorkflowDef,
+  updateWorkflowDef,
+  listAgents,
+  listTools,
+  listToolConfigs,
+  runWorkflowDef,
+  cancelWorkflowRun,
+} from "@/lib/api";
+import { toolLeafName } from "@/components/tools-manager/toolsManagerUtils";
+import {
+  graphToFlow,
+  flowToGraph,
+  findFreePosition,
+  validateGraphLocal,
+  createNode,
+  duplicateNode,
+  autoLayout,
+} from "@/lib/workflowGraph";
+import { createRunState, applyRunEvent, runStatusByNodeId } from "@/lib/workflowRunState";
+import { consumeWorkflowRun } from "@/lib/workflowSse";
+import { useUndoRedo } from "./hooks/useUndoRedo";
+import StudioTopBar from "./StudioTopBar";
+import StudioPalette from "./StudioPalette";
+import StudioCanvas from "./StudioCanvas";
+import StudioInspector from "./StudioInspector";
+import ExecutionPanel from "./ExecutionPanel";
+import VersionsDrawer from "./VersionsDrawer";
+import LoopBodyEditor from "./LoopBodyEditor";
+
+const AUTOSAVE_DELAY_MS = 1000;
+
+function subtitleFor(node, agentOptions, toolOptions) {
+  const cfg = node.data.config || {};
+  if (node.type === "agent" || node.type === "classifier") {
+    return agentOptions.find((a) => a.value === cfg.agent_id)?.label;
+  }
+  if (node.type === "tool") {
+    return toolOptions.find((tt) => tt.value === cfg.tool)?.label;
+  }
+  return undefined;
+}
+
+export default function WorkflowStudio({ workflowId }) {
+  const t = useTranslations("WorkflowStudio");
+
+  const [loadState, setLoadState] = useState("loading");
+  const [loadError, setLoadError] = useState(null);
+  const [workflowMeta, setWorkflowMeta] = useState(null); // { name, status, version }
+  const expectedVersionRef = useRef(null);
+
+  const { nodes, edges, setNodes, setEdges, onNodesChange, onEdgesChange, pushHistory, resetHistory, undo, redo, canUndo, canRedo } =
+    useUndoRedo([], []);
+
+  const [selection, setSelection] = useState(null);
+  const [saveState, setSaveState] = useState("idle");
+  const [conflict, setConflict] = useState(null);
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [bodyEditorNodeId, setBodyEditorNodeId] = useState(null);
+
+  const [agentOptions, setAgentOptions] = useState([]);
+  const [toolOptions, setToolOptions] = useState([]);
+
+  const lastSavedSnapshotRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
+  const conflictRef = useRef(false);
+
+  // --- load picker data (agents/tools) -------------------------------------
+  useEffect(() => {
+    Promise.allSettled([listAgents(), listTools(), listToolConfigs()]).then(([agentsR, toolsR, configsR]) => {
+      if (agentsR.status === "fulfilled") {
+        setAgentOptions(
+          (agentsR.value || [])
+            .filter((a) => a.agent_id != null)
+            .map((a) => ({ value: `agent${a.agent_id}`, label: a.agent_name || `agent${a.agent_id}` })),
+        );
+      }
+      const opts = [];
+      if (toolsR.status === "fulfilled") {
+        const raw = toolsR.value;
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          for (const [category, list] of Object.entries(raw)) {
+            for (const name of list || []) {
+              opts.push({ value: name, label: `${toolLeafName(name)} (${category.replace(/^tools_/, "")})` });
+            }
+          }
+        }
+      }
+      if (configsR.status === "fulfilled") {
+        for (const c of configsR.value || []) {
+          opts.push({ value: `tool_config${c.tool_config_id}`, label: c.tool_config_name });
+        }
+      }
+      setToolOptions(opts);
+    });
+  }, []);
+
+  // --- load the workflow ---------------------------------------------------
+  const loadWorkflow = useCallback(
+    (id) => {
+      setLoadState("loading");
+      setLoadError(null);
+      return getWorkflowDef(id)
+        .then((wf) => {
+          const { nodes: n, edges: e } = graphToFlow(wf.graph);
+          resetHistory(n, e);
+          setWorkflowMeta({ name: wf.name, status: wf.status, version: wf.version });
+          expectedVersionRef.current = wf.version;
+          lastSavedSnapshotRef.current = JSON.stringify({ name: wf.name, graph: flowToGraph(n, e) });
+          setConflict(null);
+          conflictRef.current = false;
+          setLoadState("loaded");
+          return wf;
+        })
+        .catch((err) => {
+          setLoadError(err.status === 404 ? "notfound" : err.message);
+          setLoadState(err.status === 404 ? "notfound" : "error");
+        });
+    },
+    [resetHistory],
+  );
+
+  useEffect(() => {
+    loadWorkflow(workflowId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workflowId]);
+
+  // --- validation ------------------------------------------------------------
+  const validation = useMemo(() => validateGraphLocal(flowToGraph(nodes, edges)), [nodes, edges]);
+  const errorsByNode = useMemo(() => {
+    const map = {};
+    for (const err of validation.errors) {
+      if (err.level === "warning") continue;
+      const top = (err.nodeId || "").split(".")[0];
+      map[top] = (map[top] || 0) + 1;
+    }
+    return map;
+  }, [validation]);
+
+  // --- run state ---------------------------------------------------------
+  const [testOpen, setTestOpen] = useState(false);
+  const [payloadText, setPayloadText] = useState("{}");
+  const [payloadError, setPayloadError] = useState(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [runState, setRunState] = useState(createRunState());
+  const runAbortRef = useRef(null);
+  const prefilledPayloadRef = useRef(false);
+
+  useEffect(() => {
+    if (prefilledPayloadRef.current || !testOpen) return;
+    const trigger = nodes.find((n) => n.type === "trigger");
+    if (trigger?.data?.config?.sample_payload) {
+      setPayloadText(JSON.stringify(trigger.data.config.sample_payload, null, 2));
+    }
+    prefilledPayloadRef.current = true;
+  }, [testOpen, nodes]);
+
+  const handlePayloadTextChange = (text) => {
+    setPayloadText(text);
+    try {
+      JSON.parse(text);
+      setPayloadError(null);
+    } catch (err) {
+      setPayloadError(err.message);
+    }
+  };
+
+  const runStatusMap = useMemo(() => runStatusByNodeId(runState), [runState]);
+  const runDurationById = useMemo(() => {
+    const map = {};
+    for (const entry of runState.timeline) map[entry.id] = entry.duration;
+    return map;
+  }, [runState]);
+  const runRouteById = useMemo(() => {
+    const map = {};
+    for (const entry of runState.timeline) if (entry.route) map[entry.id] = entry.route;
+    return map;
+  }, [runState]);
+
+  const handleRun = useCallback(async () => {
+    if (payloadError) return;
+    let payload = {};
+    try {
+      payload = payloadText.trim() ? JSON.parse(payloadText) : {};
+    } catch {
+      return;
+    }
+    setRunState(createRunState());
+    setIsRunning(true);
+    const controller = new AbortController();
+    runAbortRef.current = controller;
+    try {
+      const response = await runWorkflowDef(workflowId, payload, { signal: controller.signal });
+      await consumeWorkflowRun(response, {
+        signal: controller.signal,
+        onEvent: (evt) => setRunState((s) => applyRunEvent(s, evt)),
+      });
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        setRunState((s) => applyRunEvent(s, { event: "error", detail: err.message }));
+      }
+    } finally {
+      setIsRunning(false);
+      runAbortRef.current = null;
+    }
+  }, [workflowId, payloadText, payloadError]);
+
+  const handleCancelRun = useCallback(() => {
+    runAbortRef.current?.abort();
+    cancelWorkflowRun(workflowId).catch(() => {});
+    setRunState((s) => applyRunEvent(s, { event: "cancelled" }));
+  }, [workflowId]);
+
+  // --- autosave --------------------------------------------------------------
+  const doSave = useCallback(
+    async (overrides = {}) => {
+      if (conflictRef.current) return;
+      const graph = flowToGraph(nodes, edges);
+      const name = overrides.name ?? workflowMeta?.name ?? "";
+      const body = {
+        expected_version: expectedVersionRef.current,
+        name,
+        graph,
+        ...overrides,
+      };
+      setSaveState("saving");
+      try {
+        const updated = await updateWorkflowDef(workflowId, body);
+        expectedVersionRef.current = updated.version;
+        setWorkflowMeta({ name: updated.name, status: updated.status, version: updated.version });
+        lastSavedSnapshotRef.current = JSON.stringify({ name, graph });
+        setSaveState("idle");
+        return updated;
+      } catch (err) {
+        if (err.status === 409) {
+          conflictRef.current = true;
+          setConflict({ currentVersion: err.detail?.current_version ?? null });
+        }
+        setSaveState("error");
+        throw err;
+      }
+    },
+    [workflowId, nodes, edges, workflowMeta?.name],
+  );
+
+  useEffect(() => {
+    if (loadState !== "loaded" || conflictRef.current) return;
+    const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) });
+    if (snapshot === lastSavedSnapshotRef.current) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      doSave().catch(() => {});
+    }, AUTOSAVE_DELAY_MS);
+    return () => clearTimeout(saveTimeoutRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, edges, workflowMeta?.name, loadState]);
+
+  const handleReloadConflict = useCallback(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    loadWorkflow(workflowId);
+  }, [loadWorkflow, workflowId]);
+
+  const handleNameChange = useCallback(
+    (name) => {
+      setWorkflowMeta((m) => ({ ...m, name }));
+    },
+    [],
+  );
+
+  const handlePublish = useCallback(async () => {
+    setPublishing(true);
+    try {
+      await doSave({ status: "published" });
+    } catch {
+      // surfaced via saveState/conflict already
+    } finally {
+      setPublishing(false);
+    }
+  }, [doSave]);
+
+  const handleUnpublish = useCallback(async () => {
+    setPublishing(true);
+    try {
+      await doSave({ status: "draft" });
+    } catch {
+      // surfaced via saveState/conflict already
+    } finally {
+      setPublishing(false);
+    }
+  }, [doSave]);
+
+  const handleRestored = useCallback(
+    (updated) => {
+      const { nodes: n, edges: e } = graphToFlow(updated.graph);
+      resetHistory(n, e);
+      setWorkflowMeta({ name: updated.name, status: updated.status, version: updated.version });
+      expectedVersionRef.current = updated.version;
+      lastSavedSnapshotRef.current = JSON.stringify({ name: updated.name, graph: flowToGraph(n, e) });
+      setVersionsOpen(false);
+    },
+    [resetHistory],
+  );
+
+  // --- node/edge editing ------------------------------------------------------
+  const existingIds = useCallback(() => nodes.map((n) => n.id), [nodes]);
+
+  const addNodeAt = useCallback(
+    (type, position) => {
+      const graphNode = createNode(type, { position, existingIds: existingIds() });
+      const flowNode = graphToFlow({ nodes: [graphNode], edges: [] }).nodes[0];
+      const next = [...nodes, flowNode];
+      setNodes(next);
+      pushHistory(next, edges);
+      setSelection({ kind: "node", node: flowNode });
+    },
+    [nodes, edges, setNodes, pushHistory, existingIds],
+  );
+
+  const [focusRequest, setFocusRequest] = useState(null);
+
+  const addNodeCentered = useCallback(
+    (type) => {
+      const position = findFreePosition(nodes, selection?.kind === "node" ? selection.node.id : undefined);
+      addNodeAt(type, position);
+      setFocusRequest({ ...position, seq: Date.now() });
+    },
+    [addNodeAt, nodes, selection],
+  );
+
+  const onConnect = useCallback(
+    (connection) => {
+      const nextEdges = addEdge({ ...connection, type: "route", data: { route: null } }, edges);
+      setEdges(nextEdges);
+      pushHistory(nodes, nextEdges);
+    },
+    [edges, nodes, setEdges, pushHistory],
+  );
+
+  const patchNodeConfig = useCallback(
+    (nodeId, partial) => {
+      const next = nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, config: { ...n.data.config, ...partial } } } : n));
+      setNodes(next);
+      setSelection((sel) => (sel?.kind === "node" && sel.node.id === nodeId ? { kind: "node", node: next.find((n) => n.id === nodeId) } : sel));
+    },
+    [nodes, setNodes],
+  );
+
+  const changeLabel = useCallback(
+    (nodeId, label) => {
+      const next = nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, label } } : n));
+      setNodes(next);
+      setSelection((sel) => (sel?.kind === "node" && sel.node.id === nodeId ? { kind: "node", node: next.find((n) => n.id === nodeId) } : sel));
+    },
+    [nodes, setNodes],
+  );
+
+  const deleteNode = useCallback(
+    (nodeId) => {
+      const nextNodes = nodes.filter((n) => n.id !== nodeId);
+      const nextEdges = edges.filter((e) => e.source !== nodeId && e.target !== nodeId);
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      pushHistory(nextNodes, nextEdges);
+      setSelection(null);
+    },
+    [nodes, edges, setNodes, setEdges, pushHistory],
+  );
+
+  const changeEdgeRoute = useCallback(
+    (edgeId, route) => {
+      const next = edges.map((e) => (e.id === edgeId ? { ...e, data: { ...e.data, route: route || null } } : e));
+      setEdges(next);
+      setSelection((sel) => (sel?.kind === "edge" && sel.edge.id === edgeId ? { kind: "edge", edge: next.find((e) => e.id === edgeId) } : sel));
+    },
+    [edges, setEdges],
+  );
+
+  const deleteEdge = useCallback(
+    (edgeId) => {
+      const next = edges.filter((e) => e.id !== edgeId);
+      setEdges(next);
+      pushHistory(nodes, next);
+      setSelection(null);
+    },
+    [edges, nodes, setEdges, pushHistory],
+  );
+
+  const duplicateSelected = useCallback(() => {
+    if (selection?.kind !== "node") return;
+    const src = selection.node;
+    const copy = duplicateNode({ id: src.id, type: src.type, config: src.data.config, position: src.position, label: src.data.label }, existingIds());
+    const flowNode = graphToFlow({ nodes: [copy], edges: [] }).nodes[0];
+    const next = [...nodes, flowNode];
+    setNodes(next);
+    pushHistory(next, edges);
+  }, [selection, nodes, edges, setNodes, pushHistory, existingIds]);
+
+  const handleAutoLayout = useCallback(() => {
+    const laidOut = autoLayout(nodes, edges);
+    setNodes(laidOut);
+    pushHistory(laidOut, edges);
+  }, [nodes, edges, setNodes, pushHistory]);
+
+  // --- derived, enriched nodes for rendering ----------------------------------
+  const displayNodes = useMemo(
+    () =>
+      nodes.map((n) => ({
+        ...n,
+        selected: selection?.kind === "node" && selection.node.id === n.id,
+        data: {
+          ...n.data,
+          subtitle: subtitleFor(n, agentOptions, toolOptions),
+          errorCount: errorsByNode[n.id] || 0,
+          runStatus: runStatusMap[n.id],
+          runDuration: runDurationById[n.id],
+          runRoute: runRouteById[n.id],
+          onDelete: () => deleteNode(n.id),
+          onDuplicate: () => {
+            const copy = duplicateNode({ id: n.id, type: n.type, config: n.data.config, position: n.position, label: n.data.label }, existingIds());
+            const flowNode = graphToFlow({ nodes: [copy], edges: [] }).nodes[0];
+            const next = [...nodes, flowNode];
+            setNodes(next);
+            pushHistory(next, edges);
+          },
+          onOpenBody: n.type === "loop" ? () => setBodyEditorNodeId(n.id) : undefined,
+        },
+      })),
+    [nodes, edges, selection, agentOptions, toolOptions, errorsByNode, runStatusMap, runDurationById, runRouteById, deleteNode, existingIds, setNodes, pushHistory],
+  );
+
+  const displayEdges = useMemo(
+    () =>
+      edges.map((e) => {
+        const sourceNode = nodes.find((n) => n.id === e.source);
+        const isRouting = sourceNode && (sourceNode.type === "router" || sourceNode.type === "classifier");
+        return {
+          ...e,
+          selected: selection?.kind === "edge" && selection.edge.id === e.id,
+          data: { ...e.data, needsRoute: isRouting && !e.data?.route },
+        };
+      }),
+    [edges, nodes, selection],
+  );
+
+  const loopNode = bodyEditorNodeId ? nodes.find((n) => n.id === bodyEditorNodeId) : null;
+
+  if (loadState === "loading") {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 size={24} className="animate-spin th-text-ghost" />
+      </div>
+    );
+  }
+  if (loadState === "notfound") {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center px-6">
+        <p className="text-sm font-semibold th-text mb-1">{t("notFoundTitle")}</p>
+        <p className="text-xs th-text-ghost">{t("notFoundBody")}</p>
+      </div>
+    );
+  }
+  if (loadState === "error") {
+    return (
+      <div className="flex items-center justify-center h-full px-6 text-center">
+        <p className="text-sm text-red-400">{t("loadFailed", { message: loadError })}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <StudioTopBar
+        name={workflowMeta.name}
+        onNameChange={handleNameChange}
+        status={workflowMeta.status}
+        version={workflowMeta.version}
+        saveState={saveState}
+        validation={validation}
+        onOpenVersions={() => setVersionsOpen(true)}
+        testOpen={testOpen}
+        onToggleTest={() => setTestOpen((v) => !v)}
+        onPublish={handlePublish}
+        onUnpublish={handleUnpublish}
+        publishing={publishing}
+        conflict={conflict}
+        onReloadConflict={handleReloadConflict}
+      />
+      <div className="relative flex-1 min-h-0 flex">
+        <StudioPalette onAdd={addNodeCentered} />
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 min-h-0">
+            <StudioCanvas
+              nodes={displayNodes}
+              edges={displayEdges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={(node) => setSelection({ kind: "node", node: nodes.find((n) => n.id === node.id) || node })}
+              onEdgeClick={(edge) => setSelection({ kind: "edge", edge: edges.find((e) => e.id === edge.id) || edge })}
+              onPaneClick={() => setSelection(null)}
+              onNodesDelete={(deleted) => {
+                const ids = new Set(deleted.map((n) => n.id));
+                const nextNodes = nodes.filter((n) => !ids.has(n.id));
+                const nextEdges = edges.filter((e) => !ids.has(e.source) && !ids.has(e.target));
+                pushHistory(nextNodes, nextEdges);
+                setSelection(null);
+              }}
+              onEdgesDelete={(deleted) => {
+                const ids = new Set(deleted.map((e) => e.id));
+                pushHistory(nodes, edges.filter((e) => !ids.has(e.id)));
+              }}
+              onDropNodeType={addNodeAt}
+              focusRequest={focusRequest}
+              onDuplicateSelected={duplicateSelected}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={undo}
+              onRedo={redo}
+              onAutoLayout={handleAutoLayout}
+            />
+          </div>
+          <ExecutionPanel
+            open={testOpen}
+            onToggle={() => setTestOpen((v) => !v)}
+            payloadText={payloadText}
+            onPayloadTextChange={handlePayloadTextChange}
+            payloadError={payloadError}
+            isRunning={isRunning}
+            runState={runState}
+            onRun={handleRun}
+            onCancel={handleCancelRun}
+          />
+        </div>
+        <StudioInspector
+          selection={selection}
+          nodes={nodes}
+          edges={edges}
+          agentOptions={agentOptions}
+          toolOptions={toolOptions}
+          onChangeLabel={changeLabel}
+          onPatchConfig={patchNodeConfig}
+          onChangeEdgeRoute={changeEdgeRoute}
+          onDeleteNode={deleteNode}
+          onDeleteEdge={deleteEdge}
+          onOpenLoopBody={(nodeId) => setBodyEditorNodeId(nodeId)}
+        />
+      </div>
+
+      {versionsOpen && (
+        <VersionsDrawer
+          workflowId={workflowId}
+          currentVersion={workflowMeta.version}
+          onClose={() => setVersionsOpen(false)}
+          onRestored={handleRestored}
+        />
+      )}
+
+      {loopNode && (
+        <LoopBodyEditor
+          loopNode={loopNode}
+          body={loopNode.data.config.body}
+          onChange={(body) => patchNodeConfig(loopNode.id, { body })}
+          onClose={() => setBodyEditorNodeId(null)}
+          agentOptions={agentOptions}
+          toolOptions={toolOptions}
+        />
+      )}
+    </div>
+  );
+}

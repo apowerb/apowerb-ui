@@ -24,6 +24,7 @@ import {
   Gauge,
   ScrollText,
   FileCode,
+  Workflow,
 } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { ToastProvider } from "./Toast";
@@ -73,6 +74,7 @@ const NAV_GROUPS = [
   {
     titleKey: "groupAutomate",
     items: [
+      { path: "/workflows", labelKey: "workflows", icon: Workflow, color: BRAND_GRADIENT },
       { path: "/webhooks", labelKey: "webhooks", icon: Webhook, color: BRAND_GRADIENT },
       { path: "/orchestrator", labelKey: "orchestrator", icon: Calendar, color: BRAND_GRADIENT },
     ],
