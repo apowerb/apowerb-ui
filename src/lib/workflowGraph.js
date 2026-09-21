@@ -22,7 +22,12 @@ export const NODE_TYPES = [
   "merge",
   "loop",
   "approval",
+  "output",
+  "convert",
 ];
+
+/** What a convert node can turn its input into; mirrors the backend's CONVERT_TARGETS. */
+export const CONVERT_TARGETS = ["text", "json", "number", "boolean", "list"];
 
 // Present in the palette but the backend's /run and /validate reject it —
 // kept in one place so the inspector, the palette badge and local
@@ -57,6 +62,8 @@ export const NODE_FAMILIES = {
   merge: { family: "logic", color: "blue" },
   loop: { family: "logic", color: "violet" },
   approval: { family: "logic", color: "violet" },
+  convert: { family: "tools", color: "emerald" },
+  output: { family: "output", color: "amber" },
 };
 
 export function createEmptyGraph() {
@@ -89,6 +96,8 @@ function defaultConfig(type) {
       return { agent_id: "", routes: [] };
     case "loop":
       return { mode: "foreach", max_iterations: 10, items: "", body: createLoopBody() };
+    case "convert":
+      return { to: "text" };
     default:
       return {};
   }
@@ -353,6 +362,12 @@ function validateGraphCore(graph) {
     }
     if (n.type === "loop") {
       errors.push(...validateLoopConfig(n));
+    }
+    if (n.type === "convert" && !CONVERT_TARGETS.includes(n.config?.to)) {
+      errors.push({ nodeId: n.id, message: `convertUnknownTarget:${n.config?.to}` });
+    }
+    if (n.type === "output" && edges.some((e) => e.source === n.id)) {
+      errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
     }
   }
 

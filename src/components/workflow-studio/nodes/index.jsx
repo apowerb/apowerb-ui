@@ -1,6 +1,6 @@
 "use client";
 
-import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
 import { NODE_FAMILIES } from "@/lib/workflowGraph";
@@ -190,6 +190,38 @@ export function ApprovalNode({ data, selected }) {
   );
 }
 
+export function ConvertNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const ti = useTranslations("WorkflowInspector");
+  const to = data.config?.to;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeConvert")}
+      subtitle={to ? `→ ${ti(`convertTo_${to}`)}` : undefined}
+      color={NODE_FAMILIES.convert.color}
+      icon={ArrowRightLeft}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function OutputNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeOutput")}
+      color={NODE_FAMILIES.output.color}
+      icon={Flag}
+      hasSource={false}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
 export const studioNodeTypes = {
   trigger: TriggerNode,
   agent: AgentNode,
@@ -198,5 +230,7 @@ export const studioNodeTypes = {
   classifier: ClassifierNode,
   merge: MergeNode,
   loop: LoopNode,
+  convert: ConvertNode,
+  output: OutputNode,
   approval: ApprovalNode,
 };

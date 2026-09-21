@@ -7,6 +7,7 @@ import {
   getUpstreamNodeIds,
   templateSuggestionsFor,
   LOOP_OPERATORS,
+  CONVERT_TARGETS,
   nodeIdRenameError,
   filterToolOptions,
 } from "@/lib/workflowGraph";
@@ -500,6 +501,25 @@ export default function StudioInspector({
       )}
 
       {node.type === "merge" && <p className="text-xs th-text-ghost">{t("mergeHelp")}</p>}
+
+      {node.type === "convert" && (
+        <>
+          <Field label={t("convertTo")}>
+            <SelectInput value={config.to || "text"} onChange={(e) => patch({ to: e.target.value })}>
+              {CONVERT_TARGETS.map((to) => <option key={to} value={to}>{t(`convertTo_${to}`)}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label={t("convertInput")} help={t("convertInputHelp")}>
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} t={t} />
+          </Field>
+        </>
+      )}
+
+      {node.type === "output" && (
+        <Field label={t("outputValue")} help={t("outputValueHelp")}>
+          <TemplateInput value={config.value} onChange={(v) => patch({ value: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+        </Field>
+      )}
 
       {node.type === "loop" && (
         <>

@@ -3222,7 +3222,10 @@
     "nodeApproval": "Human approval",
     "soon": "Soon",
     "dragHint": "Drag onto the canvas, or click to add",
-    "noResults": "No node matches “{query}”"
+    "noResults": "No node matches “{query}”",
+    "familyOutput": "Output",
+    "nodeOutput": "Output",
+    "nodeConvert": "Convert"
   },
   "WorkflowNode": {
     "untitled": "Untitled",
@@ -3336,7 +3339,17 @@
     "nodeIdInvalid": "Start with a letter; letters, digits, _ and - only (64 max).",
     "nodeIdDuplicate": "This id is already used by another node.",
     "toolSearch": "Search tools",
-    "toolSearchEmpty": "No tool matches this search."
+    "toolSearchEmpty": "No tool matches this search.",
+    "convertTo": "Convert to",
+    "convertTo_text": "Text",
+    "convertTo_json": "JSON",
+    "convertTo_number": "Number",
+    "convertTo_boolean": "Yes / no",
+    "convertTo_list": "List",
+    "convertInput": "Value to convert",
+    "convertInputHelp": "Leave empty to convert the upstream output. Text becomes a list line by line; JSON is read even inside a ``` block.",
+    "outputValue": "Output value",
+    "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes."
   },
   "WorkflowExecutionPanel": {
     "title": "Test run",
@@ -3393,7 +3406,8 @@
     "runError_agent_not_found": "Agent {agent} was not found (deleted, or not yours): pick another agent in the node.",
     "runError_no_route": "Router {node}: no rule matched and there is no default route. Add a default route or a rule covering this input.",
     "runError_classifier_no_route": "Classifier {node} answered outside its routes ({routes}): make the route descriptions more distinct.",
-    "runError_loop_items_not_list": "Loop {node}: items resolved to {type}, not a list. Point it at a list from an upstream node."
+    "runError_loop_items_not_list": "Loop {node}: items resolved to {type}, not a list. Point it at a list from an upstream node.",
+    "runError_convert_failed": "Convert {node} could not read its input as {to}. Check the upstream output, or pick another conversion."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -3440,6 +3454,8 @@
     "loopBodyMissing": "The loop has no body",
     "loopBodyTriggerCount": "The loop body needs exactly one trigger ({value} found)",
     "unknown": "{value}",
-    "onNode": "On {node}: {message}"
+    "onNode": "On {node}: {message}",
+    "outputHasSuccessor": "An output node ends the flow: remove the connections leaving it",
+    "convertUnknownTarget": "Unknown conversion “{value}”"
   }
 }
