@@ -3,14 +3,23 @@
  * and the inspector fields that configure them. Mirrors
  * outputConvert.test.jsx (commit 8a1fc92), the model for this lot.
  */
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import StudioInspector from "@/components/workflow-studio/StudioInspector";
 import ExecutionPanel from "@/components/workflow-studio/ExecutionPanel";
 import { createNode, graphToFlow, validateGraphLocal, NODE_TYPES } from "@/lib/workflowGraph";
 import { applyRunEvent, createRunState } from "@/lib/workflowRunState";
+import { getTeamsWebhookStatus } from "@/lib/api";
+
+vi.mock("@/lib/api", () => ({
+  getTeamsWebhookStatus: vi.fn(),
+}));
+
+beforeEach(() => {
+  vi.resetAllMocks();
+});
 
 const trigger = { id: "t", type: "trigger", config: {} };
 
@@ -246,6 +255,35 @@ describe("inspector: notification node", () => {
     expect(screen.queryByText(/^Recipients/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/^Subject/i)).toBeInTheDocument();
     expect(screen.getByText(/webhook/i)).toBeInTheDocument();
+  });
+
+  it("shows a hint linking to Integrations when no Teams webhook is configured", async () => {
+    getTeamsWebhookStatus.mockResolvedValue({ configured: false });
+    render(
+      <Inspector
+        graph={{ nodes: [trigger, { id: "n", type: "notification", config: { channel: "teams", subject: "hi", body: "" } }], edges: [{ source: "t", target: "n" }] }}
+        nodeId="n"
+        onConfig={() => {}}
+      />,
+    );
+    expect(await screen.findByText(/no teams webhook configured/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /set it up in integrations/i })).toHaveAttribute(
+      "href",
+      "/integrations",
+    );
+  });
+
+  it("hides the hint once a Teams webhook is configured", async () => {
+    getTeamsWebhookStatus.mockResolvedValue({ configured: true });
+    render(
+      <Inspector
+        graph={{ nodes: [trigger, { id: "n", type: "notification", config: { channel: "teams", subject: "hi", body: "" } }], edges: [{ source: "t", target: "n" }] }}
+        nodeId="n"
+        onConfig={() => {}}
+      />,
+    );
+    await waitFor(() => expect(getTeamsWebhookStatus).toHaveBeenCalled());
+    expect(screen.queryByText(/no teams webhook configured/i)).not.toBeInTheDocument();
   });
 });
 

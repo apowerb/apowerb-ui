@@ -16,6 +16,8 @@ import {
   nodeIdRenameError,
   filterToolOptions,
 } from "@/lib/workflowGraph";
+import { getTeamsWebhookStatus } from "@/lib/api";
+import { Link } from "@/lib/navigation";
 
 const ROUTER_OPS = ["eq", "ne", "gt", "gte", "lt", "lte", "contains", "in", "exists"];
 
@@ -477,6 +479,34 @@ export default function StudioInspector({
 }) {
   const t = useTranslations("WorkflowInspector");
 
+  // Reused across the early returns below, so declared unconditionally
+  // (rules of hooks) rather than inside the `node.type === "notification"`
+  // branch further down.
+  const notificationTeamsChannel =
+    selection?.kind === "node" &&
+    selection.node?.type === "notification" &&
+    selection.node?.data?.config?.channel === "teams";
+  const [teamsWebhookConfigured, setTeamsWebhookConfigured] = useState(null);
+
+  useEffect(() => {
+    if (!notificationTeamsChannel) {
+      setTeamsWebhookConfigured(null); // eslint-disable-line react-hooks/set-state-in-effect -- resets status when the selection changes away from the teams channel
+      return;
+    }
+    let cancelled = false;
+    Promise.resolve(getTeamsWebhookStatus())
+      .then((res) => {
+        if (cancelled) return;
+        setTeamsWebhookConfigured(typeof res?.configured === "boolean" ? res.configured : null);
+      })
+      .catch(() => {
+        if (!cancelled) setTeamsWebhookConfigured(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [notificationTeamsChannel]);
+
   if (!selection) {
     return (
       <div className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 hidden xl:flex flex-col items-center justify-center text-center h-full">
@@ -666,6 +696,14 @@ export default function StudioInspector({
                 <TemplateInput value={config.body} onChange={(v) => patch({ body: v })} multiline upstreamNodes={upstreamNodes} t={t} />
               </Field>
               <p className="text-xs th-text-ghost">{t("notificationTeamsHelp")}</p>
+              {teamsWebhookConfigured === false && (
+                <p className="text-xs text-amber-400 mt-1">
+                  {t("notificationTeamsWebhookMissing")}{" "}
+                  <Link href="/integrations" className="underline">
+                    {t("notificationTeamsWebhookMissingLink")}
+                  </Link>
+                </p>
+              )}
             </>
           )}
           {(config.channel || "app") === "app" && <p className="text-xs th-text-ghost">{t("notificationAppHelp")}</p>}

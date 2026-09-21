@@ -1418,6 +1418,14 @@
     "storageBadge": "Stockage",
     "suggestionsFromGroupsLabel": "Suggestions de vos groupes",
     "teamsDescription": "Permettez aux agents de lire les messages de canaux et de discussions dans Microsoft Teams.",
+    "teamsWebhookTitle": "Microsoft Teams (webhook)",
+    "teamsWebhookDescription": "Enregistrez un webhook entrant pour que les notifications de workflow puissent être publiées dans un canal Teams.",
+    "teamsWebhookConfigureButton": "Configurer",
+    "teamsWebhookReplaceButton": "Remplacer",
+    "teamsWebhookDeleteButton": "Supprimer",
+    "teamsWebhookConfiguredToast": "Webhook Teams enregistré",
+    "teamsWebhookDeletedToast": "Webhook Teams supprimé",
+    "teamsWebhookDeleteFailedError": "Échec de la suppression du webhook Teams",
     "tokenExpiredTooltip": "Votre jeton d'accès a expiré. Reconnectez-vous pour restaurer l'accès.",
     "unsetActiveMailboxTooltip": "Cliquer pour retirer le statut de boîte mail active",
     "versionControlBadge": "Contrôle de version"
@@ -3376,7 +3384,9 @@
     "notificationSubject": "Sujet",
     "notificationBody": "Message",
     "notificationAppHelp": "Envoyée en notification au propriétaire du workflow. Aucun destinataire à configurer.",
-    "notificationTeamsHelp": "Le webhook Teams se configure une fois dans tes intégrations ; il n'est jamais enregistré dans le workflow."
+    "notificationTeamsHelp": "Le webhook Teams se configure une fois dans tes intégrations ; il n'est jamais enregistré dans le workflow.",
+    "notificationTeamsWebhookMissing": "Aucun webhook Teams configuré pour l'instant.",
+    "notificationTeamsWebhookMissingLink": "Configurez-le dans Intégrations"
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
@@ -3509,5 +3519,17 @@
     "notificationRecipientsRequired": "L’e-mail a besoin de 1 à 10 destinataires non vides",
     "notificationSubjectRequired": "Le sujet ne peut pas être vide",
     "notificationRecipientsNotAllowed": "Ce canal ne prend pas de destinataires — retire-les ou passe en e-mail"
+  },
+  "TeamsWebhookModal": {
+    "title": "Configurer le webhook Teams",
+    "subtitle": "Collez l'URL du webhook entrant de votre workflow Teams.",
+    "urlLabel": "URL du webhook",
+    "urlPlaceholder": "https://…webhook.office.com/…",
+    "helpText": "Dans Teams, créez un workflow « Publier dans un canal lorsqu'une demande webhook est reçue », puis collez son URL ici.",
+    "cancel": "Annuler",
+    "closeAria": "Fermer",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "unexpectedError": "Erreur inattendue."
   }
 }

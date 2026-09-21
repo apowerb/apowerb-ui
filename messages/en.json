@@ -1418,6 +1418,14 @@
     "storageBadge": "Storage",
     "suggestionsFromGroupsLabel": "Suggestions from your groups",
     "teamsDescription": "Let agents read channel and chat messages in Microsoft Teams.",
+    "teamsWebhookTitle": "Microsoft Teams (webhook)",
+    "teamsWebhookDescription": "Register an incoming webhook so workflow notifications can post into a Teams channel.",
+    "teamsWebhookConfigureButton": "Configure",
+    "teamsWebhookReplaceButton": "Replace",
+    "teamsWebhookDeleteButton": "Delete",
+    "teamsWebhookConfiguredToast": "Teams webhook saved",
+    "teamsWebhookDeletedToast": "Teams webhook removed",
+    "teamsWebhookDeleteFailedError": "Failed to remove the Teams webhook",
     "tokenExpiredTooltip": "Your access token has expired. Reconnect to restore access.",
     "unsetActiveMailboxTooltip": "Click to unset as active mailbox",
     "versionControlBadge": "Version Control"
@@ -3376,7 +3384,9 @@
     "notificationSubject": "Subject",
     "notificationBody": "Message",
     "notificationAppHelp": "Sent as a notification to the workflow's owner. No recipients to configure.",
-    "notificationTeamsHelp": "The Teams webhook is set up once in your integrations; it's never stored in the workflow."
+    "notificationTeamsHelp": "The Teams webhook is set up once in your integrations; it's never stored in the workflow.",
+    "notificationTeamsWebhookMissing": "No Teams webhook configured yet.",
+    "notificationTeamsWebhookMissingLink": "Set it up in Integrations"
   },
   "WorkflowExecutionPanel": {
     "title": "Test run",
@@ -3509,5 +3519,17 @@
     "notificationRecipientsRequired": "Email needs 1 to 10 non-empty recipients",
     "notificationSubjectRequired": "The subject cannot be empty",
     "notificationRecipientsNotAllowed": "This channel does not take recipients — remove them or switch to email"
+  },
+  "TeamsWebhookModal": {
+    "title": "Configure Teams webhook",
+    "subtitle": "Paste the incoming webhook URL from your Teams workflow.",
+    "urlLabel": "Webhook URL",
+    "urlPlaceholder": "https://…webhook.office.com/…",
+    "helpText": "In Teams, create a workflow \"Post to a channel when a webhook request is received\", then paste its URL here.",
+    "cancel": "Cancel",
+    "closeAria": "Close",
+    "save": "Save",
+    "saving": "Saving…",
+    "unexpectedError": "Unexpected error."
   }
 }
