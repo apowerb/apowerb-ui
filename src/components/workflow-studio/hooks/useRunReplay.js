@@ -7,11 +7,14 @@ import { replayDelay, replayStates } from "@/lib/workflowReplay";
  * run state instead. A new recording (a new run) ends the replay.
  */
 export function useRunReplay(events) {
-  const states = useMemo(() => replayStates(events), [events]);
-  const last = states.length - 1;
+  const last = events?.length ?? 0;
   const [replay, setReplay] = useState({ events: null, index: null, playing: false, speed: 1 });
   // A replay belongs to the recording it started on.
   const current = replay.events === events ? replay : { ...replay, index: null, playing: false };
+  const active = current.index != null;
+  // Only rebuilt when replaying: a live run appends an event at a time and
+  // recomputing every state on each one would be quadratic in the run length.
+  const states = useMemo(() => (active ? replayStates(events) : null), [active, events]);
 
   useEffect(() => {
     if (!current.playing) return undefined;
@@ -28,12 +31,12 @@ export function useRunReplay(events) {
     setReplay((r) => ({ ...r, events, index: Math.max(0, Math.min(index, last)), playing }));
 
   return {
-    active: current.index != null,
+    active,
     index: current.index,
     total: last,
     playing: current.playing,
     speed: current.speed,
-    state: current.index != null ? states[current.index] : null,
+    state: active ? states[current.index] : null,
     play: () => seek(current.index == null || current.index >= last ? 0 : current.index, true),
     pause: () => setReplay((r) => ({ ...r, playing: false })),
     stepForward: () => seek((current.index ?? 0) + 1),
