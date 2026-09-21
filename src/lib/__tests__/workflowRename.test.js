@@ -18,7 +18,15 @@ const GRAPH = {
       config: {
         mode: "foreach",
         items: "{{lookup.items}}",
-        body: { version: 1, nodes: [{ id: "w", type: "agent", config: { input: "{{lookup.client}}" } }], edges: [] },
+        body: {
+          version: 1,
+          nodes: [
+            { id: "trigger1", type: "trigger", config: {} },
+            { id: "lookup", type: "tool", config: { tool: "erp.get" } },
+            { id: "w", type: "agent", config: { input: "{{lookup.item}}" } },
+          ],
+          edges: [],
+        },
       },
     },
   ],
@@ -44,10 +52,15 @@ describe("renameNodeId", () => {
     ]);
   });
 
-  it("rewrites templates everywhere, including rules and loop bodies", () => {
+  it("rewrites templates in every top-level config, rules included", () => {
     expect(byId.prio.config.rules[0].field).toBe("{{ order.amount }}");
     expect(byId.loop.config.items).toBe("{{order.items}}");
-    expect(byId.loop.config.body.nodes[0].config.input).toBe("{{order.client}}");
+  });
+
+  it("leaves loop bodies alone: a body has its own id space", () => {
+    const body = byId.loop.config.body;
+    expect(body.nodes.map((n) => n.id)).toEqual(["trigger1", "lookup", "w"]);
+    expect(body.nodes[2].config.input).toBe("{{lookup.item}}");
   });
 
   it("leaves ids that merely share a prefix, and route labels, untouched", () => {
