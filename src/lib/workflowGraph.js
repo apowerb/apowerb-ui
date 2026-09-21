@@ -427,3 +427,65 @@ export function autoLayout(nodes, edges, options = {}) {
     return { ...n, position: { x: pos.x - width / 2, y: pos.y - height / 2 } };
   });
 }
+
+// --- rename / tool search -----------------------------------------------
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renameInValue(value, re, newId) {
+  if (typeof value === "string") return value.replace(re, (_, open) => `${open}${newId}`);
+  if (Array.isArray(value)) return value.map((v) => renameInValue(v, re, newId));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, renameInValue(v, re, newId)]));
+  }
+  return value;
+}
+
+/**
+ * Rename a node and everything that points at it: incoming/outgoing edges and
+ * every `{{oldId...}}` template in any node config (loop bodies included).
+ * Route labels (`rules[].route`, `default_route`) name branches, not nodes, so
+ * they are left alone. Returns new arrays; inputs are not mutated.
+ */
+export function renameNodeId(nodes, edges, oldId, newId) {
+  if (oldId === newId) return { nodes, edges };
+  const re = new RegExp(`(\\{\\{\\s*)${escapeRegExp(oldId)}(?=\\s*\\}\\}|\\.)`, "g");
+  const nextNodes = nodes.map((n) => ({
+    ...n,
+    id: n.id === oldId ? newId : n.id,
+    data: { ...n.data, config: renameInValue(n.data?.config || {}, re, newId) },
+  }));
+  const nextEdges = edges.map((e) => ({
+    ...e,
+    source: e.source === oldId ? newId : e.source,
+    target: e.target === oldId ? newId : e.target,
+  }));
+  return { nodes: nextNodes, edges: nextEdges };
+}
+
+/** Why `candidate` cannot replace `currentId`: "invalid" (server pattern), "duplicate", or null. */
+export function nodeIdRenameError(candidate, currentId, existingIds = []) {
+  if (candidate === currentId) return null;
+  if (!NODE_ID_PATTERN.test(candidate || "")) return "invalid";
+  if (existingIds.includes(candidate)) return "duplicate";
+  return null;
+}
+
+function fold(s) {
+  return String(s || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+/** Tool options whose label or value contains every word of `query` (case/accent-insensitive). */
+export function filterToolOptions(options = [], query = "") {
+  const words = fold(query).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return options;
+  return options.filter((o) => {
+    const hay = `${fold(o.label)} ${fold(o.value)}`;
+    return words.every((w) => hay.includes(w));
+  });
+}

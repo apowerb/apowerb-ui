@@ -24,6 +24,12 @@ vi.mock("@/components/workflow-studio/StudioCanvas", () => ({
   default: (props) => (
     <div data-testid="canvas-mock">
       <div data-testid="node-count">{props.nodes.length}</div>
+      {props.nodes.map((n) => (
+        <button key={n.id} data-testid={`node-${n.id}`} onClick={() => props.onNodeClick(n)}>
+          {n.id}
+        </button>
+      ))}
+      <button data-testid="undo" onClick={props.onUndo}>undo</button>
       {props.edges.map((e) => (
         <button key={e.id} data-testid={`edge-${e.source}-${e.target}`} onClick={() => props.onEdgeClick(e)}>
           {e.source}-{e.target}
@@ -176,5 +182,55 @@ describe("WorkflowStudio", () => {
       expect(screen.queryByText(/modified elsewhere/i)).not.toBeInTheDocument();
     });
     expect(screen.getByText("Reloaded")).toBeInTheDocument();
+  });
+  it("renames a node id and rewires its edges and templates, undoably", async () => {
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByTestId("node-trigger1"));
+    const idInput = screen.getByLabelText(/Node ID/i);
+    await user.clear(idInput);
+    await user.type(idInput, "start{Enter}");
+
+    expect(screen.getByTestId("edge-start-router1")).toBeInTheDocument();
+    expect(screen.queryByTestId("node-trigger1")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("node-router1"));
+    expect(screen.getByDisplayValue("{{start.payload.x}}")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("undo"));
+    expect(screen.getByTestId("edge-trigger1-router1")).toBeInTheDocument();
+  });
+
+  it("refuses a duplicate node id and keeps the graph unchanged", async () => {
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByTestId("node-trigger1"));
+    const idInput = screen.getByLabelText(/Node ID/i);
+    await user.clear(idInput);
+    await user.type(idInput, "agentA{Enter}");
+
+    expect(screen.getByText(/already used/i)).toBeInTheDocument();
+    expect(screen.getByTestId("edge-trigger1-router1")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByLabelText(/Node ID/i)).toHaveValue("trigger1");
+  });
+
+  it("filters the tool picker as you type", async () => {
+    listTools.mockResolvedValue({ tools_erp: ["erp.tool_get_order", "erp.tool_list_clients"], tools_weather: ["weather.get_weather"] });
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByRole("button", { name: /^Tool$/ }));
+    const picker = await screen.findByRole("combobox", { name: /^Tool$/ });
+    expect(within(picker).getAllByRole("option")).toHaveLength(4);
+
+    await user.type(screen.getByRole("searchbox", { name: /Search tools/i }), "weather");
+    expect(within(picker).getAllByRole("option").map((o) => o.value)).toEqual(["", "weather.get_weather"]);
   });
 });

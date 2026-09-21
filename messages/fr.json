@@ -3331,7 +3331,12 @@
     "loopBodyHelp": "Un sous-workflow autonome avec exactement un déclencheur. Il reçoit '{'item, index, previous'}' à chaque tour et ne peut référencer que son propre déclencheur.",
     "loopBodyOpen": "Ouvrir l'éditeur du corps",
     "loopBodyIssues": "{count, plural, one {# problème dans le corps} other {# problèmes dans le corps}}",
-    "loopBodyOk": "Le corps est valide."
+    "loopBodyOk": "Le corps est valide.",
+    "nodeIdHelp": "Utilisé dans les modèles comme '{{'id.champ'}}'. Le renommer met à jour liens et modèles.",
+    "nodeIdInvalid": "Commence par une lettre ; lettres, chiffres, _ et - uniquement (64 max).",
+    "nodeIdDuplicate": "Cet identifiant est déjà utilisé par un autre nœud.",
+    "toolSearch": "Rechercher un outil",
+    "toolSearchEmpty": "Aucun outil ne correspond à cette recherche."
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
