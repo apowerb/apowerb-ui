@@ -133,6 +133,7 @@ export default function ExecutionPanel({
   payloadText,
   onPayloadTextChange,
   payloadError,
+  payloadInitialMode,
   isRunning,
   runState,
   replay,
@@ -163,7 +164,7 @@ export default function ExecutionPanel({
         <div className="flex-1 min-h-0 flex overflow-hidden">
           <div className="w-72 shrink-0 border-r th-border-secondary p-3 flex flex-col overflow-y-auto">
             <p className="text-[11px] font-semibold th-text-secondary mb-1">{t("payloadTitle")}</p>
-            <PayloadEditor value={payloadText} onChange={onPayloadTextChange} error={payloadError} t={t} />
+            <PayloadEditor value={payloadText} onChange={onPayloadTextChange} error={payloadError} initialMode={payloadInitialMode} t={t} />
             <div className="mt-2 flex gap-2">
               {isRunning ? (
                 <button type="button" onClick={onCancel} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 border border-red-500/30">

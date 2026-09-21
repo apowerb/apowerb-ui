@@ -29,10 +29,19 @@ const inputClass =
  * Test-run payload in three shapes: raw JSON, plain text (sent as
  * `{ "message": ... }`) or a key/value form. Every mode writes the same JSON
  * text through `onChange`, so the run itself does not care which one is used.
+ *
+ * `initialMode` lets a caller that already knows the payload's shape (an
+ * agent_tool or form trigger, whose fields are declared right there in the
+ * trigger config) open straight into form mode instead of raw JSON — the
+ * fields are read from `value` once, at mount, same as a manual switch would.
  */
-export default function PayloadEditor({ value, onChange, error, t }) {
-  const [mode, setMode] = useState("json");
-  const [rows, setRows] = useState([]);
+export default function PayloadEditor({ value, onChange, error, t, initialMode = "json" }) {
+  const [mode, setMode] = useState(initialMode);
+  const [rows, setRows] = useState(() => {
+    if (initialMode !== "form") return [];
+    const initial = payloadRows(value);
+    return initial && initial.length ? initial : [{ key: "", value: "" }];
+  });
   const formRows = mode === "form" ? rows : null;
 
   const switchTo = (next) => {

@@ -10,6 +10,7 @@
  */
 
 import dagre from "dagre";
+import { validateTriggerConfig } from "./workflowTriggers";
 
 export const NODE_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 
@@ -266,7 +267,7 @@ function declaredRoutes(node) {
   return null; // not a routing node
 }
 
-function validateLoopConfig(node) {
+function validateLoopConfig(node, context) {
   const errors = [];
   const cfg = node.config || {};
   const push = (message, extra) => errors.push({ nodeId: node.id, message, ...extra });
@@ -297,7 +298,7 @@ function validateLoopConfig(node) {
   if (triggerCount !== 1) {
     push(`loopBodyTriggerCount:${triggerCount}`);
   }
-  const bodyResult = validateGraphCore(body);
+  const bodyResult = validateGraphCore(body, context);
   for (const e of bodyResult.errors) {
     errors.push({ ...e, nodeId: `${node.id}.${e.nodeId}` });
   }
@@ -313,12 +314,17 @@ function validateLoopConfig(node) {
  * `validateGraphCore` is also used recursively on a loop node's `body`
  * sub-graph, which is why the loop/template checks below never need to know
  * whether they're looking at the outer graph or a nested one.
+ *
+ * `context.currentWorkflowId` and `context.now` feed the trigger checks that
+ * need to know more than the graph itself (a `workflow_done` trigger
+ * refusing to listen to its own workflow, an `at` schedule refusing a past
+ * date) — both default to safe values so most callers can omit `context`.
  */
-export function validateGraphLocal(graph) {
-  return validateGraphCore(graph);
+export function validateGraphLocal(graph, context = {}) {
+  return validateGraphCore(graph, context);
 }
 
-function validateGraphCore(graph) {
+function validateGraphCore(graph, context = {}) {
   const nodes = graph?.nodes || [];
   const edges = graph?.edges || [];
   const errors = [];
@@ -361,13 +367,16 @@ function validateGraphCore(graph) {
       errors.push({ nodeId: n.id, message: `notRunnable:${n.type}`, level: "warning" });
     }
     if (n.type === "loop") {
-      errors.push(...validateLoopConfig(n));
+      errors.push(...validateLoopConfig(n, context));
     }
     if (n.type === "convert" && !CONVERT_TARGETS.includes(n.config?.to)) {
       errors.push({ nodeId: n.id, message: `convertUnknownTarget:${n.config?.to}` });
     }
     if (n.type === "output" && edges.some((e) => e.source === n.id)) {
       errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
+    }
+    if (n.type === "trigger") {
+      errors.push(...validateTriggerConfig(n, context));
     }
   }
 

@@ -46,18 +46,24 @@ const {
   listAgents,
   listTools,
   listToolConfigs,
+  listWorkflowDefs,
   runWorkflowDef,
   cancelWorkflowRun,
   listWorkflowRevisions,
+  getWorkflowTriggerState,
+  rotateWorkflowTrigger,
 } = vi.hoisted(() => ({
   getWorkflowDef: vi.fn(),
   updateWorkflowDef: vi.fn(),
   listAgents: vi.fn(),
   listTools: vi.fn(),
   listToolConfigs: vi.fn(),
+  listWorkflowDefs: vi.fn(),
   runWorkflowDef: vi.fn(),
   cancelWorkflowRun: vi.fn(),
   listWorkflowRevisions: vi.fn(),
+  getWorkflowTriggerState: vi.fn(),
+  rotateWorkflowTrigger: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -66,10 +72,13 @@ vi.mock("@/lib/api", () => ({
   listAgents,
   listTools,
   listToolConfigs,
+  listWorkflowDefs,
   runWorkflowDef,
   cancelWorkflowRun,
   listWorkflowRevisions,
   restoreWorkflowRevision: vi.fn(),
+  getWorkflowTriggerState,
+  rotateWorkflowTrigger,
 }));
 
 function baseGraph() {
@@ -108,6 +117,9 @@ beforeEach(() => {
   listTools.mockResolvedValue({});
   listToolConfigs.mockResolvedValue([]);
   listWorkflowRevisions.mockResolvedValue([]);
+  listWorkflowDefs.mockResolvedValue([]);
+  getWorkflowTriggerState.mockResolvedValue({ kind: "manual", active: false, reason: "unpublished", webhook_url: null, form_url: null, hmac_enabled: false, next_run_at: null, last_fired_at: null, last_status: null });
+  rotateWorkflowTrigger.mockResolvedValue({ webhook_url: "https://example.test/api/hooks/workflows/tok", hmac_secret: null });
 });
 
 describe("WorkflowStudio", () => {

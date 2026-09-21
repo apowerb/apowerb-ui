@@ -1172,6 +1172,16 @@ export const validateWorkflowGraph = (graph) =>
 export const cancelWorkflowRun = (workflowId) =>
   request(`/api/workflows/${workflowId}/cancel`, { method: "POST" });
 
+// --- Workflow triggers ---------------------------------------------------
+
+export const getWorkflowTriggerState = (workflowId) => request(`/api/workflows/${workflowId}/triggers`);
+
+// Rotates the webhook token (and its HMAC secret) or the form token. The
+// response's `hmac_secret`/the token itself is shown to the person exactly
+// once here — the server never returns it again after this call.
+export const rotateWorkflowTrigger = (workflowId) =>
+  request(`/api/workflows/${workflowId}/triggers/rotate`, { method: "POST" });
+
 /**
  * Lance un run et retourne la Response brute (flux SSE) : `request()` ne
  * convient pas ici, il attend un corps JSON complet. L'appelant

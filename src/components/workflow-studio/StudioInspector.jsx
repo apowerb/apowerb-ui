@@ -11,13 +11,17 @@ import {
   nodeIdRenameError,
   filterToolOptions,
 } from "@/lib/workflowGraph";
+import TriggerInspector from "./TriggerInspector";
 
 const ROUTER_OPS = ["eq", "ne", "gt", "gte", "lt", "lte", "contains", "in", "exists"];
 
 // The label wraps its control (rather than a sibling `htmlFor`/`id` pair) so
 // every field is accessibly labeled — and findable by `getByLabelText` in
 // tests — without hand-generating a unique id per input.
-function Field({ label, help, children }) {
+// Exported: TriggerInspector.jsx reuses these three primitives so the 8
+// trigger-kind forms look exactly like the rest of the inspector instead of
+// duplicating their Tailwind classes.
+export function Field({ label, help, children }) {
   return (
     <div className="mb-3">
       <label className="block">
@@ -29,7 +33,7 @@ function Field({ label, help, children }) {
   );
 }
 
-function TextInput(props) {
+export function TextInput(props) {
   return (
     <input
       {...props}
@@ -38,7 +42,7 @@ function TextInput(props) {
   );
 }
 
-function SelectInput({ children, ...props }) {
+export function SelectInput({ children, ...props }) {
   return (
     <select
       {...props}
@@ -377,6 +381,9 @@ export default function StudioInspector({
   edges,
   agentOptions = [],
   toolOptions = [],
+  workflowId,
+  workflowOptions = [],
+  triggerRefreshKey,
   onChangeLabel,
   onRenameNode,
   onPatchConfig,
@@ -438,14 +445,19 @@ export default function StudioInspector({
 
       {node.type === "trigger" && (
         <>
-          <Field label={t("triggerKind")}>
-            <SelectInput value={config.kind || "manual"} onChange={(e) => patch({ kind: e.target.value })}>
-              <option value="manual">{t("triggerKindManual")}</option>
-            </SelectInput>
-          </Field>
-          <Field label={t("samplePayload")} help={t("samplePayloadHelp")}>
-            <JsonField value={config.sample_payload} onChange={(v) => patch({ sample_payload: v })} t={t} />
-          </Field>
+          <TriggerInspector
+            config={config}
+            patch={patch}
+            workflowId={workflowId}
+            workflowOptions={workflowOptions}
+            triggerRefreshKey={triggerRefreshKey}
+            t={t}
+          />
+          {config.kind !== "agent_tool" && config.kind !== "form" && (
+            <Field label={t("samplePayload")} help={t("samplePayloadHelp")}>
+              <JsonField value={config.sample_payload} onChange={(v) => patch({ sample_payload: v })} t={t} />
+            </Field>
+          )}
         </>
       )}
 
