@@ -39,9 +39,9 @@ describe("applyRunEvent — plain (non-loop) nodes", () => {
 
     expect(s0.timeline).toEqual([]); // untouched
     expect(s1.timeline[0].status).toBe("running");
-    expect(s2.timeline[0]).toMatchObject({ status: "error", error: "boom" });
+    expect(s2.timeline[0]).toMatchObject({ status: "error", error: { detail: "boom" } });
     expect(s3.status).toBe("error");
-    expect(s3.finalError).toBe("boom");
+    expect(s3.finalError).toEqual({ code: null, detail: "boom", ref: null });
   });
 
   it("exposes a flat nodeId -> status map for canvas coloring", () => {
@@ -87,7 +87,7 @@ describe("applyRunEvent — loop nodes", () => {
     ]);
     const loop = state.timeline.find((e) => e.id === "loop1");
     expect(loop.status).toBe("error");
-    expect(loop.iterations[2][0]).toMatchObject({ status: "error", error: "rate limited" });
+    expect(loop.iterations[2][0]).toMatchObject({ status: "error", error: { detail: "rate limited" } });
   });
 
   it("records loop_capped on the loop's entry without needing a prior node_start", () => {

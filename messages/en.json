@@ -3187,7 +3187,7 @@
     "saveIdle": "All changes saved",
     "saving": "Saving…",
     "saveError": "Save failed",
-    "validCount": "{count, plural, =0 {No issues} one {# issue} other {# issues}}",
+    "validCount": "{count, plural, =0 {Graph valid} one {# graph issue} other {# graph issues}}",
     "validationPanelTitle": "Validation",
     "validationNone": "This workflow is valid.",
     "versionsButton": "Versions",
@@ -3362,7 +3362,12 @@
     "runFailed": "Run failed: {message}",
     "noOutput": "(empty)",
     "iteration": "Iteration {index}",
-    "loopCapped": "Stopped at the {max}-iteration cap{remaining, select, null {} other { ({remaining} left unprocessed)}}"
+    "loopCapped": "Stopped at the {max}-iteration cap{remaining, select, null {} other { ({remaining} left unprocessed)}}",
+    "runError_internal": "Internal error during the run (ref. {ref}).",
+    "runError_model_provider_auth": "The model provider rejected the credentials of this agent's model: check the model's API key in the agent settings (ref. {ref}).",
+    "runError_model_provider_rate_limit": "The model provider is rate limiting this agent's model: wait a moment or check the provider quota (ref. {ref}).",
+    "runError_model_provider_unavailable": "The model provider could not be reached: try again in a moment (ref. {ref}).",
+    "runError_no_output": "The workflow finished without an output."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -3377,10 +3382,10 @@
     "restoreConfirmAction": "Restore",
     "restoreFailed": "Could not restore: {message}",
     "close": "Close",
-    "reasonAutosave": "autosave",
-    "reasonManual": "manual save",
-    "reasonPublish": "published",
-    "reasonRestore": "restored"
+    "reasonPublish": "before publishing",
+    "reasonRestore": "before restoring",
+    "reasonEdit": "edited",
+    "reasonUnpublish": "before unpublishing"
   },
   "LoopBodyEditor": {
     "title": "Loop body — {label}",

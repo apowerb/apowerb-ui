@@ -3187,7 +3187,7 @@
     "saveIdle": "Toutes les modifications sont enregistrées",
     "saving": "Enregistrement…",
     "saveError": "Échec de l'enregistrement",
-    "validCount": "{count, plural, =0 {Aucun problème} one {# problème} other {# problèmes}}",
+    "validCount": "{count, plural, =0 {Graphe valide} one {# problème dans le graphe} other {# problèmes dans le graphe}}",
     "validationPanelTitle": "Validation",
     "validationNone": "Ce workflow est valide.",
     "versionsButton": "Versions",
@@ -3362,7 +3362,12 @@
     "runFailed": "Échec de l'exécution : {message}",
     "noOutput": "(vide)",
     "iteration": "Itération {index}",
-    "loopCapped": "Arrêtée au plafond de {max} itérations{remaining, select, null {} other { ({remaining} non traités)}}"
+    "loopCapped": "Arrêtée au plafond de {max} itérations{remaining, select, null {} other { ({remaining} non traités)}}",
+    "runError_internal": "Erreur interne pendant l'exécution (réf. {ref}).",
+    "runError_model_provider_auth": "Le fournisseur du modèle a refusé les identifiants du modèle de cet agent : vérifiez sa clé d'API dans les réglages de l'agent (réf. {ref}).",
+    "runError_model_provider_rate_limit": "Le fournisseur du modèle limite les appels du modèle de cet agent : patientez ou vérifiez le quota chez le fournisseur (réf. {ref}).",
+    "runError_model_provider_unavailable": "Le fournisseur du modèle est injoignable : réessayez dans un instant (réf. {ref}).",
+    "runError_no_output": "Le workflow s'est terminé sans sortie."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -3377,10 +3382,10 @@
     "restoreConfirmAction": "Restaurer",
     "restoreFailed": "Impossible de restaurer : {message}",
     "close": "Fermer",
-    "reasonAutosave": "enregistrement auto",
-    "reasonManual": "enregistrement manuel",
-    "reasonPublish": "publication",
-    "reasonRestore": "restauration"
+    "reasonPublish": "avant publication",
+    "reasonRestore": "avant restauration",
+    "reasonEdit": "modifiée",
+    "reasonUnpublish": "avant retour au brouillon"
   },
   "LoopBodyEditor": {
     "title": "Corps de la boucle — {label}",

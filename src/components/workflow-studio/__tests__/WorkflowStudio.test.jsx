@@ -132,7 +132,7 @@ describe("WorkflowStudio", () => {
     await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
 
     // 1 real error (missing route) — the loop/approval "soon" warning doesn't apply here.
-    expect(screen.getByRole("button", { name: /1 issue/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /1 graph issue/i })).toBeInTheDocument();
 
     await user.click(screen.getByTestId("edge-router1-agentA"));
 
@@ -141,7 +141,7 @@ describe("WorkflowStudio", () => {
 
     expect(screen.getByTestId("edge-router1-agentA")).not.toHaveTextContent("needs route");
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /No issues/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Graph valid/i })).toBeInTheDocument();
     });
   });
 
@@ -162,7 +162,7 @@ describe("WorkflowStudio", () => {
     await user.click(screen.getByTestId("edge-router1-agentA"));
     const routeSelect = await screen.findByLabelText(/Route/i);
     await user.selectOptions(routeSelect, "ok");
-    await waitFor(() => expect(screen.getByRole("button", { name: /No issues/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Graph valid/i })).toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: /Publish/i }));
 
