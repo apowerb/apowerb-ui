@@ -106,7 +106,9 @@ export function applyRunEvent(state, evt) {
  * by the panel), its English `detail` as a fallback, and the log `ref`.
  */
 function errorOf(evt) {
-  return { code: evt.code ?? null, detail: evt.detail ?? "", ref: evt.ref ?? null };
+  const error = { code: evt.code ?? null, detail: evt.detail ?? "", ref: evt.ref ?? null };
+  if (evt.params && typeof evt.params === "object") error.params = evt.params;
+  return error;
 }
 
 function applyToEntry(entry, evt) {

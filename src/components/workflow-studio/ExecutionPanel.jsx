@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Play, Square, ChevronDown, ChevronUp, ChevronRight, Loader2, CheckCircle2, XCircle, Circle } from "lucide-react";
 import { useTranslations } from "use-intl";
+import PayloadEditor from "./PayloadEditor";
 
 const STATUS_ICON = { running: Loader2, done: CheckCircle2, error: XCircle, pending: Circle, cancelled: XCircle };
 const STATUS_COLOR = { running: "text-purple-300", done: "text-blue-400", error: "text-red-400", pending: "th-text-ghost", cancelled: "text-amber-400" };
@@ -40,13 +41,22 @@ const TRANSLATED_ERRORS = new Set([
   "model_provider_rate_limit",
   "model_provider_unavailable",
   "no_output",
+  // Errors the user can fix: worded with the node or tool and what to do.
+  "tool_arguments",
+  "tool_not_found",
+  "tool_ambiguous",
+  "tool_needs_agent_context",
+  "agent_not_found",
+  "no_route",
+  "classifier_no_route",
+  "loop_items_not_list",
 ]);
 
 function errorText(t, error) {
   if (!error) return "";
   if (typeof error === "string") return error;
   if (error.code && TRANSLATED_ERRORS.has(error.code)) {
-    return t(`runError_${error.code}`, { ref: error.ref ?? "-" });
+    return t(`runError_${error.code}`, { ...error.params, ref: error.ref ?? "-" });
   }
   return error.detail || t("statusError");
 }
@@ -149,14 +159,8 @@ export default function ExecutionPanel({
       {open && (
         <div className="flex-1 min-h-0 flex overflow-hidden">
           <div className="w-72 shrink-0 border-r th-border-secondary p-3 flex flex-col overflow-y-auto">
-            <label className="block text-[11px] font-semibold th-text-secondary mb-1">{t("payloadTitle")}</label>
-            <textarea
-              value={payloadText}
-              onChange={(e) => onPayloadTextChange(e.target.value)}
-              rows={8}
-              className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-lg th-bg-surface border ${payloadError ? "border-red-500/60" : "th-border-secondary"} th-text resize-y focus:outline-none focus:ring-1 focus:ring-brand`}
-            />
-            {payloadError && <p className="mt-1 text-[10px] text-red-400">{t("invalidJson", { message: payloadError })}</p>}
+            <p className="text-[11px] font-semibold th-text-secondary mb-1">{t("payloadTitle")}</p>
+            <PayloadEditor value={payloadText} onChange={onPayloadTextChange} error={payloadError} t={t} />
             <div className="mt-2 flex gap-2">
               {isRunning ? (
                 <button type="button" onClick={onCancel} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 border border-red-500/30">
