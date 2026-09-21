@@ -20,6 +20,7 @@ import {
   publishToHub,
 } from "@/lib/api";
 import { useToast } from "../Toast";
+import { isValidModelApiBase, withModelApiBase } from "@/lib/modelApiBase";
 import {
   typeToCategory,
   parseSubAgents,
@@ -47,6 +48,9 @@ const DEFAULT_NEW_AGENT = {
   mcp_servers: [],
   agent_skills: [],
 };
+
+const INVALID_API_BASE_MESSAGE =
+  "The API URL must be a full http(s) address, or be left empty.";
 
 const CATEGORY_TO_TYPE = {
   Base: "base",
@@ -181,8 +185,7 @@ export function useAgentCrud({ allAgents, fetchData, tabs, setTabs }) {
       tags: Array.isArray(src.tags) ? src.tags : [],
     };
 
-    const templateParams = src.template_model_params || {};
-    const params = { ...templateParams };
+    const params = withModelApiBase(src.template_model_params);
     if (src.model_api_key && src.model_api_key.trim()) {
       params.model_api_key = src.model_api_key;
     }
@@ -212,6 +215,10 @@ export function useAgentCrud({ allAgents, fetchData, tabs, setTabs }) {
     );
     if (duplicate) {
       toast.error("An agent with this name already exists");
+      return;
+    }
+    if (!isValidModelApiBase(newAgent.template_model_params?.model_api_base)) {
+      toast.warning(INVALID_API_BASE_MESSAGE);
       return;
     }
     // Gate: templates that require a OneDrive file must have one picked
@@ -340,6 +347,10 @@ export function useAgentCrud({ allAgents, fetchData, tabs, setTabs }) {
     });
     if (duplicate) {
       toast.error("An agent with this name already exists");
+      return;
+    }
+    if (!isValidModelApiBase(newAgent.template_model_params?.model_api_base)) {
+      toast.warning(INVALID_API_BASE_MESSAGE);
       return;
     }
     // Gate: templates that require a OneDrive file must keep one picked

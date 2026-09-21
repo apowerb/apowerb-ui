@@ -3129,5 +3129,12 @@
     },
     "refusalPublicRepo": "Publication refused: the configured repository is public. A report carries logs and its author's address.",
     "notConfigured": "No GitHub output configured. Set BUG_REPORT_GITHUB_REPO and BUG_REPORT_GITHUB_TOKEN, or handle the report here."
+  },
+  "ModelApiBaseField": {
+    "hint": "OpenAI-compatible endpoint: Azure AI Foundry, self-hosted model, LiteLLM gateway… Leave empty to use the provider's default URL.",
+    "invalid": "Enter a full http(s):// address, or leave empty.",
+    "label": "API URL",
+    "optional": "(optional)",
+    "placeholder": "https://my-endpoint.example.com/v1"
   }
 }

@@ -32,6 +32,7 @@ import { useAgentTabs } from "./useAgentTabs";
 import { useCanvasHandlers } from "./useCanvasHandlers";
 import { useWorkflowRunner } from "./useWorkflowRunner";
 import { useAgentCrud } from "./useAgentCrud";
+import { isValidModelApiBase, withModelApiBase } from "@/lib/modelApiBase";
 
 export function useDiagramState() {
   const toast = useToast();
@@ -163,6 +164,10 @@ export function useDiagramState() {
       toast.warning("Please enter a model");
       return;
     }
+    if (!isValidModelApiBase(agentData.template_model_params?.model_api_base)) {
+      toast.warning("The API URL must be a full http(s) address, or be left empty.");
+      return;
+    }
 
     const emailDomain = user?.email?.split("@")[1] || "default";
     const orgId = agentData.organization_id?.trim() || emailDomain;
@@ -194,8 +199,7 @@ export function useDiagramState() {
       };
 
       {
-        const templateParams = agentData.template_model_params || {};
-        const params = { ...templateParams };
+        const params = withModelApiBase(agentData.template_model_params);
         if (agentData.model_api_key && agentData.model_api_key.trim()) {
           params.model_api_key = agentData.model_api_key;
         }
