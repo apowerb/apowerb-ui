@@ -3331,7 +3331,12 @@
     "loopBodyHelp": "A self-contained sub-workflow with exactly one trigger. It receives '{'item, index, previous'}' each pass and can only reference its own trigger.",
     "loopBodyOpen": "Open the loop body editor",
     "loopBodyIssues": "{count, plural, one {# issue in the body} other {# issues in the body}}",
-    "loopBodyOk": "The body is valid."
+    "loopBodyOk": "The body is valid.",
+    "nodeIdHelp": "Used in templates like '{{'id.field'}}'. Renaming updates edges and templates.",
+    "nodeIdInvalid": "Start with a letter; letters, digits, _ and - only (64 max).",
+    "nodeIdDuplicate": "This id is already used by another node.",
+    "toolSearch": "Search tools",
+    "toolSearchEmpty": "No tool matches this search."
   },
   "WorkflowExecutionPanel": {
     "title": "Test run",

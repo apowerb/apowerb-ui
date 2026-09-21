@@ -22,6 +22,7 @@ import {
   createNode,
   duplicateNode,
   autoLayout,
+  renameNodeId,
 } from "@/lib/workflowGraph";
 import { createRunState, applyRunEvent, runStatusByNodeId } from "@/lib/workflowRunState";
 import { consumeWorkflowRun } from "@/lib/workflowSse";
@@ -361,6 +362,17 @@ export default function WorkflowStudio({ workflowId }) {
     [nodes, setNodes],
   );
 
+  const renameNode = useCallback(
+    (oldId, newId) => {
+      const { nodes: nextNodes, edges: nextEdges } = renameNodeId(nodes, edges, oldId, newId);
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      pushHistory(nextNodes, nextEdges);
+      setSelection((sel) => (sel?.kind === "node" && sel.node.id === oldId ? { kind: "node", node: nextNodes.find((n) => n.id === newId) } : sel));
+    },
+    [nodes, edges, setNodes, setEdges, pushHistory],
+  );
+
   const deleteNode = useCallback(
     (nodeId) => {
       const nextNodes = nodes.filter((n) => n.id !== nodeId);
@@ -545,6 +557,7 @@ export default function WorkflowStudio({ workflowId }) {
           agentOptions={agentOptions}
           toolOptions={toolOptions}
           onChangeLabel={changeLabel}
+          onRenameNode={renameNode}
           onPatchConfig={patchNodeConfig}
           onChangeEdgeRoute={changeEdgeRoute}
           onDeleteNode={deleteNode}

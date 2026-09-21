@@ -7,6 +7,8 @@ import {
   getUpstreamNodeIds,
   templateSuggestionsFor,
   LOOP_OPERATORS,
+  nodeIdRenameError,
+  filterToolOptions,
 } from "@/lib/workflowGraph";
 
 const ROUTER_OPS = ["eq", "ne", "gt", "gte", "lt", "lte", "contains", "in", "exists"];
@@ -140,6 +142,85 @@ function JsonField({ value, onChange, rows = 4, t }) {
       />
       {error && <p className="mt-1 text-[10px] text-red-400">{t("invalidJson", { message: error })}</p>}
     </div>
+  );
+}
+
+/**
+ * Editable node id. The draft is committed on Enter or blur, and only when the
+ * server would accept it; Escape restores the current id. Mounted with
+ * `key={node.id}` so selecting another node starts from a fresh draft.
+ */
+function NodeIdField({ nodeId, existingIds, onRename, t }) {
+  const [draft, setDraft] = useState(nodeId);
+  const [error, setError] = useState(null);
+
+  const commit = () => {
+    const candidate = draft.trim();
+    const reason = nodeIdRenameError(candidate, nodeId, existingIds);
+    if (reason) {
+      setError(reason);
+      return;
+    }
+    setError(null);
+    if (candidate !== nodeId) onRename(nodeId, candidate);
+  };
+
+  return (
+    <div className="mb-3">
+      <label className="block">
+        <span className="block text-[11px] font-semibold th-text-secondary mb-1">{t("nodeId")}</span>
+        <input
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setError(null);
+          }}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              setDraft(nodeId);
+              setError(null);
+            }
+          }}
+          aria-invalid={error ? true : undefined}
+          className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-lg th-bg-surface border ${error ? "border-red-500/60" : "th-border-secondary"} th-text focus:outline-none focus:ring-1 focus:ring-brand`}
+        />
+      </label>
+      {error ? (
+        <p className="mt-1 text-[10px] text-red-400">{t(error === "duplicate" ? "nodeIdDuplicate" : "nodeIdInvalid")}</p>
+      ) : (
+        <p className="mt-1 text-[10px] th-text-ghost">{t("nodeIdHelp")}</p>
+      )}
+    </div>
+  );
+}
+
+/** Tool select with a search box: the catalogue runs to hundreds of entries. */
+function ToolPicker({ value, options, onChange, t }) {
+  const [query, setQuery] = useState("");
+  const filtered = filterToolOptions(options, query);
+  const selected = options.find((o) => o.value === value);
+  const shown = selected && !filtered.includes(selected) ? [selected, ...filtered] : filtered;
+  return (
+    <>
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        aria-label={t("toolSearch")}
+        placeholder={t("toolSearch")}
+        className="w-full mb-1.5 px-2.5 py-1.5 text-xs rounded-lg th-bg-surface border th-border-secondary th-text placeholder:th-text-ghost focus:outline-none focus:ring-1 focus:ring-brand"
+      />
+      <Field label={t("toolLabel")} help={filtered.length === 0 ? t("toolSearchEmpty") : undefined}>
+        <SelectInput value={value || ""} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{t("toolPlaceholder")}</option>
+          {shown.map((tool) => <option key={tool.value} value={tool.value}>{tool.label}</option>)}
+        </SelectInput>
+      </Field>
+    </>
   );
 }
 
@@ -296,6 +377,7 @@ export default function StudioInspector({
   agentOptions = [],
   toolOptions = [],
   onChangeLabel,
+  onRenameNode,
   onPatchConfig,
   onChangeEdgeRoute,
   onDeleteNode,
@@ -348,7 +430,7 @@ export default function StudioInspector({
   return (
     <div className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 overflow-y-auto h-full max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-2xl max-xl:bg-[var(--bg-modal)]">
       <h3 className="text-sm font-bold th-text mb-3">{t("title")}</h3>
-      <Field label={t("nodeId")}><TextInput value={node.id} disabled /></Field>
+      <NodeIdField key={node.id} nodeId={node.id} existingIds={nodes.map((n) => n.id)} onRename={onRenameNode} t={t} />
       <Field label={t("label")}>
         <TextInput value={node.data.label || ""} onChange={(e) => onChangeLabel(node.id, e.target.value)} placeholder={t("labelPlaceholder")} />
       </Field>
@@ -386,16 +468,13 @@ export default function StudioInspector({
 
       {node.type === "tool" && (
         <>
-          <Field label={t("toolLabel")}>
-            {toolOptions.length === 0 ? (
+          {toolOptions.length === 0 ? (
+            <Field label={t("toolLabel")}>
               <p className="text-xs th-text-ghost">{t("toolNone")}</p>
-            ) : (
-              <SelectInput value={config.tool || ""} onChange={(e) => patch({ tool: e.target.value })}>
-                <option value="">{t("toolPlaceholder")}</option>
-                {toolOptions.map((tool) => <option key={tool.value} value={tool.value}>{tool.label}</option>)}
-              </SelectInput>
-            )}
-          </Field>
+            </Field>
+          ) : (
+            <ToolPicker value={config.tool} options={toolOptions} onChange={(tool) => patch({ tool })} t={t} />
+          )}
           <ArgsEditor args={config.args} onChange={(args) => patch({ args })} upstreamNodes={upstreamNodes} t={t} />
         </>
       )}
