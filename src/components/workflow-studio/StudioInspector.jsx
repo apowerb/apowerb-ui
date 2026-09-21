@@ -404,35 +404,34 @@ function ToolJsonOrTemplateField({ value, onChange, t }) {
   const stringify = (v) => (v === undefined ? "" : typeof v === "string" ? v : JSON.stringify(v, null, 2));
   const [text, setText] = useState(() => stringify(value));
   const [error, setError] = useState(null);
-  const lastValueRef = useRef(value);
-
-  useEffect(() => {
-    if (value !== lastValueRef.current) {
-      lastValueRef.current = value;
-      setText(stringify(value));
-      setError(null);
-    }
-  }, [value]);
+  // Same "adjust state when a prop changes" pattern as JsonField: a value
+  // coming from outside (undo, other node) resets the buffer during render.
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    setText(stringify(value));
+    setError(null);
+  }
 
   const handleChange = (raw) => {
     setText(raw);
     const trimmed = raw.trim();
     if (trimmed === "") {
       setError(null);
-      lastValueRef.current = undefined;
+      setSyncedValue(undefined);
       onChange(undefined);
       return;
     }
     if (WHOLE_TEMPLATE_RE.test(trimmed)) {
       setError(null);
-      lastValueRef.current = trimmed;
+      setSyncedValue(trimmed);
       onChange(trimmed);
       return;
     }
     try {
       const parsed = JSON.parse(raw);
       setError(null);
-      lastValueRef.current = parsed;
+      setSyncedValue(parsed);
       onChange(parsed);
     } catch (err) {
       setError(err.message);
