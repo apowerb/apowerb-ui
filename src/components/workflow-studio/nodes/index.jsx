@@ -1,6 +1,6 @@
 "use client";
 
-import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag } from "lucide-react";
+import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
 import { NODE_FAMILIES } from "@/lib/workflowGraph";
@@ -222,6 +222,39 @@ export function OutputNode({ data, selected }) {
   );
 }
 
+export function SetNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeSet")}
+      color={NODE_FAMILIES.set.color}
+      icon={ListPlus}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function ConditionNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const ti = useTranslations("WorkflowInspector");
+  const trueLabel = ti("conditionRouteTrue");
+  const falseLabel = ti("conditionRouteFalse");
+  const taken = data.runRoute === "true" ? trueLabel : data.runRoute === "false" ? falseLabel : undefined;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeCondition")}
+      color={NODE_FAMILIES.condition.color}
+      icon={Split}
+    >
+      <RouteChips routes={[trueLabel, falseLabel]} taken={taken} />
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
 export const studioNodeTypes = {
   trigger: TriggerNode,
   agent: AgentNode,
@@ -232,5 +265,7 @@ export const studioNodeTypes = {
   loop: LoopNode,
   convert: ConvertNode,
   output: OutputNode,
+  set: SetNode,
+  condition: ConditionNode,
   approval: ApprovalNode,
 };

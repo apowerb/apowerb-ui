@@ -3225,7 +3225,9 @@
     "noResults": "No node matches “{query}”",
     "familyOutput": "Output",
     "nodeOutput": "Output",
-    "nodeConvert": "Convert"
+    "nodeConvert": "Convert",
+    "nodeSet": "Set",
+    "nodeCondition": "Condition"
   },
   "WorkflowNode": {
     "untitled": "Untitled",
@@ -3348,8 +3350,24 @@
     "convertTo_list": "List",
     "convertInput": "Value to convert",
     "convertInputHelp": "Leave empty to convert the upstream output. Text becomes a list line by line; JSON is read even inside a ``` block.",
+    "convertTo_csv": "CSV",
+    "convertTo_csv_help": "A list of objects becomes CSV text (and back); the header lists every key found.",
+    "convertTo_date": "Date",
+    "convertTo_date_help": "Text or a timestamp becomes an ISO date.",
     "outputValue": "Output value",
-    "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes."
+    "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes.",
+    "setFields": "Fields",
+    "setFieldKeyPlaceholder": "field name",
+    "setFieldValuePlaceholder": "Value (template)",
+    "addField": "Add field",
+    "removeField": "Remove",
+    "setFieldsMin": "A Set node needs at least one field.",
+    "conditionMatch": "Match",
+    "conditionMatchAll": "All rules (AND)",
+    "conditionMatchAny": "Any rule (OR)",
+    "conditionRulesMin": "A condition needs at least one rule.",
+    "conditionRouteTrue": "True",
+    "conditionRouteFalse": "False"
   },
   "WorkflowExecutionPanel": {
     "title": "Test run",
@@ -3466,6 +3484,11 @@
     "unknown": "{value}",
     "onNode": "On {node}: {message}",
     "outputHasSuccessor": "An output node ends the flow: remove the connections leaving it",
-    "convertUnknownTarget": "Unknown conversion “{value}”"
+    "convertUnknownTarget": "Unknown conversion “{value}”",
+    "setNoFields": "A Set node needs at least one field",
+    "setFieldKeyRequired": "A field needs a non-empty key",
+    "setDuplicateKey": "Duplicate field key “{value}”",
+    "conditionNoRules": "A condition needs at least one rule",
+    "conditionDuplicateRoute": "Route “{value}” already has a connection"
   }
 }
