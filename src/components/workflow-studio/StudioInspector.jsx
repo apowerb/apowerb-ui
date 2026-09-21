@@ -8,6 +8,9 @@ import {
   templateSuggestionsFor,
   LOOP_OPERATORS,
   CONVERT_TARGETS,
+  TRY_ROUTES,
+  TRY_RETRIES_CAP,
+  TRY_RETRY_DELAY_MS_CAP,
   nodeIdRenameError,
   filterToolOptions,
 } from "@/lib/workflowGraph";
@@ -377,6 +380,8 @@ export default function StudioInspector({
   edges,
   agentOptions = [],
   toolOptions = [],
+  workflowOptions = [],
+  currentWorkflowId,
   onChangeLabel,
   onRenameNode,
   onPatchConfig,
@@ -400,6 +405,7 @@ export default function StudioInspector({
     const edge = selection.edge;
     const sourceNode = nodes.find((n) => n.id === edge.source);
     const routes = routesOf(sourceNode);
+    const routeLabel = (r) => (sourceNode?.type === "try" ? t(`tryRoute_${r}`) : r);
     return (
       <div className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 overflow-y-auto h-full max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-2xl max-xl:bg-[var(--bg-modal)]">
         <h3 className="text-sm font-bold th-text mb-3">{t("edgeTitle")}</h3>
@@ -409,7 +415,7 @@ export default function StudioInspector({
           <Field label={t("edgeRoute")}>
             <SelectInput value={edge.data?.route || ""} onChange={(e) => onChangeEdgeRoute(edge.id, e.target.value)}>
               <option value="">{t("edgeRoutePlaceholder")}</option>
-              {routes.map((r) => <option key={r} value={r}>{r}</option>)}
+              {routes.map((r) => <option key={r} value={r}>{routeLabel(r)}</option>)}
             </SelectInput>
           </Field>
         ) : (
@@ -576,6 +582,61 @@ export default function StudioInspector({
         </>
       )}
 
+      {node.type === "try" && (
+        <>
+          <Field label={t("tryRetries")} help={t("tryRetriesHelp")}>
+            <TextInput
+              type="number"
+              min={0}
+              max={TRY_RETRIES_CAP}
+              value={config.retries ?? 0}
+              onChange={(e) => patch({ retries: e.target.value === "" ? "" : Number(e.target.value) })}
+            />
+          </Field>
+          <Field label={t("tryRetryDelay")} help={t("tryRetryDelayHelp")}>
+            <TextInput
+              type="number"
+              min={0}
+              max={TRY_RETRY_DELAY_MS_CAP}
+              step={100}
+              value={config.retry_delay_ms ?? 0}
+              onChange={(e) => patch({ retry_delay_ms: e.target.value === "" ? "" : Number(e.target.value) })}
+            />
+          </Field>
+          <Field label={t("tryBody")} help={t("tryBodyHelp")}>
+            <button
+              type="button"
+              onClick={() => onOpenLoopBody(node.id)}
+              className="w-full flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary"
+            >
+              {t("tryBodyOpen")}
+              <ChevronRight size={14} />
+            </button>
+          </Field>
+        </>
+      )}
+
+      {node.type === "subworkflow" && (
+        <>
+          <Field label={t("subworkflowTarget")}>
+            {(() => {
+              const available = workflowOptions.filter((w) => String(w.value) !== String(currentWorkflowId));
+              return available.length === 0 ? (
+                <p className="text-xs th-text-ghost">{t("subworkflowNone")}</p>
+              ) : (
+                <SelectInput value={config.workflow_id || ""} onChange={(e) => patch({ workflow_id: e.target.value })}>
+                  <option value="">{t("subworkflowPlaceholder")}</option>
+                  {available.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
+                </SelectInput>
+              );
+            })()}
+          </Field>
+          <Field label={t("subworkflowInput")} help={t("subworkflowInputHelp")}>
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+          </Field>
+        </>
+      )}
+
       {node.type === "approval" && <p className="text-xs th-text-ghost">{t("soonHelp")}</p>}
 
       <DeleteButton onClick={() => onDeleteNode(node.id)} label={t("deleteNode")} />
@@ -593,6 +654,9 @@ function routesOf(sourceNode) {
   }
   if (sourceNode.type === "classifier") {
     return (cfg.routes || []).map((r) => r.route).filter(Boolean);
+  }
+  if (sourceNode.type === "try") {
+    return TRY_ROUTES;
   }
   return null;
 }

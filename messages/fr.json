@@ -3225,7 +3225,9 @@
     "noResults": "Aucun nœud ne correspond à « {query} »",
     "familyOutput": "Sortie",
     "nodeOutput": "Sortie",
-    "nodeConvert": "Conversion"
+    "nodeConvert": "Conversion",
+    "nodeTry": "Essai (try)",
+    "nodeSubworkflow": "Sous-workflow"
   },
   "WorkflowNode": {
     "untitled": "Sans titre",
@@ -3238,7 +3240,9 @@
     "errorBadge": "{count, plural, one {# erreur} other {# erreurs}}",
     "soonBadge": "Bientôt — non exécutable",
     "maxIterationsBadge": "≤ {count}",
-    "editBody": "Modifier le corps"
+    "editBody": "Modifier le corps",
+    "editTryBody": "Modifier le corps du try",
+    "tryRetriesBadge": "↻ {count}"
   },
   "WorkflowCanvas": {
     "undo": "Annuler",
@@ -3349,7 +3353,21 @@
     "convertInput": "Valeur à convertir",
     "convertInputHelp": "Laisse vide pour convertir la sortie amont. Un texte devient une liste ligne par ligne ; le JSON est lu même dans un bloc ```.",
     "outputValue": "Valeur de sortie",
-    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds."
+    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds.",
+    "tryRetries": "Nouvelles tentatives (0 à 3)",
+    "tryRetriesHelp": "Combien de fois retenter le corps après une erreur, avant d'emprunter la route erreur.",
+    "tryRetryDelay": "Délai entre les tentatives (ms, 0 à 5000)",
+    "tryRetryDelayHelp": "Attend ce délai avant chaque nouvelle tentative.",
+    "tryBody": "Corps du try",
+    "tryBodyHelp": "Un sous-workflow autonome avec exactement un déclencheur, exécuté à chaque tentative.",
+    "tryBodyOpen": "Ouvrir l'éditeur du corps",
+    "tryRoute_ok": "OK",
+    "tryRoute_error": "Erreur",
+    "subworkflowTarget": "Workflow",
+    "subworkflowPlaceholder": "Choisir un workflow…",
+    "subworkflowNone": "Aucun autre workflow à appeler pour l'instant.",
+    "subworkflowInput": "Entrée (gabarit)",
+    "subworkflowInputHelp": "Envoyée comme charge utile du déclencheur du sous-workflow. Laisse vide pour transmettre l'entrée de ce nœud."
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
@@ -3417,7 +3435,11 @@
     "replayExit": "Quitter le rejeu",
     "replayPosition": "Position du rejeu",
     "replayStep": "Étape {index} / {total}",
-    "replayHint": "Rejoue le dernier run pas à pas sur le canevas."
+    "replayHint": "Rejoue le dernier run pas à pas sur le canevas.",
+    "attempt": "Tentative {index}",
+    "runError_subworkflow_not_found": "Le sous-workflow {workflow} référencé par {node} est introuvable (supprimé, ou pas à toi) : choisis un autre workflow dans le nœud.",
+    "runError_subworkflow_cycle": "Le sous-workflow {workflow} appelé depuis {node} rappellerait un workflow déjà en cours d'exécution : ce cycle n'est pas autorisé.",
+    "runError_subworkflow_too_deep": "Le sous-workflow {node} dépasse la profondeur d'imbrication maximale ({max}) : aplatis la chaîne d'appels."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -3441,7 +3463,9 @@
     "title": "Corps de la boucle — {label}",
     "subtitle": "Un sous-workflow autonome. Il s'exécute à chaque itération et reçoit '{'item, index, previous'}'.",
     "close": "Terminé",
-    "triggerCountWarning": "Le corps a besoin d'exactement un déclencheur ({count} trouvé(s))."
+    "triggerCountWarning": "Le corps a besoin d'exactement un déclencheur ({count} trouvé(s)).",
+    "titleTry": "Corps du try — {label}",
+    "subtitleTry": "Un sous-workflow autonome. Il s'exécute à chaque tentative et reçoit '{'attempt, previous_error'}'."
   },
   "WorkflowValidation": {
     "invalidId": "Identifiant de nœud invalide « {value} »",
@@ -3466,6 +3490,13 @@
     "unknown": "{value}",
     "onNode": "Sur {node} : {message}",
     "outputHasSuccessor": "Un nœud de sortie termine le flux : retire les liens qui en partent",
-    "convertUnknownTarget": "Conversion inconnue « {value} »"
+    "convertUnknownTarget": "Conversion inconnue « {value} »",
+    "tryRetries": "Le nombre de nouvelles tentatives doit être un entier entre 0 et 3",
+    "tryRetryDelay": "Le délai entre tentatives doit être un entier en millisecondes entre 0 et 5000",
+    "tryBodyMissing": "Le try n'a pas de corps",
+    "tryBodyTriggerCount": "Le corps du try a besoin d'exactement un déclencheur ({value} trouvé(s))",
+    "tryDuplicateRoute": "La route « {value} » est utilisée par plus d'une connexion",
+    "subworkflowRequired": "Choisis un workflow à appeler",
+    "subworkflowSelfReference": "Un workflow ne peut pas s'appeler lui-même"
   }
 }
