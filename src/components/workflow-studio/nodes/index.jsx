@@ -1,6 +1,6 @@
 "use client";
 
-import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag } from "lucide-react";
+import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ScanText, BookOpen } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
 import { NODE_FAMILIES } from "@/lib/workflowGraph";
@@ -222,6 +222,48 @@ export function OutputNode({ data, selected }) {
   );
 }
 
+export function ExtractNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  const fieldCount = (data.config?.fields || []).length;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeExtract")}
+      color={NODE_FAMILIES.extract.color}
+      icon={ScanText}
+    >
+      {fieldCount > 0 && (
+        <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-md border bg-violet-500/10 text-violet-300 border-violet-500/20">
+          {tn("fieldsBadge", { count: fieldCount })}
+        </span>
+      )}
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function RagNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  const topK = data.config?.top_k;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeRag")}
+      color={NODE_FAMILIES.rag.color}
+      icon={BookOpen}
+    >
+      {Number.isInteger(topK) && (
+        <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-md border bg-blue-500/10 text-blue-300 border-blue-500/20">
+          {tn("topKBadge", { count: topK })}
+        </span>
+      )}
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
 export const studioNodeTypes = {
   trigger: TriggerNode,
   agent: AgentNode,
@@ -232,5 +274,7 @@ export const studioNodeTypes = {
   loop: LoopNode,
   convert: ConvertNode,
   output: OutputNode,
+  extract: ExtractNode,
+  rag: RagNode,
   approval: ApprovalNode,
 };

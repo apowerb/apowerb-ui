@@ -3225,7 +3225,9 @@
     "noResults": "Aucun nœud ne correspond à « {query} »",
     "familyOutput": "Sortie",
     "nodeOutput": "Sortie",
-    "nodeConvert": "Conversion"
+    "nodeConvert": "Conversion",
+    "nodeExtract": "Extraction",
+    "nodeRag": "RAG"
   },
   "WorkflowNode": {
     "untitled": "Sans titre",
@@ -3238,7 +3240,9 @@
     "errorBadge": "{count, plural, one {# erreur} other {# erreurs}}",
     "soonBadge": "Bientôt — non exécutable",
     "maxIterationsBadge": "≤ {count}",
-    "editBody": "Modifier le corps"
+    "editBody": "Modifier le corps",
+    "fieldsBadge": "{count, plural, one {# champ} other {# champs}}",
+    "topKBadge": "top {count}"
   },
   "WorkflowCanvas": {
     "undo": "Annuler",
@@ -3349,7 +3353,29 @@
     "convertInput": "Valeur à convertir",
     "convertInputHelp": "Laisse vide pour convertir la sortie amont. Un texte devient une liste ligne par ligne ; le JSON est lu même dans un bloc ```.",
     "outputValue": "Valeur de sortie",
-    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds."
+    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds.",
+    "extractInput": "Entrée (gabarit)",
+    "extractInputHelp": "Laisse vide pour utiliser l'entrée du nœud. Texte libre ou JSON.",
+    "extractFieldsTitle": "Champs",
+    "extractFieldName": "Nom du champ",
+    "extractFieldNamePlaceholder": "nom_du_champ",
+    "extractFieldType": "Type",
+    "extractFieldType_string": "Texte",
+    "extractFieldType_number": "Nombre",
+    "extractFieldType_boolean": "Oui / non",
+    "extractFieldType_list": "Liste",
+    "extractFieldType_object": "Objet",
+    "extractFieldDescription": "Description",
+    "extractFieldDescriptionPlaceholder": "Que doit extraire l'agent ici ?",
+    "extractFieldRequired": "Requis",
+    "removeField": "Retirer",
+    "addExtractField": "Ajouter un champ",
+    "extractFieldsCountHelp": "Un nœud d'extraction a besoin de 1 à 30 champs.",
+    "extractFieldsHelp": "Chaque champ est lisible en aval sous la forme '{{'{id}.nom_du_champ'}}' (remplace nom_du_champ par le nom du champ).",
+    "ragQuery": "Requête (gabarit)",
+    "ragHelp": "Les passages récupérés sont lisibles en aval sous la forme '{{'{id}.passages'}}'.",
+    "ragTopK": "top_k (1–20)",
+    "ragTopKHelp": "Combien de passages récupérer dans la base de connaissances de l'agent."
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
@@ -3417,7 +3443,10 @@
     "replayExit": "Quitter le rejeu",
     "replayPosition": "Position du rejeu",
     "replayStep": "Étape {index} / {total}",
-    "replayHint": "Rejoue le dernier run pas à pas sur le canevas."
+    "replayHint": "Rejoue le dernier run pas à pas sur le canevas.",
+    "runError_extract_failed": "L’extraction {node} a échoué{field, select, null {} other { sur le champ {field}}} : {problem}. Précise la description du champ, ou vérifie la réponse de l’agent.",
+    "runError_rag_no_knowledge": "RAG {node} : l’agent {agent} n’a aucune base de connaissances rattachée. Rattache une base de connaissances à cet agent, ou choisis un autre agent qui en a une.",
+    "runError_rag_failed": "RAG {node} n’a pas pu interroger sa base de connaissances. Réessaie dans un instant, ou vérifie la connexion de la base de connaissances de l’agent."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -3466,6 +3495,13 @@
     "unknown": "{value}",
     "onNode": "Sur {node} : {message}",
     "outputHasSuccessor": "Un nœud de sortie termine le flux : retire les liens qui en partent",
-    "convertUnknownTarget": "Conversion inconnue « {value} »"
+    "convertUnknownTarget": "Conversion inconnue « {value} »",
+    "extractAgentRequired": "Un nœud d'extraction a besoin d'un agent",
+    "extractFieldsCount": "Un nœud d'extraction a besoin de 1 à 30 champs ({value} défini(s))",
+    "extractFieldNameInvalid": "Le nom de champ « {value} » doit commencer par une lettre ou _, puis ne contenir que lettres, chiffres et _",
+    "extractFieldNameDuplicate": "Nom de champ en double « {value} »",
+    "ragAgentRequired": "Un nœud RAG a besoin d'un agent",
+    "ragQueryRequired": "Un nœud RAG a besoin d'une requête",
+    "ragTopKRange": "top_k doit être un entier entre 1 et 20 ({value} fourni)"
   }
 }

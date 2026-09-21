@@ -24,10 +24,22 @@ export const NODE_TYPES = [
   "approval",
   "output",
   "convert",
+  "extract",
+  "rag",
 ];
 
 /** What a convert node can turn its input into; mirrors the backend's CONVERT_TARGETS. */
 export const CONVERT_TARGETS = ["text", "json", "number", "boolean", "list"];
+
+/** Field types an extract node can declare; mirrors the backend's EXTRACT_FIELD_TYPES. */
+export const EXTRACT_FIELD_TYPES = ["string", "number", "boolean", "list", "object"];
+export const EXTRACT_FIELD_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const EXTRACT_FIELDS_MIN = 1;
+export const EXTRACT_FIELDS_MAX = 30;
+
+export const RAG_TOP_K_DEFAULT = 5;
+export const RAG_TOP_K_MIN = 1;
+export const RAG_TOP_K_MAX = 20;
 
 // Present in the palette but the backend's /run and /validate reject it —
 // kept in one place so the inspector, the palette badge and local
@@ -64,6 +76,11 @@ export const NODE_FAMILIES = {
   approval: { family: "logic", color: "violet" },
   convert: { family: "tools", color: "emerald" },
   output: { family: "output", color: "amber" },
+  // Both agent-driven (an `agent_id` in config, same selector as agent/classifier) —
+  // "intelligence" already covers that shape; a dedicated "knowledge" family for
+  // rag alone would be one node wide and split the palette for no reason.
+  extract: { family: "intelligence", color: "violet" },
+  rag: { family: "intelligence", color: "blue" },
 };
 
 export function createEmptyGraph() {
@@ -98,6 +115,10 @@ function defaultConfig(type) {
       return { mode: "foreach", max_iterations: 10, items: "", body: createLoopBody() };
     case "convert":
       return { to: "text" };
+    case "extract":
+      return { agent_id: "", input: "", fields: [] };
+    case "rag":
+      return { agent_id: "", query: "", top_k: RAG_TOP_K_DEFAULT };
     default:
       return {};
   }
@@ -247,6 +268,13 @@ export function templateSuggestionsFor(node) {
     case "router":
     case "classifier":
       return [`{{${node.id}.route}}`, `{{${node.id}.output}}`, ...base];
+    case "rag":
+      return [`{{${node.id}.passages}}`, ...base];
+    case "extract":
+      // Its output has no single ".output" — each declared field is its own
+      // path ({{id.field_name}}), which this generic helper can't know; the
+      // field editor shows that path once a field is named.
+      return base;
     default:
       return [`{{${node.id}.output}}`, ...base];
   }
@@ -300,6 +328,46 @@ function validateLoopConfig(node) {
   const bodyResult = validateGraphCore(body);
   for (const e of bodyResult.errors) {
     errors.push({ ...e, nodeId: `${node.id}.${e.nodeId}` });
+  }
+  return errors;
+}
+
+function validateExtractConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+
+  if (!cfg.agent_id) push("extractAgentRequired");
+
+  const fields = Array.isArray(cfg.fields) ? cfg.fields : [];
+  if (fields.length < EXTRACT_FIELDS_MIN || fields.length > EXTRACT_FIELDS_MAX) {
+    push(`extractFieldsCount:${fields.length}`);
+  }
+
+  const seen = new Set();
+  for (const f of fields) {
+    const name = f?.name || "";
+    if (!EXTRACT_FIELD_NAME_PATTERN.test(name)) {
+      push(`extractFieldNameInvalid:${name}`);
+    } else if (seen.has(name)) {
+      push(`extractFieldNameDuplicate:${name}`);
+    }
+    seen.add(name);
+  }
+  return errors;
+}
+
+function validateRagConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+
+  if (!cfg.agent_id) push("ragAgentRequired");
+  if (!cfg.query || typeof cfg.query !== "string" || !cfg.query.trim()) push("ragQueryRequired");
+
+  const topK = cfg.top_k;
+  if (!Number.isInteger(topK) || topK < RAG_TOP_K_MIN || topK > RAG_TOP_K_MAX) {
+    push(`ragTopKRange:${topK}`);
   }
   return errors;
 }
@@ -368,6 +436,12 @@ function validateGraphCore(graph) {
     }
     if (n.type === "output" && edges.some((e) => e.source === n.id)) {
       errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
+    }
+    if (n.type === "extract") {
+      errors.push(...validateExtractConfig(n));
+    }
+    if (n.type === "rag") {
+      errors.push(...validateRagConfig(n));
     }
   }
 

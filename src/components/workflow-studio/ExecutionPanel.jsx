@@ -52,6 +52,9 @@ const TRANSLATED_ERRORS = new Set([
   "classifier_no_route",
   "loop_items_not_list",
   "convert_failed",
+  "extract_failed",
+  "rag_no_knowledge",
+  "rag_failed",
 ]);
 
 function errorText(t, error) {

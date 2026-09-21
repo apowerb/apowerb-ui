@@ -3225,7 +3225,9 @@
     "noResults": "No node matches “{query}”",
     "familyOutput": "Output",
     "nodeOutput": "Output",
-    "nodeConvert": "Convert"
+    "nodeConvert": "Convert",
+    "nodeExtract": "Extract",
+    "nodeRag": "RAG"
   },
   "WorkflowNode": {
     "untitled": "Untitled",
@@ -3238,7 +3240,9 @@
     "errorBadge": "{count, plural, one {# error} other {# errors}}",
     "soonBadge": "Soon — not runnable",
     "maxIterationsBadge": "≤ {count}",
-    "editBody": "Edit loop body"
+    "editBody": "Edit loop body",
+    "fieldsBadge": "{count, plural, one {# field} other {# fields}}",
+    "topKBadge": "top {count}"
   },
   "WorkflowCanvas": {
     "undo": "Undo",
@@ -3349,7 +3353,29 @@
     "convertInput": "Value to convert",
     "convertInputHelp": "Leave empty to convert the upstream output. Text becomes a list line by line; JSON is read even inside a ``` block.",
     "outputValue": "Output value",
-    "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes."
+    "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes.",
+    "extractInput": "Input (template)",
+    "extractInputHelp": "Leave empty to use the node's own input. Plain text or JSON.",
+    "extractFieldsTitle": "Fields",
+    "extractFieldName": "Field name",
+    "extractFieldNamePlaceholder": "field_name",
+    "extractFieldType": "Type",
+    "extractFieldType_string": "Text",
+    "extractFieldType_number": "Number",
+    "extractFieldType_boolean": "Yes / no",
+    "extractFieldType_list": "List",
+    "extractFieldType_object": "Object",
+    "extractFieldDescription": "Description",
+    "extractFieldDescriptionPlaceholder": "What should the agent extract here?",
+    "extractFieldRequired": "Required",
+    "removeField": "Remove",
+    "addExtractField": "Add a field",
+    "extractFieldsCountHelp": "An extract node needs between 1 and 30 fields.",
+    "extractFieldsHelp": "Each field is readable downstream as '{{'{id}.field_name'}}' (replace field_name with the field's own name).",
+    "ragQuery": "Query (template)",
+    "ragHelp": "The retrieved passages are readable downstream as '{{'{id}.passages'}}'.",
+    "ragTopK": "top_k (1–20)",
+    "ragTopKHelp": "How many passages to retrieve from the agent's knowledge base."
   },
   "WorkflowExecutionPanel": {
     "title": "Test run",
@@ -3417,7 +3443,10 @@
     "replayExit": "Exit replay",
     "replayPosition": "Replay position",
     "replayStep": "Step {index} / {total}",
-    "replayHint": "Replay the last run step by step on the canvas."
+    "replayHint": "Replay the last run step by step on the canvas.",
+    "runError_extract_failed": "Extract {node} failed{field, select, null {} other { on field {field}}}: {problem}. Refine the field's description, or check the agent's output.",
+    "runError_rag_no_knowledge": "RAG {node}: agent {agent} has no knowledge base attached. Attach one to this agent, or pick another agent with a knowledge base.",
+    "runError_rag_failed": "RAG {node} could not query its knowledge base. Try again in a moment, or check the agent's knowledge base connection."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -3466,6 +3495,13 @@
     "unknown": "{value}",
     "onNode": "On {node}: {message}",
     "outputHasSuccessor": "An output node ends the flow: remove the connections leaving it",
-    "convertUnknownTarget": "Unknown conversion “{value}”"
+    "convertUnknownTarget": "Unknown conversion “{value}”",
+    "extractAgentRequired": "An extract node needs an agent",
+    "extractFieldsCount": "An extract node needs between 1 and 30 fields ({value} defined)",
+    "extractFieldNameInvalid": "Field name “{value}” must start with a letter or _, then only letters, digits and _",
+    "extractFieldNameDuplicate": "Duplicate field name “{value}”",
+    "ragAgentRequired": "A RAG node needs an agent",
+    "ragQueryRequired": "A RAG node needs a query",
+    "ragTopKRange": "top_k must be a whole number between 1 and 20 ({value} given)"
   }
 }
