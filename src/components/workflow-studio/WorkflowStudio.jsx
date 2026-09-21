@@ -27,6 +27,7 @@ import {
 import { createRunState, applyRunEvent, runStatusByNodeId } from "@/lib/workflowRunState";
 import { consumeWorkflowRun } from "@/lib/workflowSse";
 import { useUndoRedo } from "./hooks/useUndoRedo";
+import { useRunReplay } from "./hooks/useRunReplay";
 import StudioTopBar from "./StudioTopBar";
 import StudioPalette from "./StudioPalette";
 import StudioCanvas from "./StudioCanvas";
@@ -150,7 +151,11 @@ export default function WorkflowStudio({ workflowId }) {
   const [payloadText, setPayloadText] = useState("{}");
   const [payloadError, setPayloadError] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [runState, setRunState] = useState(createRunState());
+  const [liveRunState, setRunState] = useState(createRunState());
+  // Every event of the last run, in order: the replay rebuilds the run from them.
+  const [runEvents, setRunEvents] = useState([]);
+  const replay = useRunReplay(runEvents);
+  const runState = replay.state || liveRunState;
   const runAbortRef = useRef(null);
   const prefilledPayloadRef = useRef(false);
 
@@ -194,6 +199,7 @@ export default function WorkflowStudio({ workflowId }) {
       return;
     }
     setRunState(createRunState());
+    setRunEvents([]);
     setIsRunning(true);
     const controller = new AbortController();
     runAbortRef.current = controller;
@@ -201,10 +207,14 @@ export default function WorkflowStudio({ workflowId }) {
       const response = await runWorkflowDef(workflowId, payload, { signal: controller.signal });
       await consumeWorkflowRun(response, {
         signal: controller.signal,
-        onEvent: (evt) => setRunState((s) => applyRunEvent(s, evt)),
+        onEvent: (evt) => {
+          setRunEvents((list) => [...list, evt]);
+          setRunState((s) => applyRunEvent(s, evt));
+        },
       });
     } catch (err) {
       if (!controller.signal.aborted) {
+        setRunEvents((list) => [...list, { event: "error", detail: err.message }]);
         setRunState((s) => applyRunEvent(s, { event: "error", detail: err.message }));
       }
     } finally {
@@ -546,6 +556,7 @@ export default function WorkflowStudio({ workflowId }) {
             payloadError={payloadError}
             isRunning={isRunning}
             runState={runState}
+            replay={replay}
             onRun={handleRun}
             onCancel={handleCancelRun}
           />

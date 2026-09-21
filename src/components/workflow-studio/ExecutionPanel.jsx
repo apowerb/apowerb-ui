@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Play, Square, ChevronDown, ChevronUp, ChevronRight, Loader2, CheckCircle2, XCircle, Circle } from "lucide-react";
 import { useTranslations } from "use-intl";
 import PayloadEditor from "./PayloadEditor";
+import ReplayControls from "./ReplayControls";
 
 const STATUS_ICON = { running: Loader2, done: CheckCircle2, error: XCircle, pending: Circle, cancelled: XCircle };
 const STATUS_COLOR = { running: "text-purple-300", done: "text-blue-400", error: "text-red-400", pending: "th-text-ghost", cancelled: "text-amber-400" };
@@ -134,6 +135,7 @@ export default function ExecutionPanel({
   payloadError,
   isRunning,
   runState,
+  replay,
   onRun,
   onCancel,
 }) {
@@ -180,6 +182,7 @@ export default function ExecutionPanel({
                 </button>
               )}
             </div>
+            {replay && replay.total > 0 && !isRunning && <ReplayControls replay={replay} t={t} />}
             {runState.status === "error" && runState.finalError && (
               <p className="mt-2 text-[11px] text-red-400">{t("errorDetail")}: {errorText(t, runState.finalError)}</p>
             )}
