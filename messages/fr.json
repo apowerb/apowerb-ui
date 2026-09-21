@@ -3225,7 +3225,9 @@
     "noResults": "Aucun nœud ne correspond à « {query} »",
     "familyOutput": "Sortie",
     "nodeOutput": "Sortie",
-    "nodeConvert": "Conversion"
+    "nodeConvert": "Conversion",
+    "nodeHttp": "Requête HTTP",
+    "nodeNotification": "Notification"
   },
   "WorkflowNode": {
     "untitled": "Sans titre",
@@ -3349,7 +3351,32 @@
     "convertInput": "Valeur à convertir",
     "convertInputHelp": "Laisse vide pour convertir la sortie amont. Un texte devient une liste ligne par ligne ; le JSON est lu même dans un bloc ```.",
     "outputValue": "Valeur de sortie",
-    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds."
+    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds.",
+    "httpMethod": "Méthode",
+    "httpUrl": "URL",
+    "httpUrlHelp": "Doit être une adresse http(s) publique, ou un gabarit qui s’y résout.",
+    "httpUrlPlaceholder": "https://api.exemple.com/…",
+    "httpHeaders": "En-têtes",
+    "httpHeaderKey": "En-tête",
+    "httpHeaderValue": "Valeur",
+    "addHeader": "Ajouter un en-tête",
+    "httpHeaderForbidden": "{key} porte un secret : n’écris jamais d’identifiants dans un workflow. Configure une intégration à la place.",
+    "httpBody": "Corps",
+    "httpBodyHelp": "Texte libre ou JSON. Masqué pour GET et DELETE.",
+    "httpTimeout": "Délai (1 à 30 s)",
+    "httpTimeoutHelp": "La requête est interrompue au-delà de ce délai.",
+    "notificationChannel": "Canal",
+    "notificationChannel_app": "Dans l’appli",
+    "notificationChannel_email": "E-mail",
+    "notificationChannel_teams": "Microsoft Teams",
+    "notificationRecipients": "Destinataires",
+    "notificationRecipientPlaceholder": "nom@exemple.com",
+    "notificationAddRecipient": "Ajouter un destinataire",
+    "notificationRecipientsMin": "Il faut au moins un destinataire (10 max).",
+    "notificationSubject": "Sujet",
+    "notificationBody": "Message",
+    "notificationAppHelp": "Envoyée en notification au propriétaire du workflow. Aucun destinataire à configurer.",
+    "notificationTeamsHelp": "Le webhook Teams se configure une fois dans tes intégrations ; il n'est jamais enregistré dans le workflow."
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
@@ -3417,7 +3444,15 @@
     "replayExit": "Quitter le rejeu",
     "replayPosition": "Position du rejeu",
     "replayStep": "Étape {index} / {total}",
-    "replayHint": "Rejoue le dernier run pas à pas sur le canevas."
+    "replayHint": "Rejoue le dernier run pas à pas sur le canevas.",
+    "runError_http_url_refused": "HTTP {node} : l’URL a été refusée ({reason}). Pointe vers une adresse http(s) publique — les adresses internes, locales ou de bouclage sont bloquées pour des raisons de sécurité.",
+    "runError_http_response_too_large": "HTTP {node} : la réponse dépasse la limite de {max} octets. Demande moins de données à l’API (pagination, champs plus étroits) ou lis-la autrement.",
+    "runError_http_timeout": "HTTP {node} a expiré après {seconds} s. Augmente le délai (jusqu’à 30 s) ou vérifie la disponibilité du service.",
+    "runError_http_failed": "HTTP {node} n’a pas pu aboutir. Vérifie l’URL, la méthode et l’accès réseau ; un simple statut 4xx/5xx ne provoque pas cette erreur — il revient dans la sortie.",
+    "runError_notification_rate_limited": "La notification {node} a été limitée en fréquence ({limit} par période) : espace les notifications de ce workflow, ou regroupe-les.",
+    "runError_notification_bad_recipient": "La notification {node} n’a pas pu être envoyée à {recipient} : vérifie qu’il s’agit d’une adresse e-mail valide et joignable.",
+    "runError_teams_not_configured": "La notification Teams {node} n’a pas de webhook configuré : enregistre l’URL du webhook Teams dans tes intégrations d’abord.",
+    "runError_teams_failed": "La notification Teams {node} n’a pas pu être envoyée{status, select, null {} other { (statut {status})}}."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -3466,6 +3501,13 @@
     "unknown": "{value}",
     "onNode": "Sur {node} : {message}",
     "outputHasSuccessor": "Un nœud de sortie termine le flux : retire les liens qui en partent",
-    "convertUnknownTarget": "Conversion inconnue « {value} »"
+    "convertUnknownTarget": "Conversion inconnue « {value} »",
+    "httpUrlRequired": "L’URL est obligatoire et doit commencer par http:// ou https:// — ou être un gabarit '{{'...'}}'.",
+    "httpUrlInvalid": "L’URL « {value} » doit commencer par http:// ou https:// (ou être un gabarit '{{'...'}}')",
+    "httpTimeoutRange": "Le délai doit être un entier compris entre 1 et 30 secondes",
+    "httpHeaderForbidden": "L’en-tête « {value} » ne peut pas être défini ici — il peut porter un secret. Configure une intégration plutôt que de l’écrire dans le workflow",
+    "notificationRecipientsRequired": "L’e-mail a besoin de 1 à 10 destinataires non vides",
+    "notificationSubjectRequired": "Le sujet ne peut pas être vide",
+    "notificationRecipientsNotAllowed": "Ce canal ne prend pas de destinataires — retire-les ou passe en e-mail"
   }
 }

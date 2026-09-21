@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag } from "lucide-react";
+import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag, Globe, Bell } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { NODE_FAMILIES, UNRUNNABLE_NODE_TYPES } from "@/lib/workflowGraph";
 
@@ -16,6 +16,8 @@ const ICONS = {
   approval: UserCheck,
   convert: ArrowRightLeft,
   output: Flag,
+  http: Globe,
+  notification: Bell,
 };
 
 const FAMILY_ORDER = ["trigger", "intelligence", "tools", "logic", "output"];
