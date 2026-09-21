@@ -3349,7 +3349,15 @@
     "convertInput": "Valeur à convertir",
     "convertInputHelp": "Laisse vide pour convertir la sortie amont. Un texte devient une liste ligne par ligne ; le JSON est lu même dans un bloc ```.",
     "outputValue": "Valeur de sortie",
-    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds."
+    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds.",
+    "toolSchemaLoading": "Récupération des paramètres de l'outil…",
+    "toolSchemaUnavailable": "Impossible de charger les paramètres de l'outil — formulaire libre affiché.",
+    "toolNeedsAgentContext": "Cet outil ne fonctionne que dans un nœud agent.",
+    "toolExtraArgsTitle": "Autres arguments",
+    "toolUnknownArgsTitle": "Arguments inconnus de l'outil",
+    "toolUnknownArg": "« {value} » n'est pas un paramètre de cet outil.",
+    "toolArgDefaultOption": "Par défaut ({value})",
+    "toolArgUnsetOption": "— (par défaut)"
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
@@ -3466,6 +3474,7 @@
     "unknown": "{value}",
     "onNode": "Sur {node} : {message}",
     "outputHasSuccessor": "Un nœud de sortie termine le flux : retire les liens qui en partent",
-    "convertUnknownTarget": "Conversion inconnue « {value} »"
+    "convertUnknownTarget": "Conversion inconnue « {value} »",
+    "toolMissingRequiredArg": "Valeur manquante pour le paramètre requis « {value} »"
   }
 }

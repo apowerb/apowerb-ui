@@ -3349,7 +3349,15 @@
     "convertInput": "Value to convert",
     "convertInputHelp": "Leave empty to convert the upstream output. Text becomes a list line by line; JSON is read even inside a ``` block.",
     "outputValue": "Output value",
-    "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes."
+    "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes.",
+    "toolSchemaLoading": "Fetching this tool's parameters…",
+    "toolSchemaUnavailable": "Couldn't load this tool's parameters — showing the free-form editor.",
+    "toolNeedsAgentContext": "This tool only works inside an agent node.",
+    "toolExtraArgsTitle": "Other arguments",
+    "toolUnknownArgsTitle": "Arguments this tool doesn't know",
+    "toolUnknownArg": "“{value}” isn't a parameter of this tool.",
+    "toolArgDefaultOption": "Default ({value})",
+    "toolArgUnsetOption": "— (default)"
   },
   "WorkflowExecutionPanel": {
     "title": "Test run",
@@ -3466,6 +3474,7 @@
     "unknown": "{value}",
     "onNode": "On {node}: {message}",
     "outputHasSuccessor": "An output node ends the flow: remove the connections leaving it",
-    "convertUnknownTarget": "Unknown conversion “{value}”"
+    "convertUnknownTarget": "Unknown conversion “{value}”",
+    "toolMissingRequiredArg": "Missing value for required parameter “{value}”"
   }
 }

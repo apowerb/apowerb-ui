@@ -1169,6 +1169,13 @@ export const validateWorkflowGraph = (graph) =>
     body: JSON.stringify({ graph }),
   });
 
+// Arg schema for a `tool` node's `config.tool` — drives the generated args
+// form in the inspector. 404 (unknown tool) and 409 (`tool_ambiguous`) carry
+// `err.detail = {code, params}`; the caller falls back to the free-form
+// args editor on any failure, so it doesn't need to branch on the code.
+export const getToolSchema = (tool, { signal } = {}) =>
+  request(`/api/workflows/tools/schema?tool=${encodeURIComponent(tool)}`, { signal });
+
 export const cancelWorkflowRun = (workflowId) =>
   request(`/api/workflows/${workflowId}/cancel`, { method: "POST" });
 

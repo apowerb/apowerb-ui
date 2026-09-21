@@ -28,7 +28,7 @@ const HIDDEN_TYPES = new Set(["loop", "approval"]);
  * project's `loopUncappedNesting` note: nesting is legal per spec but
  * building a fully recursive editor wasn't worth it this round).
  */
-export default function LoopBodyEditor({ loopNode, body, onChange, onClose, agentOptions, toolOptions }) {
+export default function LoopBodyEditor({ loopNode, body, onChange, onClose, agentOptions, toolOptions, toolSchemas = {}, ensureToolSchema = () => {} }) {
   const t = useTranslations("LoopBodyEditor");
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => graphToFlow(body), [body]);
   const {
@@ -37,6 +37,17 @@ export default function LoopBodyEditor({ loopNode, body, onChange, onClose, agen
   } = useUndoRedo(initialNodes, initialEdges);
 
   const [selection, setSelection] = useState(null);
+
+  // Same prefetch as the main studio (see WorkflowStudio.jsx): a tool node
+  // already inside this body, or one the user just configured here, gets
+  // its schema fetched through the cache shared with the outer canvas.
+  const toolRefsInUse = useMemo(
+    () => [...new Set(nodes.filter((n) => n.type === "tool" && n.data?.config?.tool).map((n) => n.data.config.tool))],
+    [nodes],
+  );
+  useEffect(() => {
+    for (const toolRef of toolRefsInUse) ensureToolSchema(toolRef);
+  }, [toolRefsInUse, ensureToolSchema]);
 
   // Push every change up as a graph — the parent studio treats this like any
   // other config edit, so the outer autosave picks it up without a second
@@ -200,6 +211,8 @@ export default function LoopBodyEditor({ loopNode, body, onChange, onClose, agen
           edges={edges}
           agentOptions={agentOptions}
           toolOptions={toolOptions}
+          toolSchemas={toolSchemas}
+          ensureToolSchema={ensureToolSchema}
           onChangeLabel={changeLabel}
           onPatchConfig={patchNodeConfig}
           onChangeEdgeRoute={changeEdgeRoute}

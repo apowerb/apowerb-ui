@@ -70,8 +70,13 @@ function insertAtCursor(ref, value, onChange, snippet) {
   });
 }
 
-/** A text input/textarea plus one-click `{{node...}}` chips for every upstream node. */
-function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline, t }) {
+/**
+ * A text input/textarea plus one-click `{{node...}}` chips for every
+ * upstream node. `numeric` only hints the on-screen keyboard/font — the
+ * value stays free text so a `{{node.output}}` template still fits, which
+ * is why a tool's number/integer arguments use this instead of `type="number"`.
+ */
+function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline, numeric, t }) {
   const ref = useRef(null);
   const suggestions = upstreamNodes.flatMap((n) => templateSuggestionsFor(n).slice(0, 1).map((snippet) => ({ node: n, snippet })));
   const Comp = multiline ? "textarea" : "input";
@@ -83,6 +88,7 @@ function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline,
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={multiline ? 3 : undefined}
+        inputMode={!multiline && numeric ? "decimal" : undefined}
         className="w-full px-2.5 py-1.5 text-xs font-mono rounded-lg th-bg-surface border th-border-secondary th-text placeholder:th-text-ghost focus:outline-none focus:ring-1 focus:ring-brand resize-y"
       />
       {suggestions.length > 0 && (
@@ -317,7 +323,7 @@ function RoutesEditor({ routes, onChange, t }) {
   );
 }
 
-function ArgsEditor({ args, onChange, upstreamNodes, t }) {
+function ArgsEditor({ args, onChange, upstreamNodes, t, titleKey = "args" }) {
   const entries = Object.entries(args || {});
   const update = (key, newKey, value) => {
     const next = {};
@@ -334,7 +340,7 @@ function ArgsEditor({ args, onChange, upstreamNodes, t }) {
 
   return (
     <div>
-      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("args")}</label>
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t(titleKey)}</label>
       <div className="flex flex-col gap-2">
         {entries.map(([key, value], i) => (
           <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
@@ -365,6 +371,254 @@ function ArgsEditor({ args, onChange, upstreamNodes, t }) {
   );
 }
 
+/** Binary on/off control for a boolean tool argument — always writes an explicit `true`/`false`. */
+function BooleanSwitch({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors focus:outline-none focus:ring-1 focus:ring-brand ${checked ? "bg-brand border-brand" : "th-bg-surface th-border-secondary"}`}
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4" : "translate-x-1"}`}
+      />
+    </button>
+  );
+}
+
+// A whole value that is nothing but one `{{...}}` template — the only shape
+// a template can take inside an array/object/any argument, since the rest
+// of that value has to be valid JSON.
+const WHOLE_TEMPLATE_RE = /^\{\{[^{}]+\}\}$/;
+
+/**
+ * JSON textarea for a tool argument typed array/object/any: same buffered-text
+ * pattern as `JsonField` (typing invalid JSON never corrupts the saved
+ * config), plus one extra accepted shape — the whole field can also be a
+ * single `{{node.output}}` template, kept as a raw string for the run-time
+ * template engine to resolve.
+ */
+function ToolJsonOrTemplateField({ value, onChange, t }) {
+  const stringify = (v) => (v === undefined ? "" : typeof v === "string" ? v : JSON.stringify(v, null, 2));
+  const [text, setText] = useState(() => stringify(value));
+  const [error, setError] = useState(null);
+  const lastValueRef = useRef(value);
+
+  useEffect(() => {
+    if (value !== lastValueRef.current) {
+      lastValueRef.current = value;
+      setText(stringify(value));
+      setError(null);
+    }
+  }, [value]);
+
+  const handleChange = (raw) => {
+    setText(raw);
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      setError(null);
+      lastValueRef.current = undefined;
+      onChange(undefined);
+      return;
+    }
+    if (WHOLE_TEMPLATE_RE.test(trimmed)) {
+      setError(null);
+      lastValueRef.current = trimmed;
+      onChange(trimmed);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      setError(null);
+      lastValueRef.current = parsed;
+      onChange(parsed);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div>
+      <textarea
+        value={text}
+        rows={4}
+        onChange={(e) => handleChange(e.target.value)}
+        className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-lg th-bg-surface border ${error ? "border-red-500/60" : "th-border-secondary"} th-text resize-y focus:outline-none focus:ring-1 focus:ring-brand`}
+      />
+      {error && <p className="mt-1 text-[10px] text-red-400">{t("invalidJson", { message: error })}</p>}
+    </div>
+  );
+}
+
+/**
+ * One field for one schema parameter. `enum` wins over `type` (a string
+ * with a fixed set of values is still a dropdown), then dispatches on
+ * `type`; anything outside the known families (an unlisted type) degrades
+ * to a plain template text field rather than disappearing.
+ */
+function ToolArgField({ param, value, onChange, upstreamNodes, t }) {
+  const label = param.required ? `${param.name} *` : param.name;
+  const help = param.description || undefined;
+  const hasDefault = param.default !== undefined && param.default !== null;
+  const placeholder = hasDefault ? String(param.default) : undefined;
+
+  if (Array.isArray(param.enum) && param.enum.length > 0) {
+    return (
+      <Field label={label} help={help}>
+        <SelectInput value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{hasDefault ? t("toolArgDefaultOption", { value: placeholder }) : t("toolArgUnsetOption")}</option>
+          {param.enum.map((opt) => (
+            <option key={String(opt)} value={opt}>{String(opt)}</option>
+          ))}
+        </SelectInput>
+      </Field>
+    );
+  }
+
+  if (param.type === "boolean") {
+    return (
+      <Field label={label} help={help}>
+        <BooleanSwitch checked={Boolean(value ?? param.default ?? false)} onChange={onChange} />
+      </Field>
+    );
+  }
+
+  if (param.type === "array" || param.type === "object" || param.type === "any") {
+    return (
+      <Field label={label} help={help}>
+        <ToolJsonOrTemplateField value={value} onChange={onChange} t={t} />
+      </Field>
+    );
+  }
+
+  return (
+    <Field label={label} help={help}>
+      <TemplateInput
+        value={typeof value === "string" || value === undefined ? value : String(value)}
+        onChange={onChange}
+        placeholder={placeholder}
+        upstreamNodes={upstreamNodes}
+        numeric={param.type === "number" || param.type === "integer"}
+        t={t}
+      />
+    </Field>
+  );
+}
+
+/**
+ * `config.args` entries the schema doesn't know about. A `tool_config`-style
+ * tool that declared `accepts_kwargs` gets the free-form `ArgsEditor` for
+ * them (they're legitimate, just not declared); otherwise each one is a
+ * warning with a one-click way to drop it.
+ */
+function ExtraArgsSection({ args, schemaNames, acceptsKwargs, onChange, upstreamNodes, t }) {
+  const extraEntries = Object.entries(args || {}).filter(([key]) => !schemaNames.has(key));
+  if (extraEntries.length === 0) return null;
+
+  if (acceptsKwargs) {
+    const extraArgs = Object.fromEntries(extraEntries);
+    const onExtraChange = (nextExtra) => {
+      const next = { ...args };
+      for (const [key] of extraEntries) delete next[key];
+      onChange({ ...next, ...nextExtra });
+    };
+    return (
+      <div className="mt-3 pt-3 border-t th-border-secondary">
+        <ArgsEditor args={extraArgs} onChange={onExtraChange} upstreamNodes={upstreamNodes} t={t} titleKey="toolExtraArgsTitle" />
+      </div>
+    );
+  }
+
+  const removeArg = (key) => {
+    const next = { ...args };
+    delete next[key];
+    onChange(next);
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t th-border-secondary flex flex-col gap-1.5">
+      <label className="block text-[11px] font-semibold text-amber-400">{t("toolUnknownArgsTitle")}</label>
+      {extraEntries.map(([key]) => (
+        <div key={key} className="p-2 rounded-lg border border-amber-500/30 bg-amber-500/5 flex items-center justify-between gap-2">
+          <p className="text-[11px] th-text truncate">{t("toolUnknownArg", { value: key })}</p>
+          <button type="button" onClick={() => removeArg(key)} title={t("removeArg")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+            <Trash2 size={12} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Tool node body: the picker plus, once the schema for `config.tool` is
+ * cached, a form generated from it instead of the free-form `ArgsEditor`.
+ * `schemaEntry`/`ensureToolSchema` come from `useToolSchemas()`, lifted to
+ * the studio so the cache survives re-selecting a node. Falls back to the
+ * classic `ArgsEditor` whenever there's no usable schema — no tool picked
+ * yet, still loading, or the fetch failed — so the node is always editable.
+ */
+function ToolArgsSection({ config, patch, toolOptions, schemaEntry, ensureToolSchema, upstreamNodes, t }) {
+  useEffect(() => {
+    if (config.tool) ensureToolSchema(config.tool);
+  }, [config.tool, ensureToolSchema]);
+
+  const args = config.args || {};
+  const setArgs = (next) => patch({ args: next });
+  const schema = schemaEntry?.status === "ready" ? schemaEntry.schema : null;
+  const schemaNames = new Set((schema?.params || []).map((p) => p.name));
+
+  const setArg = (name, value) => {
+    const next = { ...args };
+    const isEmpty = value === undefined || value === "" || (typeof value === "string" && value.trim() === "");
+    if (isEmpty) delete next[name];
+    else next[name] = value;
+    setArgs(next);
+  };
+
+  return (
+    <>
+      {toolOptions.length === 0 ? (
+        <Field label={t("toolLabel")}>
+          <p className="text-xs th-text-ghost">{t("toolNone")}</p>
+        </Field>
+      ) : (
+        <ToolPicker value={config.tool} options={toolOptions} onChange={(tool) => patch({ tool })} t={t} />
+      )}
+
+      {config.tool && schemaEntry?.status === "loading" && (
+        <p className="mb-2 text-[10px] th-text-ghost">{t("toolSchemaLoading")}</p>
+      )}
+      {config.tool && schemaEntry?.status === "error" && (
+        <p className="mb-2 text-[10px] th-text-ghost">{t("toolSchemaUnavailable")}</p>
+      )}
+      {schema?.needs_agent_context && (
+        <p className="mb-2 text-[10px] text-amber-400">{t("toolNeedsAgentContext")}</p>
+      )}
+
+      {schema ? (
+        <>
+          {(schema.params || []).map((param) => (
+            <ToolArgField key={param.name} param={param} value={args[param.name]} onChange={(v) => setArg(param.name, v)} upstreamNodes={upstreamNodes} t={t} />
+          ))}
+          <ExtraArgsSection
+            args={args}
+            schemaNames={schemaNames}
+            acceptsKwargs={!!schema.accepts_kwargs}
+            onChange={setArgs}
+            upstreamNodes={upstreamNodes}
+            t={t}
+          />
+        </>
+      ) : (
+        <ArgsEditor args={args} onChange={setArgs} upstreamNodes={upstreamNodes} t={t} />
+      )}
+    </>
+  );
+}
+
 /**
  * Right-hand contextual inspector. `node`/`edge` come from the parent
  * already resolved from the selection; `onPatchConfig` merges a partial
@@ -377,6 +631,8 @@ export default function StudioInspector({
   edges,
   agentOptions = [],
   toolOptions = [],
+  toolSchemas = {},
+  ensureToolSchema = () => {},
   onChangeLabel,
   onRenameNode,
   onPatchConfig,
@@ -468,16 +724,15 @@ export default function StudioInspector({
       )}
 
       {node.type === "tool" && (
-        <>
-          {toolOptions.length === 0 ? (
-            <Field label={t("toolLabel")}>
-              <p className="text-xs th-text-ghost">{t("toolNone")}</p>
-            </Field>
-          ) : (
-            <ToolPicker value={config.tool} options={toolOptions} onChange={(tool) => patch({ tool })} t={t} />
-          )}
-          <ArgsEditor args={config.args} onChange={(args) => patch({ args })} upstreamNodes={upstreamNodes} t={t} />
-        </>
+        <ToolArgsSection
+          config={config}
+          patch={patch}
+          toolOptions={toolOptions}
+          schemaEntry={toolSchemas[config.tool || ""]}
+          ensureToolSchema={ensureToolSchema}
+          upstreamNodes={upstreamNodes}
+          t={t}
+        />
       )}
 
       {node.type === "router" && (

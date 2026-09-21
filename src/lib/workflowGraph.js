@@ -266,7 +266,7 @@ function declaredRoutes(node) {
   return null; // not a routing node
 }
 
-function validateLoopConfig(node) {
+function validateLoopConfig(node, ctx) {
   const errors = [];
   const cfg = node.config || {};
   const push = (message, extra) => errors.push({ nodeId: node.id, message, ...extra });
@@ -297,9 +297,30 @@ function validateLoopConfig(node) {
   if (triggerCount !== 1) {
     push(`loopBodyTriggerCount:${triggerCount}`);
   }
-  const bodyResult = validateGraphCore(body);
+  const bodyResult = validateGraphCore(body, ctx);
   for (const e of bodyResult.errors) {
     errors.push({ ...e, nodeId: `${node.id}.${e.nodeId}` });
+  }
+  return errors;
+}
+
+/**
+ * A tool node whose schema is known (fetched and cached by the studio, see
+ * `hooks/useToolSchemas.js`) warns — never blocks — when a required
+ * parameter has no value in `config.args`: an upstream node can still
+ * supply it at run time, so this can't be a hard error client-side. Nodes
+ * whose schema hasn't been fetched yet (or failed to load) are silently
+ * skipped; the warning simply appears once the schema is cached.
+ */
+function validateToolArgs(node, ctx) {
+  const entry = ctx?.toolSchemas?.[node.config?.tool];
+  if (!entry || entry.status !== "ready" || !entry.schema) return [];
+  const args = node.config?.args || {};
+  const errors = [];
+  for (const param of entry.schema.params || []) {
+    if (param.required && !(param.name in args)) {
+      errors.push({ nodeId: node.id, message: `toolMissingRequiredArg:${param.name}`, level: "warning" });
+    }
   }
   return errors;
 }
@@ -313,12 +334,17 @@ function validateLoopConfig(node) {
  * `validateGraphCore` is also used recursively on a loop node's `body`
  * sub-graph, which is why the loop/template checks below never need to know
  * whether they're looking at the outer graph or a nested one.
+ *
+ * `ctx.toolSchemas` (optional) is the studio's tool-schema cache — a map of
+ * `{[tool_ref]: {status, schema}}` — threaded through so tool nodes (at any
+ * nesting level) can be checked against their real parameter list. Omitting
+ * it just skips that one check, so existing callers are unaffected.
  */
-export function validateGraphLocal(graph) {
-  return validateGraphCore(graph);
+export function validateGraphLocal(graph, ctx = {}) {
+  return validateGraphCore(graph, ctx);
 }
 
-function validateGraphCore(graph) {
+function validateGraphCore(graph, ctx = {}) {
   const nodes = graph?.nodes || [];
   const edges = graph?.edges || [];
   const errors = [];
@@ -361,10 +387,13 @@ function validateGraphCore(graph) {
       errors.push({ nodeId: n.id, message: `notRunnable:${n.type}`, level: "warning" });
     }
     if (n.type === "loop") {
-      errors.push(...validateLoopConfig(n));
+      errors.push(...validateLoopConfig(n, ctx));
     }
     if (n.type === "convert" && !CONVERT_TARGETS.includes(n.config?.to)) {
       errors.push({ nodeId: n.id, message: `convertUnknownTarget:${n.config?.to}` });
+    }
+    if (n.type === "tool") {
+      errors.push(...validateToolArgs(n, ctx));
     }
     if (n.type === "output" && edges.some((e) => e.source === n.id)) {
       errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
