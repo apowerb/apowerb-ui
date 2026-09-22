@@ -210,6 +210,20 @@ describe("extractTemplateRefs / templateSuggestionsFor", () => {
 });
 
 describe("validateGraphLocal", () => {
+  it("refuses a second trigger: only the first would be armed, yet each would emit the payload", () => {
+    const result = validateGraphLocal({
+      nodes: [
+        { id: "t1", type: "trigger", config: { kind: "manual" } },
+        { id: "t2", type: "trigger", config: { kind: "manual" } },
+        { id: "a", type: "agent", config: { agent_id: "agent1" } },
+      ],
+      edges: [{ source: "t1", target: "a" }, { source: "t2", target: "a" }],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual({ nodeId: "t2", message: "multipleTriggers:2" });
+    expect(result.errors.filter((e) => e.nodeId === "t1" && e.message.startsWith("multipleTriggers"))).toEqual([]);
+  });
+
   const validGraph = {
     version: 1,
     nodes: [

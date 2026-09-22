@@ -52,6 +52,14 @@ describe("http and notification in the graph model", () => {
     expect(withPlainHeader.errors.map((e) => e.message)).not.toContain(expect.stringMatching(/^httpHeaderForbidden/));
   });
 
+  it("refuses a Host header: the engine sets it from the URL", () => {
+    const withHost = validateGraphLocal({
+      nodes: [trigger, { id: "h", type: "http", config: { method: "GET", url: "https://api.example.com", headers: [{ key: " Host ", value: "evil.example" }], timeout_s: 15 } }],
+      edges: [{ source: "t", target: "h" }],
+    });
+    expect(withHost.errors.map((e) => e.message)).toContain("httpHeaderHost");
+  });
+
   it("requires a public URL, or accepts a template", () => {
     const missing = validateGraphLocal({
       nodes: [trigger, { id: "h", type: "http", config: { method: "GET", url: "", headers: [], timeout_s: 15 } }],

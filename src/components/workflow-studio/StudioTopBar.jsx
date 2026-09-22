@@ -72,7 +72,8 @@ export default function StudioTopBar({
           {saveState === "saving" && <Loader2 size={11} className="animate-spin" />}
           {saveState === "idle" && <CheckCircle2 size={11} className="text-emerald-400/70" />}
           {saveState === "error" && <AlertTriangle size={11} className="text-red-400" />}
-          {t(saveState === "saving" ? "saving" : saveState === "error" ? "saveError" : "saveIdle")}
+          {saveState === "dirty" && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true" />}
+          {t(saveState === "saving" ? "saving" : saveState === "error" ? "saveError" : saveState === "dirty" ? "saveDirty" : "saveIdle")}
         </span>
 
         <div className="flex-1" />
