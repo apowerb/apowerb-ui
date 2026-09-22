@@ -13,6 +13,13 @@ import {
   NOTIFICATION_CHANNELS,
   NOTIFICATION_MAX_RECIPIENTS,
   isHttpHeaderForbidden,
+  EXTRACT_FIELD_TYPES,
+  RAG_TOP_K_MIN,
+  RAG_TOP_K_MAX,
+  TRY_ROUTES,
+  TRY_RETRIES_CAP,
+  TRY_RETRY_DELAY_MS_CAP,
+  CONDITION_ROUTES,
   nodeIdRenameError,
   filterToolOptions,
 } from "@/lib/workflowGraph";
@@ -77,8 +84,13 @@ function insertAtCursor(ref, value, onChange, snippet) {
   });
 }
 
-/** A text input/textarea plus one-click `{{node...}}` chips for every upstream node. */
-function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline, t }) {
+/**
+ * A text input/textarea plus one-click `{{node...}}` chips for every
+ * upstream node. `numeric` only hints the on-screen keyboard/font — the
+ * value stays free text so a `{{node.output}}` template still fits, which
+ * is why a tool's number/integer arguments use this instead of `type="number"`.
+ */
+function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline, numeric, t }) {
   const ref = useRef(null);
   const suggestions = upstreamNodes.flatMap((n) => templateSuggestionsFor(n).slice(0, 1).map((snippet) => ({ node: n, snippet })));
   const Comp = multiline ? "textarea" : "input";
@@ -90,6 +102,7 @@ function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline,
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={multiline ? 3 : undefined}
+        inputMode={!multiline && numeric ? "decimal" : undefined}
         className="w-full px-2.5 py-1.5 text-xs font-mono rounded-lg th-bg-surface border th-border-secondary th-text placeholder:th-text-ghost focus:outline-none focus:ring-1 focus:ring-brand resize-y"
       />
       {suggestions.length > 0 && (
@@ -245,6 +258,32 @@ function DeleteButton({ onClick, label }) {
   );
 }
 
+/**
+ * The field/operator/value trio shared by every rule-based editor (router's
+ * routing rules, a condition's boolean rules). Router rules also carry a
+ * `route` name; that extra input is rendered by the caller, right after this.
+ */
+function RuleFieldOpValueRow({ rule, onChange, onRemove, t }) {
+  return (
+    <>
+      <div className="flex gap-1.5">
+        <input value={rule.field || ""} onChange={(e) => onChange({ field: e.target.value })} placeholder={t("ruleFieldPlaceholder")} className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
+        <button type="button" onClick={onRemove} title={t("removeRule")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+          <Trash2 size={12} />
+        </button>
+      </div>
+      <div className="flex gap-1.5">
+        <select value={rule.op || "eq"} onChange={(e) => onChange({ op: e.target.value })} className="px-1.5 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text">
+          {ROUTER_OPS.map((op) => (
+            <option key={op} value={op}>{t(`op${op.charAt(0).toUpperCase()}${op.slice(1)}`)}</option>
+          ))}
+        </select>
+        <input value={rule.value ?? ""} onChange={(e) => onChange({ value: e.target.value })} placeholder={t("ruleValue")} className="flex-1 min-w-0 px-2 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text" />
+      </div>
+    </>
+  );
+}
+
 function RulesEditor({ rules, defaultRoute, onChange, t }) {
   const update = (i, patch) => {
     const next = rules.slice();
@@ -260,20 +299,7 @@ function RulesEditor({ rules, defaultRoute, onChange, t }) {
       <div className="flex flex-col gap-2">
         {rules.map((rule, i) => (
           <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
-            <div className="flex gap-1.5">
-              <input value={rule.field || ""} onChange={(e) => update(i, { field: e.target.value })} placeholder={t("ruleFieldPlaceholder")} className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
-              <button type="button" onClick={() => remove(i)} title={t("removeRule")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
-                <Trash2 size={12} />
-              </button>
-            </div>
-            <div className="flex gap-1.5">
-              <select value={rule.op || "eq"} onChange={(e) => update(i, { op: e.target.value })} className="px-1.5 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text">
-                {ROUTER_OPS.map((op) => (
-                  <option key={op} value={op}>{t(`op${op.charAt(0).toUpperCase()}${op.slice(1)}`)}</option>
-                ))}
-              </select>
-              <input value={rule.value ?? ""} onChange={(e) => update(i, { value: e.target.value })} placeholder={t("ruleValue")} className="flex-1 min-w-0 px-2 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text" />
-            </div>
+            <RuleFieldOpValueRow rule={rule} onChange={(patch) => update(i, patch)} onRemove={() => remove(i)} t={t} />
             <input value={rule.route || ""} onChange={(e) => update(i, { route: e.target.value })} placeholder={t("ruleRoutePlaceholder")} className="px-2 py-1 text-[11px] font-semibold rounded-md th-bg-elevated border th-border-secondary th-text" />
           </div>
         ))}
@@ -286,6 +312,85 @@ function RulesEditor({ rules, defaultRoute, onChange, t }) {
         <label className="block text-[11px] font-semibold th-text-secondary mb-1">{t("defaultRoute")}</label>
         <input value={defaultRoute || ""} onChange={(e) => onChange({ rules, default_route: e.target.value })} placeholder={t("defaultRoutePlaceholder")} className="w-full px-2.5 py-1.5 text-xs rounded-lg th-bg-surface border th-border-secondary th-text placeholder:th-text-ghost" />
       </div>
+    </div>
+  );
+}
+
+/** A condition node's rules: same field/op/value trio as the router, but no per-rule route — the two outputs are the fixed `true`/`false` routes, combined by `match`. */
+function ConditionRulesEditor({ rules, match, onChange, t }) {
+  const update = (i, patch) => {
+    const next = rules.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange({ rules: next, match });
+  };
+  const remove = (i) => onChange({ rules: rules.filter((_, idx) => idx !== i), match });
+  const add = () => onChange({ rules: [...rules, { field: "", op: "eq", value: "" }], match });
+
+  return (
+    <div>
+      <Field label={t("conditionMatch")}>
+        <SelectInput value={match || "all"} onChange={(e) => onChange({ rules, match: e.target.value })}>
+          <option value="all">{t("conditionMatchAll")}</option>
+          <option value="any">{t("conditionMatchAny")}</option>
+        </SelectInput>
+      </Field>
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("rulesTitle")}</label>
+      <div className="flex flex-col gap-2">
+        {rules.map((rule, i) => (
+          <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
+            <RuleFieldOpValueRow rule={rule} onChange={(patch) => update(i, patch)} onRemove={() => remove(i)} t={t} />
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={add} className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary">
+        <Plus size={12} />
+        {t("addRule")}
+      </button>
+      {rules.length === 0 && <p className="mt-1.5 text-[10px] text-amber-400">{t("conditionRulesMin")}</p>}
+    </div>
+  );
+}
+
+/** A set node's `key -> value` fields: an array (not a plain object like ArgsEditor's tool args) so duplicate keys can be typed and then flagged by validation instead of silently overwriting each other. */
+function SetFieldsEditor({ fields, onChange, upstreamNodes, t }) {
+  const update = (i, patch) => {
+    const next = fields.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange(next);
+  };
+  const remove = (i) => onChange(fields.filter((_, idx) => idx !== i));
+  const add = () => onChange([...fields, { key: "", value: "" }]);
+
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("setFields")}</label>
+      <div className="flex flex-col gap-2">
+        {fields.map((f, i) => (
+          <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
+            <div className="flex gap-1.5 items-center">
+              <input value={f.key || ""} onChange={(e) => update(i, { key: e.target.value })} placeholder={t("setFieldKeyPlaceholder")} className="w-1/3 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
+              <input value={f.value ?? ""} onChange={(e) => update(i, { value: e.target.value })} placeholder={t("setFieldValuePlaceholder")} className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
+              <button type="button" onClick={() => remove(i)} title={t("removeField")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+                <Trash2 size={12} />
+              </button>
+            </div>
+            {upstreamNodes.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {upstreamNodes.map((n) => (
+                  <button key={n.id} type="button" onClick={() => update(i, { value: `${f.value || ""}{{${n.id}.output}}` })} className="px-1.5 py-0.5 text-[10px] font-mono rounded-md th-bg-elevated hover:th-bg-surface-hover th-text-faint border th-border-secondary">
+                    {n.label || n.id}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={add} className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary">
+        <Plus size={12} />
+        {t("addField")}
+      </button>
+      {fields.length === 0 && <p className="mt-1.5 text-[10px] text-amber-400">{t("setFieldsMin")}</p>}
     </div>
   );
 }
@@ -324,7 +429,67 @@ function RoutesEditor({ routes, onChange, t }) {
   );
 }
 
-function ArgsEditor({ args, onChange, upstreamNodes, t }) {
+/** Add/remove editor for an extract node's declared fields: name, type, description, required. */
+function ExtractFieldsEditor({ fields, onChange, t }) {
+  const update = (i, patch) => {
+    const next = fields.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange(next);
+  };
+  const remove = (i) => onChange(fields.filter((_, idx) => idx !== i));
+  const add = () => onChange([...fields, { name: "", type: "string", description: "", required: false }]);
+
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("extractFieldsTitle")}</label>
+      <div className="flex flex-col gap-2">
+        {fields.map((f, i) => (
+          <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
+            <div className="flex gap-1.5">
+              <input
+                value={f.name || ""}
+                onChange={(e) => update(i, { name: e.target.value })}
+                placeholder={t("extractFieldNamePlaceholder")}
+                aria-label={t("extractFieldName")}
+                className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text"
+              />
+              <select
+                value={f.type || "string"}
+                onChange={(e) => update(i, { type: e.target.value })}
+                aria-label={t("extractFieldType")}
+                className="px-1.5 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text"
+              >
+                {EXTRACT_FIELD_TYPES.map((type) => <option key={type} value={type}>{t(`extractFieldType_${type}`)}</option>)}
+              </select>
+              <button type="button" onClick={() => remove(i)} title={t("removeField")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+                <Trash2 size={12} />
+              </button>
+            </div>
+            <textarea
+              value={f.description || ""}
+              onChange={(e) => update(i, { description: e.target.value })}
+              placeholder={t("extractFieldDescriptionPlaceholder")}
+              aria-label={t("extractFieldDescription")}
+              rows={2}
+              className="px-2 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text resize-y"
+            />
+            <label className="flex items-center gap-1.5 text-[11px] th-text-secondary">
+              <input type="checkbox" checked={!!f.required} onChange={(e) => update(i, { required: e.target.checked })} />
+              {t("extractFieldRequired")}
+            </label>
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={add} className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary">
+        <Plus size={12} />
+        {t("addExtractField")}
+      </button>
+      {(fields.length < 1 || fields.length > 30) && <p className="mt-1.5 text-[10px] text-amber-400">{t("extractFieldsCountHelp")}</p>}
+    </div>
+  );
+}
+
+function ArgsEditor({ args, onChange, upstreamNodes, t, titleKey = "args" }) {
   const entries = Object.entries(args || {});
   const update = (key, newKey, value) => {
     const next = {};
@@ -341,7 +506,7 @@ function ArgsEditor({ args, onChange, upstreamNodes, t }) {
 
   return (
     <div>
-      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("args")}</label>
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t(titleKey)}</label>
       <div className="flex flex-col gap-2">
         {entries.map(([key, value], i) => (
           <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
@@ -415,6 +580,86 @@ function HttpHeadersEditor({ headers, onChange, t }) {
   );
 }
 
+/** Binary on/off control for a boolean tool argument — always writes an explicit `true`/`false`. */
+function BooleanSwitch({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors focus:outline-none focus:ring-1 focus:ring-brand ${checked ? "bg-brand border-brand" : "th-bg-surface th-border-secondary"}`}
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4" : "translate-x-1"}`}
+      />
+    </button>
+  );
+}
+
+// A whole value that is nothing but one `{{...}}` template — the only shape
+// a template can take inside an array/object/any argument, since the rest
+// of that value has to be valid JSON.
+const WHOLE_TEMPLATE_RE = /^\{\{[^{}]+\}\}$/;
+
+/**
+ * JSON textarea for a tool argument typed array/object/any: same buffered-text
+ * pattern as `JsonField` (typing invalid JSON never corrupts the saved
+ * config), plus one extra accepted shape — the whole field can also be a
+ * single `{{node.output}}` template, kept as a raw string for the run-time
+ * template engine to resolve.
+ */
+function ToolJsonOrTemplateField({ value, onChange, t }) {
+  const stringify = (v) => (v === undefined ? "" : typeof v === "string" ? v : JSON.stringify(v, null, 2));
+  const [text, setText] = useState(() => stringify(value));
+  const [error, setError] = useState(null);
+  // Same "adjust state when a prop changes" pattern as JsonField: a value
+  // coming from outside (undo, other node) resets the buffer during render.
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    setText(stringify(value));
+    setError(null);
+  }
+
+  const handleChange = (raw) => {
+    setText(raw);
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      setError(null);
+      setSyncedValue(undefined);
+      onChange(undefined);
+      return;
+    }
+    if (WHOLE_TEMPLATE_RE.test(trimmed)) {
+      setError(null);
+      setSyncedValue(trimmed);
+      onChange(trimmed);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      setError(null);
+      setSyncedValue(parsed);
+      onChange(parsed);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div>
+      <textarea
+        value={text}
+        rows={4}
+        onChange={(e) => handleChange(e.target.value)}
+        className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-lg th-bg-surface border ${error ? "border-red-500/60" : "th-border-secondary"} th-text resize-y focus:outline-none focus:ring-1 focus:ring-brand`}
+      />
+      {error && <p className="mt-1 text-[10px] text-red-400">{t("invalidJson", { message: error })}</p>}
+    </div>
+  );
+}
+
 /** Email recipients for the notification node: add/remove, capped at NOTIFICATION_MAX_RECIPIENTS. */
 function NotificationRecipientsEditor({ to, onChange, t }) {
   const update = (i, value) => {
@@ -458,6 +703,173 @@ function NotificationRecipientsEditor({ to, onChange, t }) {
 }
 
 /**
+ * One field for one schema parameter. `enum` wins over `type` (a string
+ * with a fixed set of values is still a dropdown), then dispatches on
+ * `type`; anything outside the known families (an unlisted type) degrades
+ * to a plain template text field rather than disappearing.
+ */
+function ToolArgField({ param, value, onChange, upstreamNodes, t }) {
+  const label = param.required ? `${param.name} *` : param.name;
+  const help = param.description || undefined;
+  const hasDefault = param.default !== undefined && param.default !== null;
+  const placeholder = hasDefault ? String(param.default) : undefined;
+
+  if (Array.isArray(param.enum) && param.enum.length > 0) {
+    return (
+      <Field label={label} help={help}>
+        <SelectInput value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{hasDefault ? t("toolArgDefaultOption", { value: placeholder }) : t("toolArgUnsetOption")}</option>
+          {param.enum.map((opt) => (
+            <option key={String(opt)} value={opt}>{String(opt)}</option>
+          ))}
+        </SelectInput>
+      </Field>
+    );
+  }
+
+  if (param.type === "boolean") {
+    return (
+      <Field label={label} help={help}>
+        <BooleanSwitch checked={Boolean(value ?? param.default ?? false)} onChange={onChange} />
+      </Field>
+    );
+  }
+
+  if (param.type === "array" || param.type === "object" || param.type === "any") {
+    return (
+      <Field label={label} help={help}>
+        <ToolJsonOrTemplateField value={value} onChange={onChange} t={t} />
+      </Field>
+    );
+  }
+
+  return (
+    <Field label={label} help={help}>
+      <TemplateInput
+        value={typeof value === "string" || value === undefined ? value : String(value)}
+        onChange={onChange}
+        placeholder={placeholder}
+        upstreamNodes={upstreamNodes}
+        numeric={param.type === "number" || param.type === "integer"}
+        t={t}
+      />
+    </Field>
+  );
+}
+
+/**
+ * `config.args` entries the schema doesn't know about. A `tool_config`-style
+ * tool that declared `accepts_kwargs` gets the free-form `ArgsEditor` for
+ * them (they're legitimate, just not declared); otherwise each one is a
+ * warning with a one-click way to drop it.
+ */
+function ExtraArgsSection({ args, schemaNames, acceptsKwargs, onChange, upstreamNodes, t }) {
+  const extraEntries = Object.entries(args || {}).filter(([key]) => !schemaNames.has(key));
+  if (extraEntries.length === 0) return null;
+
+  if (acceptsKwargs) {
+    const extraArgs = Object.fromEntries(extraEntries);
+    const onExtraChange = (nextExtra) => {
+      const next = { ...args };
+      for (const [key] of extraEntries) delete next[key];
+      onChange({ ...next, ...nextExtra });
+    };
+    return (
+      <div className="mt-3 pt-3 border-t th-border-secondary">
+        <ArgsEditor args={extraArgs} onChange={onExtraChange} upstreamNodes={upstreamNodes} t={t} titleKey="toolExtraArgsTitle" />
+      </div>
+    );
+  }
+
+  const removeArg = (key) => {
+    const next = { ...args };
+    delete next[key];
+    onChange(next);
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t th-border-secondary flex flex-col gap-1.5">
+      <label className="block text-[11px] font-semibold text-amber-400">{t("toolUnknownArgsTitle")}</label>
+      {extraEntries.map(([key]) => (
+        <div key={key} className="p-2 rounded-lg border border-amber-500/30 bg-amber-500/5 flex items-center justify-between gap-2">
+          <p className="text-[11px] th-text truncate">{t("toolUnknownArg", { value: key })}</p>
+          <button type="button" onClick={() => removeArg(key)} title={t("removeArg")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+            <Trash2 size={12} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Tool node body: the picker plus, once the schema for `config.tool` is
+ * cached, a form generated from it instead of the free-form `ArgsEditor`.
+ * `schemaEntry`/`ensureToolSchema` come from `useToolSchemas()`, lifted to
+ * the studio so the cache survives re-selecting a node. Falls back to the
+ * classic `ArgsEditor` whenever there's no usable schema — no tool picked
+ * yet, still loading, or the fetch failed — so the node is always editable.
+ */
+function ToolArgsSection({ config, patch, toolOptions, schemaEntry, ensureToolSchema, upstreamNodes, t }) {
+  useEffect(() => {
+    if (config.tool) ensureToolSchema(config.tool);
+  }, [config.tool, ensureToolSchema]);
+
+  const args = config.args || {};
+  const setArgs = (next) => patch({ args: next });
+  const schema = schemaEntry?.status === "ready" ? schemaEntry.schema : null;
+  const schemaNames = new Set((schema?.params || []).map((p) => p.name));
+
+  const setArg = (name, value) => {
+    const next = { ...args };
+    const isEmpty = value === undefined || value === "" || (typeof value === "string" && value.trim() === "");
+    if (isEmpty) delete next[name];
+    else next[name] = value;
+    setArgs(next);
+  };
+
+  return (
+    <>
+      {toolOptions.length === 0 ? (
+        <Field label={t("toolLabel")}>
+          <p className="text-xs th-text-ghost">{t("toolNone")}</p>
+        </Field>
+      ) : (
+        <ToolPicker value={config.tool} options={toolOptions} onChange={(tool) => patch({ tool })} t={t} />
+      )}
+
+      {config.tool && schemaEntry?.status === "loading" && (
+        <p className="mb-2 text-[10px] th-text-ghost">{t("toolSchemaLoading")}</p>
+      )}
+      {config.tool && schemaEntry?.status === "error" && (
+        <p className="mb-2 text-[10px] th-text-ghost">{t("toolSchemaUnavailable")}</p>
+      )}
+      {schema?.needs_agent_context && (
+        <p className="mb-2 text-[10px] text-amber-400">{t("toolNeedsAgentContext")}</p>
+      )}
+
+      {schema ? (
+        <>
+          {(schema.params || []).map((param) => (
+            <ToolArgField key={param.name} param={param} value={args[param.name]} onChange={(v) => setArg(param.name, v)} upstreamNodes={upstreamNodes} t={t} />
+          ))}
+          <ExtraArgsSection
+            args={args}
+            schemaNames={schemaNames}
+            acceptsKwargs={!!schema.accepts_kwargs}
+            onChange={setArgs}
+            upstreamNodes={upstreamNodes}
+            t={t}
+          />
+        </>
+      ) : (
+        <ArgsEditor args={args} onChange={setArgs} upstreamNodes={upstreamNodes} t={t} />
+      )}
+    </>
+  );
+}
+
+/**
  * Right-hand contextual inspector. `node`/`edge` come from the parent
  * already resolved from the selection; `onPatchConfig` merges a partial
  * config object (shallow) — callers that need to replace a whole sub-object
@@ -469,6 +881,10 @@ export default function StudioInspector({
   edges,
   agentOptions = [],
   toolOptions = [],
+  toolSchemas = {},
+  ensureToolSchema = () => {},
+  workflowOptions = [],
+  currentWorkflowId,
   onChangeLabel,
   onRenameNode,
   onPatchConfig,
@@ -529,7 +945,7 @@ export default function StudioInspector({
           <Field label={t("edgeRoute")}>
             <SelectInput value={edge.data?.route || ""} onChange={(e) => onChangeEdgeRoute(edge.id, e.target.value)}>
               <option value="">{t("edgeRoutePlaceholder")}</option>
-              {routes.map((r) => <option key={r} value={r}>{r}</option>)}
+              {routes.map((r) => <option key={r} value={r}>{routeOptionLabel(sourceNode, r, t)}</option>)}
             </SelectInput>
           </Field>
         ) : (
@@ -588,16 +1004,15 @@ export default function StudioInspector({
       )}
 
       {node.type === "tool" && (
-        <>
-          {toolOptions.length === 0 ? (
-            <Field label={t("toolLabel")}>
-              <p className="text-xs th-text-ghost">{t("toolNone")}</p>
-            </Field>
-          ) : (
-            <ToolPicker value={config.tool} options={toolOptions} onChange={(tool) => patch({ tool })} t={t} />
-          )}
-          <ArgsEditor args={config.args} onChange={(args) => patch({ args })} upstreamNodes={upstreamNodes} t={t} />
-        </>
+        <ToolArgsSection
+          config={config}
+          patch={patch}
+          toolOptions={toolOptions}
+          schemaEntry={toolSchemas[config.tool || ""]}
+          ensureToolSchema={ensureToolSchema}
+          upstreamNodes={upstreamNodes}
+          t={t}
+        />
       )}
 
       {node.type === "router" && (
@@ -624,7 +1039,7 @@ export default function StudioInspector({
 
       {node.type === "convert" && (
         <>
-          <Field label={t("convertTo")}>
+          <Field label={t("convertTo")} help={(config.to === "csv" || config.to === "date") ? t(`convertTo_${config.to}_help`) : undefined}>
             <SelectInput value={config.to || "text"} onChange={(e) => patch({ to: e.target.value })}>
               {CONVERT_TARGETS.map((to) => <option key={to} value={to}>{t(`convertTo_${to}`)}</option>)}
             </SelectInput>
@@ -669,6 +1084,53 @@ export default function StudioInspector({
         </>
       )}
 
+      {node.type === "extract" && (
+        <>
+          <Field label={t("agentLabel")}>
+            {agentOptions.length === 0 ? (
+              <p className="text-xs th-text-ghost">{t("agentNone")}</p>
+            ) : (
+              <SelectInput value={config.agent_id || ""} onChange={(e) => patch({ agent_id: e.target.value })}>
+                <option value="">{t("agentPlaceholder")}</option>
+                {agentOptions.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+              </SelectInput>
+            )}
+          </Field>
+          <Field label={t("extractInput")} help={t("extractInputHelp")}>
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+          </Field>
+          <ExtractFieldsEditor fields={config.fields || []} onChange={(fields) => patch({ fields })} t={t} />
+          <p className="mt-1.5 text-[10px] th-text-ghost">{t("extractFieldsHelp", { id: node.id })}</p>
+        </>
+      )}
+
+      {node.type === "rag" && (
+        <>
+          <Field label={t("agentLabel")}>
+            {agentOptions.length === 0 ? (
+              <p className="text-xs th-text-ghost">{t("agentNone")}</p>
+            ) : (
+              <SelectInput value={config.agent_id || ""} onChange={(e) => patch({ agent_id: e.target.value })}>
+                <option value="">{t("agentPlaceholder")}</option>
+                {agentOptions.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+              </SelectInput>
+            )}
+          </Field>
+          <Field label={t("ragQuery")} help={t("ragHelp", { id: node.id })}>
+            <TemplateInput value={config.query} onChange={(v) => patch({ query: v })} upstreamNodes={upstreamNodes} t={t} />
+          </Field>
+          <Field label={t("ragTopK")} help={t("ragTopKHelp")}>
+            <TextInput
+              type="number"
+              min={RAG_TOP_K_MIN}
+              max={RAG_TOP_K_MAX}
+              value={config.top_k ?? ""}
+              onChange={(e) => patch({ top_k: e.target.value === "" ? "" : Number(e.target.value) })}
+            />
+          </Field>
+        </>
+      )}
+
       {node.type === "notification" && (
         <>
           <Field label={t("notificationChannel")}>
@@ -708,6 +1170,14 @@ export default function StudioInspector({
           )}
           {(config.channel || "app") === "app" && <p className="text-xs th-text-ghost">{t("notificationAppHelp")}</p>}
         </>
+      )}
+
+      {node.type === "set" && (
+        <SetFieldsEditor fields={config.fields || []} onChange={(fields) => patch({ fields })} upstreamNodes={upstreamNodes} t={t} />
+      )}
+
+      {node.type === "condition" && (
+        <ConditionRulesEditor rules={config.rules || []} match={config.match || "all"} onChange={(v) => patch(v)} t={t} />
       )}
 
       {node.type === "loop" && (
@@ -765,6 +1235,61 @@ export default function StudioInspector({
         </>
       )}
 
+      {node.type === "try" && (
+        <>
+          <Field label={t("tryRetries")} help={t("tryRetriesHelp")}>
+            <TextInput
+              type="number"
+              min={0}
+              max={TRY_RETRIES_CAP}
+              value={config.retries ?? 0}
+              onChange={(e) => patch({ retries: e.target.value === "" ? "" : Number(e.target.value) })}
+            />
+          </Field>
+          <Field label={t("tryRetryDelay")} help={t("tryRetryDelayHelp")}>
+            <TextInput
+              type="number"
+              min={0}
+              max={TRY_RETRY_DELAY_MS_CAP}
+              step={100}
+              value={config.retry_delay_ms ?? 0}
+              onChange={(e) => patch({ retry_delay_ms: e.target.value === "" ? "" : Number(e.target.value) })}
+            />
+          </Field>
+          <Field label={t("tryBody")} help={t("tryBodyHelp")}>
+            <button
+              type="button"
+              onClick={() => onOpenLoopBody(node.id)}
+              className="w-full flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary"
+            >
+              {t("tryBodyOpen")}
+              <ChevronRight size={14} />
+            </button>
+          </Field>
+        </>
+      )}
+
+      {node.type === "subworkflow" && (
+        <>
+          <Field label={t("subworkflowTarget")}>
+            {(() => {
+              const available = workflowOptions.filter((w) => String(w.value) !== String(currentWorkflowId));
+              return available.length === 0 ? (
+                <p className="text-xs th-text-ghost">{t("subworkflowNone")}</p>
+              ) : (
+                <SelectInput value={config.workflow_id || ""} onChange={(e) => patch({ workflow_id: e.target.value })}>
+                  <option value="">{t("subworkflowPlaceholder")}</option>
+                  {available.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
+                </SelectInput>
+              );
+            })()}
+          </Field>
+          <Field label={t("subworkflowInput")} help={t("subworkflowInputHelp")}>
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+          </Field>
+        </>
+      )}
+
       {node.type === "approval" && <p className="text-xs th-text-ghost">{t("soonHelp")}</p>}
 
       <DeleteButton onClick={() => onDeleteNode(node.id)} label={t("deleteNode")} />
@@ -783,5 +1308,20 @@ function routesOf(sourceNode) {
   if (sourceNode.type === "classifier") {
     return (cfg.routes || []).map((r) => r.route).filter(Boolean);
   }
+  if (sourceNode.type === "try") {
+    return TRY_ROUTES;
+  }
+  if (sourceNode.type === "condition") {
+    return CONDITION_ROUTES;
+  }
   return null;
+}
+
+/** "true"/"false" and a try's "ok"/"error" are shown translated; a router/classifier's routes are free text and shown as-is. */
+function routeOptionLabel(sourceNode, route, t) {
+  if (sourceNode?.type === "try") return t(`tryRoute_${route}`);
+  if (sourceNode?.type === "condition") {
+    return route === "true" ? t("conditionRouteTrue") : t("conditionRouteFalse");
+  }
+  return route;
 }

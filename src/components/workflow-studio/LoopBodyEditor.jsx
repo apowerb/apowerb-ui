@@ -18,18 +18,22 @@ import {
   nextNodeId,
 } from "@/lib/workflowGraph";
 
-const HIDDEN_TYPES = new Set(["loop", "approval"]);
+const HIDDEN_TYPES = new Set(["loop", "try", "approval"]);
 
 /**
- * Full-screen modal editing a loop node's `config.body` sub-graph. Reuses
- * the same canvas/palette/inspector as the main studio — a loop body is
- * just another {version,nodes,edges} graph — minus `loop`/`approval` in the
- * palette, so a body can't nest another loop in this pass (see the
- * project's `loopUncappedNesting` note: nesting is legal per spec but
- * building a fully recursive editor wasn't worth it this round).
+ * Full-screen modal editing a loop or try node's `config.body` sub-graph.
+ * Reuses the same canvas/palette/inspector as the main studio — a body is
+ * just another {version,nodes,edges} graph — minus `loop`/`try`/`approval`
+ * in the palette, so a body can't nest another flow-control container in
+ * this pass (see the project's `loopUncappedNesting` note: nesting is legal
+ * per spec but building a fully recursive editor wasn't worth it this
+ * round). `node.type` ("loop" or "try") only changes the header wording and
+ * a couple of translated strings below — the editing surface itself doesn't
+ * care which container it's embedded in.
  */
-export default function LoopBodyEditor({ loopNode, body, onChange, onClose, agentOptions, toolOptions }) {
+export default function LoopBodyEditor({ node, body, onChange, onClose, agentOptions, toolOptions, workflowOptions, currentWorkflowId, toolSchemas = {}, ensureToolSchema = () => {} }) {
   const t = useTranslations("LoopBodyEditor");
+  const isTry = node?.type === "try";
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => graphToFlow(body), [body]);
   const {
     nodes, edges, setNodes, setEdges, onNodesChange, onEdgesChange,
@@ -37,6 +41,17 @@ export default function LoopBodyEditor({ loopNode, body, onChange, onClose, agen
   } = useUndoRedo(initialNodes, initialEdges);
 
   const [selection, setSelection] = useState(null);
+
+  // Same prefetch as the main studio (see WorkflowStudio.jsx): a tool node
+  // already inside this body, or one the user just configured here, gets
+  // its schema fetched through the cache shared with the outer canvas.
+  const toolRefsInUse = useMemo(
+    () => [...new Set(nodes.filter((n) => n.type === "tool" && n.data?.config?.tool).map((n) => n.data.config.tool))],
+    [nodes],
+  );
+  useEffect(() => {
+    for (const toolRef of toolRefsInUse) ensureToolSchema(toolRef);
+  }, [toolRefsInUse, ensureToolSchema]);
 
   // Push every change up as a graph — the parent studio treats this like any
   // other config edit, so the outer autosave picks it up without a second
@@ -150,8 +165,12 @@ export default function LoopBodyEditor({ loopNode, body, onChange, onClose, agen
     <div className="fixed inset-0 z-50 flex flex-col th-bg-body" role="dialog" aria-modal="true">
       <div className="h-14 px-4 flex items-center gap-3 border-b th-border-secondary th-bg-sidebar shrink-0">
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-bold th-text truncate">{t("title", { label: loopNode?.data?.label || loopNode?.id })}</h3>
-          <p className="text-[11px] th-text-ghost truncate">{t("subtitle")}</p>
+          <h3 className="text-sm font-bold th-text truncate">
+            {isTry
+              ? t("titleTry", { label: node?.data?.label || node?.id })
+              : t("title", { label: node?.data?.label || node?.id })}
+          </h3>
+          <p className="text-[11px] th-text-ghost truncate">{isTry ? t("subtitleTry") : t("subtitle")}</p>
         </div>
         {triggerCount !== 1 && (
           <span className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-medium bg-amber-500/15 text-amber-300 shrink-0">
@@ -200,6 +219,10 @@ export default function LoopBodyEditor({ loopNode, body, onChange, onClose, agen
           edges={edges}
           agentOptions={agentOptions}
           toolOptions={toolOptions}
+          toolSchemas={toolSchemas}
+          ensureToolSchema={ensureToolSchema}
+          workflowOptions={workflowOptions}
+          currentWorkflowId={currentWorkflowId}
           onChangeLabel={changeLabel}
           onPatchConfig={patchNodeConfig}
           onChangeEdgeRoute={changeEdgeRoute}

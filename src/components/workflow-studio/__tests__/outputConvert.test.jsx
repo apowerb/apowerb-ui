@@ -19,7 +19,7 @@ describe("output and convert in the graph model", () => {
     expect(createNode("convert").config).toEqual({ to: "text" });
     // No `value` key: an empty template would replace the output with "".
     expect(createNode("output").config).toEqual({});
-    expect(CONVERT_TARGETS).toEqual(["text", "json", "number", "boolean", "list"]);
+    expect(CONVERT_TARGETS).toEqual(["text", "json", "number", "boolean", "list", "csv", "date"]);
   });
 
   it("refuses an edge leaving an output node", () => {
