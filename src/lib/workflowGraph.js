@@ -26,6 +26,8 @@ export const NODE_TYPES = [
   "subworkflow",
   "output",
   "convert",
+  "http",
+  "notification",
   "extract",
   "rag",
   "set",
@@ -53,6 +55,29 @@ export const RAG_TOP_K_DEFAULT = 5;
 export const RAG_TOP_K_MIN = 1;
 export const RAG_TOP_K_MAX = 20;
 
+/** HTTP methods the http node exposes; mirrors the backend's allowed set. GET is the default. */
+export const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+export const HTTP_METHODS_WITH_BODY = new Set(["POST", "PUT", "PATCH"]);
+export const HTTP_TIMEOUT_MIN = 1;
+export const HTTP_TIMEOUT_MAX = 30;
+export const HTTP_TIMEOUT_DEFAULT = 15;
+
+// Headers that can only ever carry a secret (a credential, a session cookie,
+// a proxy password): writing one into a workflow means the secret sits in
+// plain text in the graph JSON — in history, in exports, in anyone who can
+// open the studio. Refused case-insensitively; `auth.integration_id` is the
+// sanctioned way to authenticate an http node, and it isn't exposed in this
+// lot (21/09).
+const HTTP_FORBIDDEN_HEADERS = new Set(["authorization", "proxy-authorization", "cookie", "x-api-key"]);
+
+export function isHttpHeaderForbidden(key) {
+  return HTTP_FORBIDDEN_HEADERS.has(String(key || "").trim().toLowerCase());
+}
+
+/** Notification channels; `app` needs no recipients, `email` needs 1–10, `teams` posts to the workflow owner's saved webhook. */
+export const NOTIFICATION_CHANNELS = ["app", "email", "teams"];
+export const NOTIFICATION_MAX_RECIPIENTS = 10;
+
 // Present in the palette but the backend's /run and /validate reject it —
 // kept in one place so the inspector, the palette badge and local
 // validation agree. `loop` used to be here too; the backend runs it now
@@ -77,6 +102,13 @@ export function createLoopBody() {
 
 // family/color are pure data so both the palette and the node badges (two
 // different render layers) read from one source instead of drifting apart.
+// `http` and `notification` join `tool`/`convert` in "tools": all four are
+// generic actions a workflow performs on the outside world (call a
+// catalogued tool, reshape a value, call an arbitrary endpoint, notify
+// someone) rather than a decision the graph makes — unlike a dedicated
+// "integrations" family, this needs no new palette section or color and
+// keeps the closed Studio palette (amber/brand/violet/emerald/blue, see
+// nodes/NodeShell.jsx) intact.
 export const NODE_FAMILIES = {
   trigger: { family: "trigger", color: "amber" },
   agent: { family: "intelligence", color: "brand" },
@@ -90,6 +122,8 @@ export const NODE_FAMILIES = {
   subworkflow: { family: "logic", color: "violet" },
   convert: { family: "tools", color: "emerald" },
   output: { family: "output", color: "amber" },
+  http: { family: "tools", color: "emerald" },
+  notification: { family: "tools", color: "emerald" },
   // Both agent-driven (an `agent_id` in config, same selector as agent/classifier) —
   // "intelligence" already covers that shape; a dedicated "knowledge" family for
   // rag alone would be one node wide and split the palette for no reason.
@@ -135,6 +169,14 @@ function defaultConfig(type) {
       return { workflow_id: "" };
     case "convert":
       return { to: "text" };
+    case "http":
+      // No `auth` key: the field isn't exposed in this lot, and the backend
+      // reads a missing key the same as an explicit `auth: null`.
+      return { method: "GET", url: "", headers: [], timeout_s: HTTP_TIMEOUT_DEFAULT };
+    case "notification":
+      // No `to` key for the default `app` channel — matches `output`'s empty
+      // default: a key that doesn't apply yet shouldn't ship a stray value.
+      return { channel: "app", subject: "", body: "" };
     case "extract":
       return { agent_id: "", input: "", fields: [] };
     case "rag":
@@ -388,6 +430,61 @@ function validateLoopConfig(node, options) {
   return errors;
 }
 
+/** URL must be a public http(s) address, or a `{{...}}` template resolved at run time — the backend can't check a template ahead of time, so a templated URL is accepted locally and left to the server's run-time refusal (`http_url_refused`). */
+function validateHttpConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+
+  const url = typeof cfg.url === "string" ? cfg.url.trim() : "";
+  if (!url) {
+    push("httpUrlRequired");
+  } else if (!/^https?:\/\//i.test(url) && !url.startsWith("{{")) {
+    push(`httpUrlInvalid:${url}`);
+  }
+
+  const timeout = cfg.timeout_s;
+  if (!Number.isInteger(timeout) || timeout < HTTP_TIMEOUT_MIN || timeout > HTTP_TIMEOUT_MAX) {
+    push("httpTimeoutRange");
+  }
+
+  for (const header of cfg.headers || []) {
+    if (isHttpHeaderForbidden(header?.key)) {
+      push(`httpHeaderForbidden:${header.key}`);
+    }
+  }
+
+  return errors;
+}
+
+function validateNotificationConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+  const channel = cfg.channel || "app";
+  const to = Array.isArray(cfg.to) ? cfg.to : [];
+
+  if (channel === "email") {
+    const validRecipients = to.filter((r) => String(r || "").trim());
+    if (validRecipients.length < 1 || validRecipients.length > NOTIFICATION_MAX_RECIPIENTS || validRecipients.length !== to.length) {
+      push("notificationRecipientsRequired");
+    }
+    if (!String(cfg.subject || "").trim()) {
+      push("notificationSubjectRequired");
+    }
+  } else if (channel === "teams") {
+    if (to.length > 0) push("notificationRecipientsNotAllowed");
+    if (!String(cfg.subject || "").trim()) {
+      push("notificationSubjectRequired");
+    }
+  } else {
+    // app: notifies the workflow's owner in-product, nothing to address.
+    if (to.length > 0) push("notificationRecipientsNotAllowed");
+  }
+
+  return errors;
+}
+
 /**
  * `try`'s body validation mirrors `validateLoopConfig` (body present, exactly
  * one trigger, recursed and namespaced as `${node.id}.${innerId}`) plus its
@@ -588,6 +685,12 @@ function validateGraphCore(graph, options = {}) {
     }
     if (n.type === "output" && edges.some((e) => e.source === n.id)) {
       errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
+    }
+    if (n.type === "http") {
+      errors.push(...validateHttpConfig(n));
+    }
+    if (n.type === "notification") {
+      errors.push(...validateNotificationConfig(n));
     }
     if (n.type === "extract") {
       errors.push(...validateExtractConfig(n));

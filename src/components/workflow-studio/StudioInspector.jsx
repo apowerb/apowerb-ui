@@ -8,6 +8,11 @@ import {
   templateSuggestionsFor,
   LOOP_OPERATORS,
   CONVERT_TARGETS,
+  HTTP_METHODS,
+  HTTP_METHODS_WITH_BODY,
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_MAX_RECIPIENTS,
+  isHttpHeaderForbidden,
   EXTRACT_FIELD_TYPES,
   RAG_TOP_K_MIN,
   RAG_TOP_K_MAX,
@@ -18,6 +23,8 @@ import {
   nodeIdRenameError,
   filterToolOptions,
 } from "@/lib/workflowGraph";
+import { getTeamsWebhookStatus } from "@/lib/api";
+import { Link } from "@/lib/navigation";
 
 const ROUTER_OPS = ["eq", "ne", "gt", "gte", "lt", "lte", "contains", "in", "exists"];
 
@@ -530,6 +537,49 @@ function ArgsEditor({ args, onChange, upstreamNodes, t, titleKey = "args" }) {
   );
 }
 
+/** Key/value editor for the http node's headers: flags Authorization/Proxy-Authorization/Cookie/X-Api-Key (any case) inline, since those can only ever carry a secret. */
+function HttpHeadersEditor({ headers, onChange, t }) {
+  const update = (i, patch) => {
+    const next = headers.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange(next);
+  };
+  const remove = (i) => onChange(headers.filter((_, idx) => idx !== i));
+  const add = () => onChange([...headers, { key: "", value: "" }]);
+
+  return (
+    <div className="mb-3">
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("httpHeaders")}</label>
+      <div className="flex flex-col gap-2">
+        {headers.map((h, i) => {
+          const forbidden = isHttpHeaderForbidden(h?.key);
+          return (
+            <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
+              <div className="flex gap-1.5 items-center">
+                <input
+                  value={h.key || ""}
+                  onChange={(e) => update(i, { key: e.target.value })}
+                  placeholder={t("httpHeaderKey")}
+                  className={`w-1/3 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border ${forbidden ? "border-red-500/60" : "th-border-secondary"} th-text`}
+                />
+                <input value={h.value || ""} onChange={(e) => update(i, { value: e.target.value })} placeholder={t("httpHeaderValue")} className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
+                <button type="button" onClick={() => remove(i)} title={t("removeArg")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+              {forbidden && <p className="text-[10px] text-red-400">{t("httpHeaderForbidden", { key: h.key })}</p>}
+            </div>
+          );
+        })}
+      </div>
+      <button type="button" onClick={add} className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary">
+        <Plus size={12} />
+        {t("addHeader")}
+      </button>
+    </div>
+  );
+}
+
 /** Binary on/off control for a boolean tool argument — always writes an explicit `true`/`false`. */
 function BooleanSwitch({ checked, onChange }) {
   return (
@@ -606,6 +656,48 @@ function ToolJsonOrTemplateField({ value, onChange, t }) {
         className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-lg th-bg-surface border ${error ? "border-red-500/60" : "th-border-secondary"} th-text resize-y focus:outline-none focus:ring-1 focus:ring-brand`}
       />
       {error && <p className="mt-1 text-[10px] text-red-400">{t("invalidJson", { message: error })}</p>}
+    </div>
+  );
+}
+
+/** Email recipients for the notification node: add/remove, capped at NOTIFICATION_MAX_RECIPIENTS. */
+function NotificationRecipientsEditor({ to, onChange, t }) {
+  const update = (i, value) => {
+    const next = to.slice();
+    next[i] = value;
+    onChange(next);
+  };
+  const remove = (i) => onChange(to.filter((_, idx) => idx !== i));
+  const add = () => onChange([...to, ""]);
+
+  return (
+    <div className="mb-3">
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("notificationRecipients")}</label>
+      <div className="flex flex-col gap-1.5">
+        {to.map((r, i) => (
+          <div key={i} className="flex gap-1.5">
+            <input
+              value={r}
+              onChange={(e) => update(i, e.target.value)}
+              placeholder={t("notificationRecipientPlaceholder")}
+              className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text"
+            />
+            <button type="button" onClick={() => remove(i)} title={t("removeArg")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+              <Trash2 size={12} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={add}
+        disabled={to.length >= NOTIFICATION_MAX_RECIPIENTS}
+        className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary disabled:opacity-40"
+      >
+        <Plus size={12} />
+        {t("notificationAddRecipient")}
+      </button>
+      {to.length === 0 && <p className="mt-1.5 text-[10px] text-amber-400">{t("notificationRecipientsMin")}</p>}
     </div>
   );
 }
@@ -803,6 +895,34 @@ export default function StudioInspector({
 }) {
   const t = useTranslations("WorkflowInspector");
 
+  // Reused across the early returns below, so declared unconditionally
+  // (rules of hooks) rather than inside the `node.type === "notification"`
+  // branch further down.
+  const notificationTeamsChannel =
+    selection?.kind === "node" &&
+    selection.node?.type === "notification" &&
+    selection.node?.data?.config?.channel === "teams";
+  const [teamsWebhookConfigured, setTeamsWebhookConfigured] = useState(null);
+
+  useEffect(() => {
+    if (!notificationTeamsChannel) {
+      setTeamsWebhookConfigured(null); // eslint-disable-line react-hooks/set-state-in-effect -- resets status when the selection changes away from the teams channel
+      return;
+    }
+    let cancelled = false;
+    Promise.resolve(getTeamsWebhookStatus())
+      .then((res) => {
+        if (cancelled) return;
+        setTeamsWebhookConfigured(typeof res?.configured === "boolean" ? res.configured : null);
+      })
+      .catch(() => {
+        if (!cancelled) setTeamsWebhookConfigured(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [notificationTeamsChannel]);
+
   if (!selection) {
     return (
       <div className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 hidden xl:flex flex-col items-center justify-center text-center h-full">
@@ -936,6 +1056,34 @@ export default function StudioInspector({
         </Field>
       )}
 
+      {node.type === "http" && (
+        <>
+          <Field label={t("httpMethod")}>
+            <SelectInput value={config.method || "GET"} onChange={(e) => patch({ method: e.target.value })}>
+              {HTTP_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label={t("httpUrl")} help={t("httpUrlHelp")}>
+            <TemplateInput value={config.url} onChange={(v) => patch({ url: v })} placeholder={t("httpUrlPlaceholder")} upstreamNodes={upstreamNodes} t={t} />
+          </Field>
+          <HttpHeadersEditor headers={config.headers || []} onChange={(headers) => patch({ headers })} t={t} />
+          {HTTP_METHODS_WITH_BODY.has(config.method || "GET") && (
+            <Field label={t("httpBody")} help={t("httpBodyHelp")}>
+              <TemplateInput value={config.body} onChange={(v) => patch({ body: v || undefined })} multiline upstreamNodes={upstreamNodes} t={t} />
+            </Field>
+          )}
+          <Field label={t("httpTimeout")} help={t("httpTimeoutHelp")}>
+            <TextInput
+              type="number"
+              min={1}
+              max={30}
+              value={config.timeout_s ?? ""}
+              onChange={(e) => patch({ timeout_s: e.target.value === "" ? "" : Number(e.target.value) })}
+            />
+          </Field>
+        </>
+      )}
+
       {node.type === "extract" && (
         <>
           <Field label={t("agentLabel")}>
@@ -980,6 +1128,47 @@ export default function StudioInspector({
               onChange={(e) => patch({ top_k: e.target.value === "" ? "" : Number(e.target.value) })}
             />
           </Field>
+        </>
+      )}
+
+      {node.type === "notification" && (
+        <>
+          <Field label={t("notificationChannel")}>
+            <SelectInput value={config.channel || "app"} onChange={(e) => patch({ channel: e.target.value })}>
+              {NOTIFICATION_CHANNELS.map((c) => <option key={c} value={c}>{t(`notificationChannel_${c}`)}</option>)}
+            </SelectInput>
+          </Field>
+          {config.channel === "email" && (
+            <>
+              <NotificationRecipientsEditor to={config.to || []} onChange={(to) => patch({ to })} t={t} />
+              <Field label={t("notificationSubject")}>
+                <TextInput value={config.subject || ""} onChange={(e) => patch({ subject: e.target.value })} />
+              </Field>
+              <Field label={t("notificationBody")}>
+                <TemplateInput value={config.body} onChange={(v) => patch({ body: v })} multiline upstreamNodes={upstreamNodes} t={t} />
+              </Field>
+            </>
+          )}
+          {config.channel === "teams" && (
+            <>
+              <Field label={t("notificationSubject")}>
+                <TextInput value={config.subject || ""} onChange={(e) => patch({ subject: e.target.value })} />
+              </Field>
+              <Field label={t("notificationBody")}>
+                <TemplateInput value={config.body} onChange={(v) => patch({ body: v })} multiline upstreamNodes={upstreamNodes} t={t} />
+              </Field>
+              <p className="text-xs th-text-ghost">{t("notificationTeamsHelp")}</p>
+              {teamsWebhookConfigured === false && (
+                <p className="text-xs text-amber-400 mt-1">
+                  {t("notificationTeamsWebhookMissing")}{" "}
+                  <Link href="/integrations" className="underline">
+                    {t("notificationTeamsWebhookMissingLink")}
+                  </Link>
+                </p>
+              )}
+            </>
+          )}
+          {(config.channel || "app") === "app" && <p className="text-xs th-text-ghost">{t("notificationAppHelp")}</p>}
         </>
       )}
 

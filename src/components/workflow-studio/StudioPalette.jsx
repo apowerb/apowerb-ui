@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen } from "lucide-react";
+import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { NODE_FAMILIES, UNRUNNABLE_NODE_TYPES } from "@/lib/workflowGraph";
 
@@ -18,6 +18,8 @@ const ICONS = {
   subworkflow: Workflow,
   convert: ArrowRightLeft,
   output: Flag,
+  http: Globe,
+  notification: Bell,
   extract: ScanText,
   rag: BookOpen,
   set: ListPlus,

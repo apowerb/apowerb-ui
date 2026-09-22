@@ -1,6 +1,6 @@
 "use client";
 
-import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen } from "lucide-react";
+import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
 import { NODE_FAMILIES } from "@/lib/workflowGraph";
@@ -282,6 +282,23 @@ export function OutputNode({ data, selected }) {
   );
 }
 
+export function HttpNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const method = data.config?.method || "GET";
+  const url = data.config?.url;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeHttp")}
+      subtitle={url ? `${method} ${url}` : method}
+      color={NODE_FAMILIES.http.color}
+      icon={Globe}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
 export function ExtractNode({ data, selected }) {
   const t = useTranslations("WorkflowPalette");
   const tn = useTranslations("WorkflowNode");
@@ -311,6 +328,26 @@ export function SetNode({ data, selected }) {
       title={data.label || t("nodeSet")}
       color={NODE_FAMILIES.set.color}
       icon={ListPlus}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function NotificationNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const ti = useTranslations("WorkflowInspector");
+  const channel = data.config?.channel || "app";
+  const subtitle = channel === "email"
+    ? `${ti("notificationChannel_email")} · ${(data.config?.to || []).length}`
+    : ti(`notificationChannel_${channel}`);
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeNotification")}
+      subtitle={subtitle}
+      color={NODE_FAMILIES.notification.color}
+      icon={Bell}
     >
       <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
     </NodeShell>
@@ -369,6 +406,8 @@ export const studioNodeTypes = {
   subworkflow: SubworkflowNode,
   convert: ConvertNode,
   output: OutputNode,
+  http: HttpNode,
+  notification: NotificationNode,
   extract: ExtractNode,
   rag: RagNode,
   set: SetNode,

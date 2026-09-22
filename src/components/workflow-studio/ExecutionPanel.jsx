@@ -52,6 +52,15 @@ const TRANSLATED_ERRORS = new Set([
   "classifier_no_route",
   "loop_items_not_list",
   "convert_failed",
+  // http / notification nodes (LOT 3, 21/09).
+  "http_url_refused",
+  "http_response_too_large",
+  "http_timeout",
+  "http_failed",
+  "notification_rate_limited",
+  "notification_bad_recipient",
+  "teams_not_configured",
+  "teams_failed",
   "extract_failed",
   "rag_no_knowledge",
   "rag_failed",
@@ -64,7 +73,17 @@ function errorText(t, error) {
   if (!error) return "";
   if (typeof error === "string") return error;
   if (error.code && TRANSLATED_ERRORS.has(error.code)) {
-    return t(`runError_${error.code}`, { ...error.params, ref: error.ref ?? "-" });
+    const params = { ...error.params, ref: error.ref ?? "-" };
+    // ICU's `select` needs a matched keyword, not the bare JS value — a
+    // param the server sends as `null` (e.g. teams_failed.status when the
+    // webhook never got a response) must become the string "null" or
+    // intl-messageformat throws instead of falling into the `null {}`
+    // branch. Mirrors the `remaining ?? "null"` fix already used for
+    // loopCapped below.
+    for (const key of Object.keys(params)) {
+      if (params[key] === null) params[key] = "null";
+    }
+    return t(`runError_${error.code}`, params);
   }
   return error.detail || t("statusError");
 }
