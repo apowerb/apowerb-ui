@@ -348,7 +348,7 @@ function ArgsEditor({ args, onChange, upstreamNodes, t }) {
             {upstreamNodes.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {upstreamNodes.map((n) => (
-                  <button key={n.id} type="button" onClick={() => updateValue(key, `${value || ""}{{${n.id}.output}}`)} className="px-1.5 py-0.5 text-[10px] font-mono rounded-md th-bg-elevated hover:th-bg-surface-hover th-text-faint border th-border-secondary">
+                  <button key={n.id} type="button" onClick={() => updateValue(key, `${value || ""}${templateSuggestionsFor(n)[0]}`)} className="px-1.5 py-0.5 text-[10px] font-mono rounded-md th-bg-elevated hover:th-bg-surface-hover th-text-faint border th-border-secondary">
                     {n.label || n.id}
                   </button>
                 ))}

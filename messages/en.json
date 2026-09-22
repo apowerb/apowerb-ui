@@ -3349,7 +3349,7 @@
     "convertInput": "Value to convert",
     "convertInputHelp": "Leave empty to convert the upstream output. Text becomes a list line by line; JSON is read even inside a ``` block.",
     "outputValue": "Output value",
-    "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes."
+    "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes. Only one Router/Classifier branch runs per pass — the others give \"\", so '{{'agent1'}}{{'agent2'}}' safely combines branches that never both fire."
   },
   "WorkflowExecutionPanel": {
     "title": "Test run",
@@ -3408,6 +3408,7 @@
     "runError_classifier_no_route": "Classifier {node} answered outside its routes ({routes}): make the route descriptions more distinct.",
     "runError_loop_items_not_list": "Loop {node}: items resolved to {type}, not a list. Point it at a list from an upstream node.",
     "runError_convert_failed": "Convert {node} could not read its input as {to}. Check the upstream output, or pick another conversion.",
+    "runError_template_ref_invalid": "Node {node} uses a template reference the engine can't resolve. Reference a node's whole output as '{{'id'}}', or one of its real fields (ref. {ref}).",
     "replayTitle": "Replay",
     "replayPlay": "Replay the run",
     "replayPause": "Pause",
@@ -3456,6 +3457,9 @@
     "templateSelfRef": "{value} refers to its own node",
     "templateUnknownNode": "{value} refers to a node that doesn't exist",
     "templateNotUpstream": "{value} refers to a node that isn't upstream of this one",
+    "templateRefInvalid": "{value} can't be resolved: a router/classifier's taken route isn't stored — reference the node's whole output as '{{'id'}}' instead",
+    "templateRefLegacyOutput": "{value} only resolves if that agent replies in JSON — reference the whole output as '{{'id'}}' instead, or use the real field once the agent's reply is JSON",
+    "templateRefLegacyPayload": "{value} looks for a \"payload\" field inside the payload and renders empty — the trigger's output is already its payload: use '{{'id'}}' or one of its real fields",
     "loopMaxIterations": "Max iterations must be a whole number between 1 and 100",
     "loopItemsRequired": "Foreach mode needs an items template",
     "loopUntilRequired": "Until mode needs a field and an operator",

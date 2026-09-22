@@ -166,6 +166,14 @@ export function graphToFlow(graph) {
     type: n.type,
     position: n.position || { x: 0, y: 0 },
     data: { label: n.label || "", nodeType: n.type, config: n.config || {} },
+    // xyflow reserves "input"/"default"/"output"/"group" as built-in node
+    // type names and styles `.react-flow__node-<type>` itself (fixed
+    // width, white background, dark border). Our "output" node type
+    // collides, so that default styling used to render behind our custom
+    // card — a white rectangle poking out once selected. This marker
+    // class (xyflow appends `node.className` next to its own type class)
+    // lets globals.css reset just that collision.
+    ...(n.type === "output" ? { className: "workflow-output-node" } : {}),
   }));
   const edges = (graph?.edges || []).map((e, i) => ({
     id: e.id || `${e.source}->${e.target}#${e.route || i}`,
@@ -237,19 +245,28 @@ export function extractTemplateRefs(value, acc = []) {
   return acc;
 }
 
+/**
+ * Field names known to resolve on a node's stored output, or `[]` when it
+ * has none (its whole output is the only thing `{{id}}` can reach — the
+ * engine stores each node's raw output, so an agent's text or a router's
+ * passthrough have no sub-fields; only a trigger's declared sample payload
+ * does).
+ */
+function declaredTemplateFields(node) {
+  if (node.type === "trigger") {
+    const payload = node.config?.sample_payload;
+    if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+      return Object.keys(payload);
+    }
+  }
+  return [];
+}
+
 /** Suggested `{{id...}}` snippets for a given upstream node, shown as one-click chips in the inspector. */
 export function templateSuggestionsFor(node) {
   if (!node) return [];
-  const base = [`{{${node.id}}}`];
-  switch (node.type) {
-    case "trigger":
-      return [`{{${node.id}.payload}}`, ...base];
-    case "router":
-    case "classifier":
-      return [`{{${node.id}.route}}`, `{{${node.id}.output}}`, ...base];
-    default:
-      return [`{{${node.id}.output}}`, ...base];
-  }
+  const fields = declaredTemplateFields(node);
+  return [`{{${node.id}}}`, ...fields.map((f) => `{{${node.id}.${f}}}`)];
 }
 
 // --- local validation -----------------------------------------------------
@@ -316,6 +333,33 @@ function validateLoopConfig(node) {
  */
 export function validateGraphLocal(graph) {
   return validateGraphCore(graph);
+}
+
+/**
+ * A `{{refNode.path}}` issue worth flagging locally, or `null` when it's
+ * fine. The engine JSON-parses an agent's reply when it can, so a real
+ * field path on an agent (`{{agentA.montant}}`) is legitimate and not
+ * flagged — only the legacy `{{id.output}}` pastille form is, and only as
+ * a non-blocking warning, since it still resolves for a JSON-replying
+ * agent. A router/classifier's taken route is never stored, so `.route`
+ * on either is a hard error.
+ */
+function templateRefIssue(refNode, path) {
+  if (!refNode) return null; // unknown node — already reported as templateUnknownNode
+  const firstSegment = path.split(".")[0];
+  if (refNode.type === "agent" && firstSegment === "output") {
+    return { code: "templateRefLegacyOutput", level: "warning" };
+  }
+  // The trigger's output IS its payload: the legacy `{{trigger.payload}}`
+  // pastille looks up a "payload" key inside it and renders "" — unless the
+  // declared sample really has such a key.
+  if (refNode.type === "trigger" && firstSegment === "payload" && !declaredTemplateFields(refNode).includes("payload")) {
+    return { code: "templateRefLegacyPayload", level: "warning" };
+  }
+  if ((refNode.type === "router" || refNode.type === "classifier") && firstSegment === "route") {
+    return { code: "templateRefInvalid" };
+  }
+  return null;
 }
 
 function validateGraphCore(graph) {
@@ -386,6 +430,17 @@ function validateGraphCore(graph) {
         errors.push({ nodeId: n.id, message: `templateUnknownNode:${ref.raw}` });
       } else if (!upstream.has(ref.nodeId)) {
         errors.push({ nodeId: n.id, message: `templateNotUpstream:${ref.raw}` });
+      } else if (ref.path) {
+        // Fast, local mirror of the engine's checks: a router/classifier
+        // never stores its taken route, so `.route` is a hard rejection.
+        // `{{agentX.output}}` is only the legacy pastille form — the
+        // engine JSON-parses an agent's reply when it can, so it still
+        // resolves for a JSON-replying agent, hence a warning, not an
+        // error. Any other agent path is left alone.
+        const issue = templateRefIssue(nodes.find((x) => x.id === ref.nodeId), ref.path);
+        if (issue) {
+          errors.push({ nodeId: n.id, message: `${issue.code}:${ref.raw}`, ...(issue.level ? { level: issue.level } : {}) });
+        }
       }
     }
   }
