@@ -3762,6 +3762,7 @@
     "runError_rag_failed": "RAG {node} n’a pas pu interroger sa base de connaissances. Réessaie dans un instant, ou vérifie la connexion de la base de connaissances de l’agent.",
     "attempt": "Tentative {index}",
     "runError_subworkflow_not_found": "Le sous-workflow {workflow} référencé par {node} est introuvable (supprimé, ou pas à toi) : choisis un autre workflow dans le nœud.",
+    "runError_single_trigger": "Un workflow n’a qu’un seul déclencheur ({triggers} trouvés) : garde-en un, supprime les autres, puis relance.",
     "runError_subworkflow_cycle": "Le sous-workflow {workflow} appelé depuis {node} rappellerait un workflow déjà en cours d'exécution : ce cycle n'est pas autorisé.",
     "runError_subworkflow_too_deep": "Le sous-workflow {node} dépasse la profondeur d'imbrication maximale ({max}) : aplatis la chaîne d'appels."
   },

@@ -302,6 +302,26 @@ describe("WorkflowStudio", () => {
     await waitFor(() => expect(runWorkflowDef).toHaveBeenCalledTimes(2));
   });
 
+  it("words a coded refusal in the UI language instead of the server's French sentence", async () => {
+    const refused = Object.assign(new Error("un seul déclencheur par workflow (t1, t2) ; supprimez les autres"), {
+      status: 422,
+      detail: {
+        code: "single_trigger",
+        params: { triggers: "t1, t2" },
+        message: "un seul déclencheur par workflow (t1, t2) ; supprimez les autres",
+      },
+    });
+    runWorkflowDef.mockRejectedValueOnce(refused);
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByRole("button", { name: /^Test run/ }));
+    await user.click(screen.getByRole("button", { name: /^Run$/ }));
+    expect(await screen.findByText(/single trigger \(t1, t2 found\)/i)).toBeInTheDocument();
+    expect(screen.queryByText(/un seul déclencheur/)).not.toBeInTheDocument();
+  });
+
   it("says the change is not saved yet while the autosave waits", async () => {
     const user = userEvent.setup();
     render(<WorkflowStudio workflowId="wf1" />);

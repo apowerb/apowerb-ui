@@ -48,6 +48,11 @@ function runRequestErrorEvent(err) {
   if (!err.status || GATEWAY_STATUSES.has(err.status)) {
     return { event: "error", code: "server_unreachable", detail: err.message, params: { status: err.status ?? "-" } };
   }
+  // A refusal the server coded (e.g. single_trigger) is translated like a
+  // run error; its French sentence stays the fallback.
+  if (err.detail?.code) {
+    return { event: "error", code: err.detail.code, params: err.detail.params, detail: err.detail.message };
+  }
   return { event: "error", detail: err.message };
 }
 
