@@ -29,6 +29,7 @@ import { createRunState, applyRunEvent, runStatusByNodeId } from "@/lib/workflow
 import { consumeWorkflowRun } from "@/lib/workflowSse";
 import { useUndoRedo } from "./hooks/useUndoRedo";
 import { useRunReplay } from "./hooks/useRunReplay";
+import { useToolSchemas } from "./hooks/useToolSchemas";
 import StudioTopBar from "./StudioTopBar";
 import StudioPalette from "./StudioPalette";
 import StudioCanvas from "./StudioCanvas";
@@ -73,6 +74,7 @@ export default function WorkflowStudio({ workflowId }) {
 
   const [agentOptions, setAgentOptions] = useState([]);
   const [toolOptions, setToolOptions] = useState([]);
+  const { schemas: toolSchemas, ensure: ensureToolSchema } = useToolSchemas();
   const [workflowOptions, setWorkflowOptions] = useState([]);
 
   const lastSavedSnapshotRef = useRef(null);
@@ -116,6 +118,20 @@ export default function WorkflowStudio({ workflowId }) {
     );
   }, []);
 
+  // --- tool arg schemas ------------------------------------------------------
+  // Prefetches the schema for every tool node's `config.tool` already on the
+  // canvas — both "an existing tool node loads with the graph" and "the
+  // user just picked a tool" funnel through this same effect, since both
+  // change `nodes`. `ensure()` is a no-op for a tool_ref already cached or
+  // in flight, so switching selection or re-saving never re-fetches.
+  const toolRefsInUse = useMemo(
+    () => [...new Set(nodes.filter((n) => n.type === "tool" && n.data?.config?.tool).map((n) => n.data.config.tool))],
+    [nodes],
+  );
+  useEffect(() => {
+    for (const toolRef of toolRefsInUse) ensureToolSchema(toolRef);
+  }, [toolRefsInUse, ensureToolSchema]);
+
   // --- load the workflow ---------------------------------------------------
   const loadWorkflow = useCallback(
     (id) => {
@@ -148,8 +164,8 @@ export default function WorkflowStudio({ workflowId }) {
 
   // --- validation ------------------------------------------------------------
   const validation = useMemo(
-    () => validateGraphLocal(flowToGraph(nodes, edges), { currentWorkflowId: workflowId }),
-    [nodes, edges, workflowId],
+    () => validateGraphLocal(flowToGraph(nodes, edges), { toolSchemas, currentWorkflowId: workflowId }),
+    [nodes, edges, toolSchemas, workflowId],
   );
   const errorsByNode = useMemo(() => {
     const map = {};
@@ -582,6 +598,8 @@ export default function WorkflowStudio({ workflowId }) {
           edges={edges}
           agentOptions={agentOptions}
           toolOptions={toolOptions}
+          toolSchemas={toolSchemas}
+          ensureToolSchema={ensureToolSchema}
           workflowOptions={workflowOptions}
           currentWorkflowId={workflowId}
           onChangeLabel={changeLabel}
@@ -611,6 +629,8 @@ export default function WorkflowStudio({ workflowId }) {
           onClose={() => setBodyEditorNodeId(null)}
           agentOptions={agentOptions}
           toolOptions={toolOptions}
+          toolSchemas={toolSchemas}
+          ensureToolSchema={ensureToolSchema}
           workflowOptions={workflowOptions}
           currentWorkflowId={workflowId}
         />

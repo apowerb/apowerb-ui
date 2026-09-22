@@ -31,7 +31,7 @@ const HIDDEN_TYPES = new Set(["loop", "try", "approval"]);
  * a couple of translated strings below — the editing surface itself doesn't
  * care which container it's embedded in.
  */
-export default function LoopBodyEditor({ node, body, onChange, onClose, agentOptions, toolOptions, workflowOptions, currentWorkflowId }) {
+export default function LoopBodyEditor({ node, body, onChange, onClose, agentOptions, toolOptions, workflowOptions, currentWorkflowId, toolSchemas = {}, ensureToolSchema = () => {} }) {
   const t = useTranslations("LoopBodyEditor");
   const isTry = node?.type === "try";
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => graphToFlow(body), [body]);
@@ -41,6 +41,17 @@ export default function LoopBodyEditor({ node, body, onChange, onClose, agentOpt
   } = useUndoRedo(initialNodes, initialEdges);
 
   const [selection, setSelection] = useState(null);
+
+  // Same prefetch as the main studio (see WorkflowStudio.jsx): a tool node
+  // already inside this body, or one the user just configured here, gets
+  // its schema fetched through the cache shared with the outer canvas.
+  const toolRefsInUse = useMemo(
+    () => [...new Set(nodes.filter((n) => n.type === "tool" && n.data?.config?.tool).map((n) => n.data.config.tool))],
+    [nodes],
+  );
+  useEffect(() => {
+    for (const toolRef of toolRefsInUse) ensureToolSchema(toolRef);
+  }, [toolRefsInUse, ensureToolSchema]);
 
   // Push every change up as a graph — the parent studio treats this like any
   // other config edit, so the outer autosave picks it up without a second
@@ -208,6 +219,8 @@ export default function LoopBodyEditor({ node, body, onChange, onClose, agentOpt
           edges={edges}
           agentOptions={agentOptions}
           toolOptions={toolOptions}
+          toolSchemas={toolSchemas}
+          ensureToolSchema={ensureToolSchema}
           workflowOptions={workflowOptions}
           currentWorkflowId={currentWorkflowId}
           onChangeLabel={changeLabel}

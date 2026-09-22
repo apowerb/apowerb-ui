@@ -467,6 +467,27 @@ function validateRagConfig(node) {
 }
 
 /**
+ * A tool node whose schema is known (fetched and cached by the studio, see
+ * `hooks/useToolSchemas.js`) warns — never blocks — when a required
+ * parameter has no value in `config.args`: an upstream node can still
+ * supply it at run time, so this can't be a hard error client-side. Nodes
+ * whose schema hasn't been fetched yet (or failed to load) are silently
+ * skipped; the warning simply appears once the schema is cached.
+ */
+function validateToolArgs(node, options) {
+  const entry = options?.toolSchemas?.[node.config?.tool];
+  if (!entry || entry.status !== "ready" || !entry.schema) return [];
+  const args = node.config?.args || {};
+  const errors = [];
+  for (const param of entry.schema.params || []) {
+    if (param.required && !(param.name in args)) {
+      errors.push({ nodeId: node.id, message: `toolMissingRequiredArg:${param.name}`, level: "warning" });
+    }
+  }
+  return errors;
+}
+
+/**
  * Fast local pass: node id shape/uniqueness, dangling edges, missing/unknown
  * route labels on router|classifier outgoing edges, and templates pointing
  * outside their node's upstream set. Returns {valid, errors:[{nodeId, message}]}.
@@ -480,6 +501,11 @@ function validateRagConfig(node) {
  * only bit of validation that needs context outside the graph itself (a
  * `subworkflow` node can't call the workflow it lives in). It threads
  * through the loop/try body recursion unchanged.
+ *
+ * `options.toolSchemas` (optional) is the studio's tool-schema cache — a map
+ * of `{[tool_ref]: {status, schema}}` — threaded the same way so tool nodes
+ * (at any nesting level) can be checked against their real parameter list.
+ * Omitting it just skips that one check.
  */
 export function validateGraphLocal(graph, options = {}) {
   return validateGraphCore(graph, options);
@@ -556,6 +582,9 @@ function validateGraphCore(graph, options = {}) {
     }
     if (n.type === "convert" && !CONVERT_TARGETS.includes(n.config?.to)) {
       errors.push({ nodeId: n.id, message: `convertUnknownTarget:${n.config?.to}` });
+    }
+    if (n.type === "tool") {
+      errors.push(...validateToolArgs(n, options));
     }
     if (n.type === "output" && edges.some((e) => e.source === n.id)) {
       errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
