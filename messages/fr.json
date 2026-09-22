@@ -3225,7 +3225,9 @@
     "noResults": "Aucun nœud ne correspond à « {query} »",
     "familyOutput": "Sortie",
     "nodeOutput": "Sortie",
-    "nodeConvert": "Conversion"
+    "nodeConvert": "Conversion",
+    "nodeSet": "Affecter",
+    "nodeCondition": "Condition"
   },
   "WorkflowNode": {
     "untitled": "Sans titre",
@@ -3348,8 +3350,24 @@
     "convertTo_list": "Liste",
     "convertInput": "Valeur à convertir",
     "convertInputHelp": "Laisse vide pour convertir la sortie amont. Un texte devient une liste ligne par ligne ; le JSON est lu même dans un bloc ```.",
+    "convertTo_csv": "CSV",
+    "convertTo_csv_help": "Une liste d’objets devient du texte CSV (et inversement) ; l’en-tête reprend toutes les clés rencontrées.",
+    "convertTo_date": "Date",
+    "convertTo_date_help": "Un texte ou un horodatage devient une date au format ISO.",
     "outputValue": "Valeur de sortie",
-    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds."
+    "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds.",
+    "setFields": "Champs",
+    "setFieldKeyPlaceholder": "nom du champ",
+    "setFieldValuePlaceholder": "Valeur (gabarit)",
+    "addField": "Ajouter un champ",
+    "removeField": "Retirer",
+    "setFieldsMin": "Un nœud Affecter a besoin d'au moins un champ.",
+    "conditionMatch": "Correspondance",
+    "conditionMatchAll": "Toutes les règles (ET)",
+    "conditionMatchAny": "Au moins une règle (OU)",
+    "conditionRulesMin": "Une condition a besoin d'au moins une règle.",
+    "conditionRouteTrue": "Vrai",
+    "conditionRouteFalse": "Faux"
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
@@ -3466,6 +3484,11 @@
     "unknown": "{value}",
     "onNode": "Sur {node} : {message}",
     "outputHasSuccessor": "Un nœud de sortie termine le flux : retire les liens qui en partent",
-    "convertUnknownTarget": "Conversion inconnue « {value} »"
+    "convertUnknownTarget": "Conversion inconnue « {value} »",
+    "setNoFields": "Un nœud Affecter a besoin d'au moins un champ",
+    "setFieldKeyRequired": "Un champ a besoin d'une clé non vide",
+    "setDuplicateKey": "Clé de champ en double « {value} »",
+    "conditionNoRules": "Une condition a besoin d'au moins une règle",
+    "conditionDuplicateRoute": "La route « {value} » a déjà une connexion"
   }
 }

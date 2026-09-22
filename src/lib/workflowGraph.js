@@ -24,10 +24,15 @@ export const NODE_TYPES = [
   "approval",
   "output",
   "convert",
+  "set",
+  "condition",
 ];
 
 /** What a convert node can turn its input into; mirrors the backend's CONVERT_TARGETS. */
-export const CONVERT_TARGETS = ["text", "json", "number", "boolean", "list"];
+export const CONVERT_TARGETS = ["text", "json", "number", "boolean", "list", "csv", "date"];
+
+/** A condition node's two fixed outgoing routes — never user-named, unlike router/classifier. */
+export const CONDITION_ROUTES = ["true", "false"];
 
 // Present in the palette but the backend's /run and /validate reject it —
 // kept in one place so the inspector, the palette badge and local
@@ -64,6 +69,8 @@ export const NODE_FAMILIES = {
   approval: { family: "logic", color: "violet" },
   convert: { family: "tools", color: "emerald" },
   output: { family: "output", color: "amber" },
+  set: { family: "tools", color: "emerald" },
+  condition: { family: "logic", color: "blue" },
 };
 
 export function createEmptyGraph() {
@@ -98,6 +105,10 @@ function defaultConfig(type) {
       return { mode: "foreach", max_iterations: 10, items: "", body: createLoopBody() };
     case "convert":
       return { to: "text" };
+    case "set":
+      return { fields: [] };
+    case "condition":
+      return { rules: [], match: "all" };
     default:
       return {};
   }
@@ -247,6 +258,9 @@ export function templateSuggestionsFor(node) {
     case "router":
     case "classifier":
       return [`{{${node.id}.route}}`, `{{${node.id}.output}}`, ...base];
+    case "condition":
+      // Passthrough: the engine stores the input unchanged, never the route.
+      return base;
     default:
       return [`{{${node.id}.output}}`, ...base];
   }
@@ -263,7 +277,34 @@ function declaredRoutes(node) {
   if (node.type === "classifier") {
     return new Set((node.config?.routes || []).map((r) => r.route).filter(Boolean));
   }
+  if (node.type === "condition") {
+    return new Set(CONDITION_ROUTES);
+  }
   return null; // not a routing node
+}
+
+function validateSetConfig(node) {
+  const errors = [];
+  const fields = node.config?.fields || [];
+  if (fields.length === 0) {
+    errors.push({ nodeId: node.id, message: "setNoFields" });
+    return errors;
+  }
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const f of fields) {
+    const key = (f?.key || "").trim();
+    if (!key) {
+      errors.push({ nodeId: node.id, message: "setFieldKeyRequired" });
+      continue;
+    }
+    if (seen.has(key)) duplicates.add(key);
+    seen.add(key);
+  }
+  for (const key of duplicates) {
+    errors.push({ nodeId: node.id, message: `setDuplicateKey:${key}` });
+  }
+  return errors;
 }
 
 function validateLoopConfig(node) {
@@ -356,6 +397,18 @@ function validateGraphCore(graph) {
       if (n.type === "classifier" && (n.config?.routes || []).length < 2) {
         errors.push({ nodeId: n.id, message: "classifierNeedsTwoRoutes" });
       }
+      if (n.type === "condition") {
+        // Router/classifier allow several edges per route (fan-out); a
+        // condition's two routes are a fixed if/else, so each may carry at
+        // most one edge.
+        const perRoute = {};
+        for (const e of outgoing) {
+          if (e.route) perRoute[e.route] = (perRoute[e.route] || 0) + 1;
+        }
+        for (const [route, count] of Object.entries(perRoute)) {
+          if (count > 1) errors.push({ nodeId: n.id, message: `conditionDuplicateRoute:${route}` });
+        }
+      }
     }
     if (UNRUNNABLE_NODE_TYPES.has(n.type)) {
       errors.push({ nodeId: n.id, message: `notRunnable:${n.type}`, level: "warning" });
@@ -368,6 +421,12 @@ function validateGraphCore(graph) {
     }
     if (n.type === "output" && edges.some((e) => e.source === n.id)) {
       errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
+    }
+    if (n.type === "set") {
+      errors.push(...validateSetConfig(n));
+    }
+    if (n.type === "condition" && (n.config?.rules || []).length === 0) {
+      errors.push({ nodeId: n.id, message: "conditionNoRules" });
     }
   }
 
