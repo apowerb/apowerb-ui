@@ -24,6 +24,7 @@ import {
   filterToolOptions,
 } from "@/lib/workflowGraph";
 import TriggerInspector from "./TriggerInspector";
+import NodeUsageHelp from "./NodeUsageHelp";
 import { getTeamsWebhookStatus } from "@/lib/api";
 import { Link } from "@/lib/navigation";
 
@@ -973,6 +974,7 @@ export default function StudioInspector({
   return (
     <div className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 overflow-y-auto h-full max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-2xl max-xl:bg-[var(--bg-modal)]">
       <h3 className="text-sm font-bold th-text mb-3">{t("title")}</h3>
+      <NodeUsageHelp key={node.type} type={node.type} id={node.id} />
       <NodeIdField key={node.id} nodeId={node.id} existingIds={nodes.map((n) => n.id)} onRename={onRenameNode} t={t} />
       <Field label={t("label")}>
         <TextInput value={node.data.label || ""} onChange={(e) => onChangeLabel(node.id, e.target.value)} placeholder={t("labelPlaceholder")} />
