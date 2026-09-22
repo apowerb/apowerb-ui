@@ -11,6 +11,10 @@ import {
   EXTRACT_FIELD_TYPES,
   RAG_TOP_K_MIN,
   RAG_TOP_K_MAX,
+  TRY_ROUTES,
+  TRY_RETRIES_CAP,
+  TRY_RETRY_DELAY_MS_CAP,
+  CONDITION_ROUTES,
   nodeIdRenameError,
   filterToolOptions,
 } from "@/lib/workflowGraph";
@@ -241,6 +245,32 @@ function DeleteButton({ onClick, label }) {
   );
 }
 
+/**
+ * The field/operator/value trio shared by every rule-based editor (router's
+ * routing rules, a condition's boolean rules). Router rules also carry a
+ * `route` name; that extra input is rendered by the caller, right after this.
+ */
+function RuleFieldOpValueRow({ rule, onChange, onRemove, t }) {
+  return (
+    <>
+      <div className="flex gap-1.5">
+        <input value={rule.field || ""} onChange={(e) => onChange({ field: e.target.value })} placeholder={t("ruleFieldPlaceholder")} className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
+        <button type="button" onClick={onRemove} title={t("removeRule")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+          <Trash2 size={12} />
+        </button>
+      </div>
+      <div className="flex gap-1.5">
+        <select value={rule.op || "eq"} onChange={(e) => onChange({ op: e.target.value })} className="px-1.5 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text">
+          {ROUTER_OPS.map((op) => (
+            <option key={op} value={op}>{t(`op${op.charAt(0).toUpperCase()}${op.slice(1)}`)}</option>
+          ))}
+        </select>
+        <input value={rule.value ?? ""} onChange={(e) => onChange({ value: e.target.value })} placeholder={t("ruleValue")} className="flex-1 min-w-0 px-2 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text" />
+      </div>
+    </>
+  );
+}
+
 function RulesEditor({ rules, defaultRoute, onChange, t }) {
   const update = (i, patch) => {
     const next = rules.slice();
@@ -256,20 +286,7 @@ function RulesEditor({ rules, defaultRoute, onChange, t }) {
       <div className="flex flex-col gap-2">
         {rules.map((rule, i) => (
           <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
-            <div className="flex gap-1.5">
-              <input value={rule.field || ""} onChange={(e) => update(i, { field: e.target.value })} placeholder={t("ruleFieldPlaceholder")} className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
-              <button type="button" onClick={() => remove(i)} title={t("removeRule")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
-                <Trash2 size={12} />
-              </button>
-            </div>
-            <div className="flex gap-1.5">
-              <select value={rule.op || "eq"} onChange={(e) => update(i, { op: e.target.value })} className="px-1.5 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text">
-                {ROUTER_OPS.map((op) => (
-                  <option key={op} value={op}>{t(`op${op.charAt(0).toUpperCase()}${op.slice(1)}`)}</option>
-                ))}
-              </select>
-              <input value={rule.value ?? ""} onChange={(e) => update(i, { value: e.target.value })} placeholder={t("ruleValue")} className="flex-1 min-w-0 px-2 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text" />
-            </div>
+            <RuleFieldOpValueRow rule={rule} onChange={(patch) => update(i, patch)} onRemove={() => remove(i)} t={t} />
             <input value={rule.route || ""} onChange={(e) => update(i, { route: e.target.value })} placeholder={t("ruleRoutePlaceholder")} className="px-2 py-1 text-[11px] font-semibold rounded-md th-bg-elevated border th-border-secondary th-text" />
           </div>
         ))}
@@ -282,6 +299,85 @@ function RulesEditor({ rules, defaultRoute, onChange, t }) {
         <label className="block text-[11px] font-semibold th-text-secondary mb-1">{t("defaultRoute")}</label>
         <input value={defaultRoute || ""} onChange={(e) => onChange({ rules, default_route: e.target.value })} placeholder={t("defaultRoutePlaceholder")} className="w-full px-2.5 py-1.5 text-xs rounded-lg th-bg-surface border th-border-secondary th-text placeholder:th-text-ghost" />
       </div>
+    </div>
+  );
+}
+
+/** A condition node's rules: same field/op/value trio as the router, but no per-rule route — the two outputs are the fixed `true`/`false` routes, combined by `match`. */
+function ConditionRulesEditor({ rules, match, onChange, t }) {
+  const update = (i, patch) => {
+    const next = rules.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange({ rules: next, match });
+  };
+  const remove = (i) => onChange({ rules: rules.filter((_, idx) => idx !== i), match });
+  const add = () => onChange({ rules: [...rules, { field: "", op: "eq", value: "" }], match });
+
+  return (
+    <div>
+      <Field label={t("conditionMatch")}>
+        <SelectInput value={match || "all"} onChange={(e) => onChange({ rules, match: e.target.value })}>
+          <option value="all">{t("conditionMatchAll")}</option>
+          <option value="any">{t("conditionMatchAny")}</option>
+        </SelectInput>
+      </Field>
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("rulesTitle")}</label>
+      <div className="flex flex-col gap-2">
+        {rules.map((rule, i) => (
+          <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
+            <RuleFieldOpValueRow rule={rule} onChange={(patch) => update(i, patch)} onRemove={() => remove(i)} t={t} />
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={add} className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary">
+        <Plus size={12} />
+        {t("addRule")}
+      </button>
+      {rules.length === 0 && <p className="mt-1.5 text-[10px] text-amber-400">{t("conditionRulesMin")}</p>}
+    </div>
+  );
+}
+
+/** A set node's `key -> value` fields: an array (not a plain object like ArgsEditor's tool args) so duplicate keys can be typed and then flagged by validation instead of silently overwriting each other. */
+function SetFieldsEditor({ fields, onChange, upstreamNodes, t }) {
+  const update = (i, patch) => {
+    const next = fields.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange(next);
+  };
+  const remove = (i) => onChange(fields.filter((_, idx) => idx !== i));
+  const add = () => onChange([...fields, { key: "", value: "" }]);
+
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("setFields")}</label>
+      <div className="flex flex-col gap-2">
+        {fields.map((f, i) => (
+          <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
+            <div className="flex gap-1.5 items-center">
+              <input value={f.key || ""} onChange={(e) => update(i, { key: e.target.value })} placeholder={t("setFieldKeyPlaceholder")} className="w-1/3 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
+              <input value={f.value ?? ""} onChange={(e) => update(i, { value: e.target.value })} placeholder={t("setFieldValuePlaceholder")} className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
+              <button type="button" onClick={() => remove(i)} title={t("removeField")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+                <Trash2 size={12} />
+              </button>
+            </div>
+            {upstreamNodes.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {upstreamNodes.map((n) => (
+                  <button key={n.id} type="button" onClick={() => update(i, { value: `${f.value || ""}{{${n.id}.output}}` })} className="px-1.5 py-0.5 text-[10px] font-mono rounded-md th-bg-elevated hover:th-bg-surface-hover th-text-faint border th-border-secondary">
+                    {n.label || n.id}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={add} className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary">
+        <Plus size={12} />
+        {t("addField")}
+      </button>
+      {fields.length === 0 && <p className="mt-1.5 text-[10px] text-amber-400">{t("setFieldsMin")}</p>}
     </div>
   );
 }
@@ -440,6 +536,8 @@ export default function StudioInspector({
   edges,
   agentOptions = [],
   toolOptions = [],
+  workflowOptions = [],
+  currentWorkflowId,
   onChangeLabel,
   onRenameNode,
   onPatchConfig,
@@ -472,7 +570,7 @@ export default function StudioInspector({
           <Field label={t("edgeRoute")}>
             <SelectInput value={edge.data?.route || ""} onChange={(e) => onChangeEdgeRoute(edge.id, e.target.value)}>
               <option value="">{t("edgeRoutePlaceholder")}</option>
-              {routes.map((r) => <option key={r} value={r}>{r}</option>)}
+              {routes.map((r) => <option key={r} value={r}>{routeOptionLabel(sourceNode, r, t)}</option>)}
             </SelectInput>
           </Field>
         ) : (
@@ -567,7 +665,7 @@ export default function StudioInspector({
 
       {node.type === "convert" && (
         <>
-          <Field label={t("convertTo")}>
+          <Field label={t("convertTo")} help={(config.to === "csv" || config.to === "date") ? t(`convertTo_${config.to}_help`) : undefined}>
             <SelectInput value={config.to || "text"} onChange={(e) => patch({ to: e.target.value })}>
               {CONVERT_TARGETS.map((to) => <option key={to} value={to}>{t(`convertTo_${to}`)}</option>)}
             </SelectInput>
@@ -631,6 +729,14 @@ export default function StudioInspector({
         </>
       )}
 
+      {node.type === "set" && (
+        <SetFieldsEditor fields={config.fields || []} onChange={(fields) => patch({ fields })} upstreamNodes={upstreamNodes} t={t} />
+      )}
+
+      {node.type === "condition" && (
+        <ConditionRulesEditor rules={config.rules || []} match={config.match || "all"} onChange={(v) => patch(v)} t={t} />
+      )}
+
       {node.type === "loop" && (
         <>
           <Field label={t("loopMode")}>
@@ -686,6 +792,61 @@ export default function StudioInspector({
         </>
       )}
 
+      {node.type === "try" && (
+        <>
+          <Field label={t("tryRetries")} help={t("tryRetriesHelp")}>
+            <TextInput
+              type="number"
+              min={0}
+              max={TRY_RETRIES_CAP}
+              value={config.retries ?? 0}
+              onChange={(e) => patch({ retries: e.target.value === "" ? "" : Number(e.target.value) })}
+            />
+          </Field>
+          <Field label={t("tryRetryDelay")} help={t("tryRetryDelayHelp")}>
+            <TextInput
+              type="number"
+              min={0}
+              max={TRY_RETRY_DELAY_MS_CAP}
+              step={100}
+              value={config.retry_delay_ms ?? 0}
+              onChange={(e) => patch({ retry_delay_ms: e.target.value === "" ? "" : Number(e.target.value) })}
+            />
+          </Field>
+          <Field label={t("tryBody")} help={t("tryBodyHelp")}>
+            <button
+              type="button"
+              onClick={() => onOpenLoopBody(node.id)}
+              className="w-full flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary"
+            >
+              {t("tryBodyOpen")}
+              <ChevronRight size={14} />
+            </button>
+          </Field>
+        </>
+      )}
+
+      {node.type === "subworkflow" && (
+        <>
+          <Field label={t("subworkflowTarget")}>
+            {(() => {
+              const available = workflowOptions.filter((w) => String(w.value) !== String(currentWorkflowId));
+              return available.length === 0 ? (
+                <p className="text-xs th-text-ghost">{t("subworkflowNone")}</p>
+              ) : (
+                <SelectInput value={config.workflow_id || ""} onChange={(e) => patch({ workflow_id: e.target.value })}>
+                  <option value="">{t("subworkflowPlaceholder")}</option>
+                  {available.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
+                </SelectInput>
+              );
+            })()}
+          </Field>
+          <Field label={t("subworkflowInput")} help={t("subworkflowInputHelp")}>
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+          </Field>
+        </>
+      )}
+
       {node.type === "approval" && <p className="text-xs th-text-ghost">{t("soonHelp")}</p>}
 
       <DeleteButton onClick={() => onDeleteNode(node.id)} label={t("deleteNode")} />
@@ -704,5 +865,20 @@ function routesOf(sourceNode) {
   if (sourceNode.type === "classifier") {
     return (cfg.routes || []).map((r) => r.route).filter(Boolean);
   }
+  if (sourceNode.type === "try") {
+    return TRY_ROUTES;
+  }
+  if (sourceNode.type === "condition") {
+    return CONDITION_ROUTES;
+  }
   return null;
+}
+
+/** "true"/"false" and a try's "ok"/"error" are shown translated; a router/classifier's routes are free text and shown as-is. */
+function routeOptionLabel(sourceNode, route, t) {
+  if (sourceNode?.type === "try") return t(`tryRoute_${route}`);
+  if (sourceNode?.type === "condition") {
+    return route === "true" ? t("conditionRouteTrue") : t("conditionRouteFalse");
+  }
+  return route;
 }

@@ -127,6 +127,12 @@ describe("extractTemplateRefs / templateSuggestionsFor", () => {
     expect(suggestions).toContain("{{agent1}}");
     expect(suggestions).toContain("{{agent1.output}}");
   });
+
+  // The engine stores a condition's input unchanged: neither its true/false
+  // route nor an `.output` field is ever written, so only `{{id}}` resolves.
+  it("offers only the whole-node ref for a condition", () => {
+    expect(templateSuggestionsFor({ id: "cond1", type: "condition" })).toEqual(["{{cond1}}"]);
+  });
 });
 
 describe("validateGraphLocal", () => {
