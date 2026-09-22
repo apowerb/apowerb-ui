@@ -257,8 +257,10 @@ export function templateSuggestionsFor(node) {
       return [`{{${node.id}.payload}}`, ...base];
     case "router":
     case "classifier":
-    case "condition":
       return [`{{${node.id}.route}}`, `{{${node.id}.output}}`, ...base];
+    case "condition":
+      // Passthrough: the engine stores the input unchanged, never the route.
+      return base;
     default:
       return [`{{${node.id}.output}}`, ...base];
   }
