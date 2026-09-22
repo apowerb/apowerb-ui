@@ -129,7 +129,7 @@ describe("a form for each of the 8 trigger kinds", () => {
 
   it("email: provider and filters", () => {
     render(<Inspector graph={triggerGraph({ kind: "email", provider: "outlook", from_filter: null, subject_filter: null })} nodeId="trigger1" onConfig={() => {}} />);
-    expect(screen.getByLabelText(/From contains/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^From$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Subject contains/i)).toBeInTheDocument();
   });
 
@@ -318,6 +318,13 @@ describe("TriggerStatusPanel", () => {
     rerender(<Harness workflowId="wf1" kind="manual" refreshKey={1} />);
     await waitFor(() => expect(getWorkflowTriggerState).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByText("Active")).toBeInTheDocument());
+  });
+
+  it("links to /integrations when the reason is integration_missing (T2)", async () => {
+    getWorkflowTriggerState.mockResolvedValue(idleTriggerState({ reason: "integration_missing" }));
+    render(<Harness workflowId="wf1" kind="email" refreshKey={0} />);
+    await waitFor(() => expect(screen.getByText("Connect the integration first.")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Go to Integrations →" })).toHaveAttribute("href", "/integrations");
   });
 });
 

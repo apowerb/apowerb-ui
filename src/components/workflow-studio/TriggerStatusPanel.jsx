@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Copy, Check, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useFormatter } from "use-intl";
 import { getWorkflowTriggerState, rotateWorkflowTrigger } from "@/lib/api";
@@ -103,6 +104,11 @@ export default function TriggerStatusPanel({ workflowId, kind, refreshKey, t }) 
         <span className="text-[11px] font-semibold th-text">{t(state.active ? "triggerActive" : "triggerInactive")}</span>
       </div>
       {reasonKey && <p className="text-[10px] th-text-ghost mb-2">{t(`triggerReason_${reasonKey}`)}</p>}
+      {reasonKey === "integration_missing" && (
+        <Link href="/integrations" className="inline-block mb-2 text-[10px] font-medium text-[#5B8AFF] hover:underline">
+          {t("triggerReasonIntegrationsLink")}
+        </Link>
+      )}
 
       {kind === "webhook" && state.webhook_url && (
         <div className="mt-2">
