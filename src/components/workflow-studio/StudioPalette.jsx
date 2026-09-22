@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag } from "lucide-react";
+import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { NODE_FAMILIES, UNRUNNABLE_NODE_TYPES } from "@/lib/workflowGraph";
 
@@ -14,8 +14,14 @@ const ICONS = {
   merge: Merge,
   loop: Repeat,
   approval: UserCheck,
+  try: ShieldAlert,
+  subworkflow: Workflow,
   convert: ArrowRightLeft,
   output: Flag,
+  extract: ScanText,
+  rag: BookOpen,
+  set: ListPlus,
+  condition: Split,
 };
 
 const FAMILY_ORDER = ["trigger", "intelligence", "tools", "logic", "output"];
@@ -40,8 +46,9 @@ const EMPTY_HIDDEN = new Set();
  * default spot (the caller decides where — usually near the viewport
  * center). Types in `UNRUNNABLE_NODE_TYPES` (currently just `approval`) stay
  * visible with a "soon" badge, per design. `hiddenTypes` instead removes a
- * type from the list entirely — used by the loop body editor to drop
- * `loop`/`approval` so a body can't nest another loop in this pass.
+ * type from the list entirely — used by the loop/try body editor to drop
+ * `loop`/`try`/`approval` so a body can't nest another flow-control
+ * container in this pass.
  */
 export default function StudioPalette({ onAdd, hiddenTypes = EMPTY_HIDDEN }) {
   const t = useTranslations("WorkflowPalette");

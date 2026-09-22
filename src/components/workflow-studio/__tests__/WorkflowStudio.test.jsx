@@ -46,6 +46,7 @@ const {
   listAgents,
   listTools,
   listToolConfigs,
+  listWorkflowDefs,
   runWorkflowDef,
   cancelWorkflowRun,
   listWorkflowRevisions,
@@ -55,6 +56,7 @@ const {
   listAgents: vi.fn(),
   listTools: vi.fn(),
   listToolConfigs: vi.fn(),
+  listWorkflowDefs: vi.fn(),
   runWorkflowDef: vi.fn(),
   cancelWorkflowRun: vi.fn(),
   listWorkflowRevisions: vi.fn(),
@@ -66,6 +68,7 @@ vi.mock("@/lib/api", () => ({
   listAgents,
   listTools,
   listToolConfigs,
+  listWorkflowDefs,
   runWorkflowDef,
   cancelWorkflowRun,
   listWorkflowRevisions,
@@ -107,6 +110,7 @@ beforeEach(() => {
   listAgents.mockResolvedValue([{ agent_id: 1, agent_name: "Agent One" }]);
   listTools.mockResolvedValue({});
   listToolConfigs.mockResolvedValue([]);
+  listWorkflowDefs.mockResolvedValue([]);
   listWorkflowRevisions.mockResolvedValue([]);
 });
 

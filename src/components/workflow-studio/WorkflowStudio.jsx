@@ -10,6 +10,7 @@ import {
   listAgents,
   listTools,
   listToolConfigs,
+  listWorkflowDefs,
   runWorkflowDef,
   cancelWorkflowRun,
 } from "@/lib/api";
@@ -39,13 +40,16 @@ import LoopBodyEditor from "./LoopBodyEditor";
 
 const AUTOSAVE_DELAY_MS = 1000;
 
-function subtitleFor(node, agentOptions, toolOptions) {
+function subtitleFor(node, agentOptions, toolOptions, workflowOptions) {
   const cfg = node.data.config || {};
   if (node.type === "agent" || node.type === "classifier") {
     return agentOptions.find((a) => a.value === cfg.agent_id)?.label;
   }
   if (node.type === "tool") {
     return toolOptions.find((tt) => tt.value === cfg.tool)?.label;
+  }
+  if (node.type === "subworkflow") {
+    return workflowOptions.find((w) => String(w.value) === String(cfg.workflow_id))?.label;
   }
   return undefined;
 }
@@ -71,39 +75,47 @@ export default function WorkflowStudio({ workflowId }) {
   const [agentOptions, setAgentOptions] = useState([]);
   const [toolOptions, setToolOptions] = useState([]);
   const { schemas: toolSchemas, ensure: ensureToolSchema } = useToolSchemas();
+  const [workflowOptions, setWorkflowOptions] = useState([]);
 
   const lastSavedSnapshotRef = useRef(null);
   const saveTimeoutRef = useRef(null);
   const conflictRef = useRef(false);
 
-  // --- load picker data (agents/tools) -------------------------------------
+  // --- load picker data (agents/tools/workflows) ----------------------------
   useEffect(() => {
-    Promise.allSettled([listAgents(), listTools(), listToolConfigs()]).then(([agentsR, toolsR, configsR]) => {
-      if (agentsR.status === "fulfilled") {
-        setAgentOptions(
-          (agentsR.value || [])
-            .filter((a) => a.agent_id != null)
-            .map((a) => ({ value: `agent${a.agent_id}`, label: a.agent_name || `agent${a.agent_id}` })),
-        );
-      }
-      const opts = [];
-      if (toolsR.status === "fulfilled") {
-        const raw = toolsR.value;
-        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-          for (const [category, list] of Object.entries(raw)) {
-            for (const name of list || []) {
-              opts.push({ value: name, label: `${toolLeafName(name)} (${category.replace(/^tools_/, "")})` });
+    Promise.allSettled([listAgents(), listTools(), listToolConfigs(), listWorkflowDefs()]).then(
+      ([agentsR, toolsR, configsR, workflowsR]) => {
+        if (agentsR.status === "fulfilled") {
+          setAgentOptions(
+            (agentsR.value || [])
+              .filter((a) => a.agent_id != null)
+              .map((a) => ({ value: `agent${a.agent_id}`, label: a.agent_name || `agent${a.agent_id}` })),
+          );
+        }
+        const opts = [];
+        if (toolsR.status === "fulfilled") {
+          const raw = toolsR.value;
+          if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+            for (const [category, list] of Object.entries(raw)) {
+              for (const name of list || []) {
+                opts.push({ value: name, label: `${toolLeafName(name)} (${category.replace(/^tools_/, "")})` });
+              }
             }
           }
         }
-      }
-      if (configsR.status === "fulfilled") {
-        for (const c of configsR.value || []) {
-          opts.push({ value: `tool_config${c.tool_config_id}`, label: c.tool_config_name });
+        if (configsR.status === "fulfilled") {
+          for (const c of configsR.value || []) {
+            opts.push({ value: `tool_config${c.tool_config_id}`, label: c.tool_config_name });
+          }
         }
-      }
-      setToolOptions(opts);
-    });
+        setToolOptions(opts);
+        if (workflowsR.status === "fulfilled") {
+          setWorkflowOptions(
+            (workflowsR.value || []).map((w) => ({ value: String(w.workflow_id), label: w.name || String(w.workflow_id) })),
+          );
+        }
+      },
+    );
   }, []);
 
   // --- tool arg schemas ------------------------------------------------------
@@ -152,8 +164,8 @@ export default function WorkflowStudio({ workflowId }) {
 
   // --- validation ------------------------------------------------------------
   const validation = useMemo(
-    () => validateGraphLocal(flowToGraph(nodes, edges), { toolSchemas }),
-    [nodes, edges, toolSchemas],
+    () => validateGraphLocal(flowToGraph(nodes, edges), { toolSchemas, currentWorkflowId: workflowId }),
+    [nodes, edges, toolSchemas, workflowId],
   );
   const errorsByNode = useMemo(() => {
     const map = {};
@@ -457,7 +469,7 @@ export default function WorkflowStudio({ workflowId }) {
         selected: selection?.kind === "node" && selection.node.id === n.id,
         data: {
           ...n.data,
-          subtitle: subtitleFor(n, agentOptions, toolOptions),
+          subtitle: subtitleFor(n, agentOptions, toolOptions, workflowOptions),
           errorCount: errorsByNode[n.id] || 0,
           runStatus: runStatusMap[n.id],
           runDuration: runDurationById[n.id],
@@ -470,17 +482,17 @@ export default function WorkflowStudio({ workflowId }) {
             setNodes(next);
             pushHistory(next, edges);
           },
-          onOpenBody: n.type === "loop" ? () => setBodyEditorNodeId(n.id) : undefined,
+          onOpenBody: n.type === "loop" || n.type === "try" ? () => setBodyEditorNodeId(n.id) : undefined,
         },
       })),
-    [nodes, edges, selection, agentOptions, toolOptions, errorsByNode, runStatusMap, runDurationById, runRouteById, deleteNode, existingIds, setNodes, pushHistory],
+    [nodes, edges, selection, agentOptions, toolOptions, workflowOptions, errorsByNode, runStatusMap, runDurationById, runRouteById, deleteNode, existingIds, setNodes, pushHistory],
   );
 
   const displayEdges = useMemo(
     () =>
       edges.map((e) => {
         const sourceNode = nodes.find((n) => n.id === e.source);
-        const isRouting = sourceNode && (sourceNode.type === "router" || sourceNode.type === "classifier");
+        const isRouting = sourceNode && (sourceNode.type === "router" || sourceNode.type === "classifier" || sourceNode.type === "condition");
         return {
           ...e,
           selected: selection?.kind === "edge" && selection.edge.id === e.id,
@@ -490,7 +502,7 @@ export default function WorkflowStudio({ workflowId }) {
     [edges, nodes, selection],
   );
 
-  const loopNode = bodyEditorNodeId ? nodes.find((n) => n.id === bodyEditorNodeId) : null;
+  const bodyEditorNode = bodyEditorNodeId ? nodes.find((n) => n.id === bodyEditorNodeId) : null;
 
   if (loadState === "loading") {
     return (
@@ -588,6 +600,8 @@ export default function WorkflowStudio({ workflowId }) {
           toolOptions={toolOptions}
           toolSchemas={toolSchemas}
           ensureToolSchema={ensureToolSchema}
+          workflowOptions={workflowOptions}
+          currentWorkflowId={workflowId}
           onChangeLabel={changeLabel}
           onRenameNode={renameNode}
           onPatchConfig={patchNodeConfig}
@@ -607,16 +621,18 @@ export default function WorkflowStudio({ workflowId }) {
         />
       )}
 
-      {loopNode && (
+      {bodyEditorNode && (
         <LoopBodyEditor
-          loopNode={loopNode}
-          body={loopNode.data.config.body}
-          onChange={(body) => patchNodeConfig(loopNode.id, { body })}
+          node={bodyEditorNode}
+          body={bodyEditorNode.data.config.body}
+          onChange={(body) => patchNodeConfig(bodyEditorNode.id, { body })}
           onClose={() => setBodyEditorNodeId(null)}
           agentOptions={agentOptions}
           toolOptions={toolOptions}
           toolSchemas={toolSchemas}
           ensureToolSchema={ensureToolSchema}
+          workflowOptions={workflowOptions}
+          currentWorkflowId={workflowId}
         />
       )}
     </div>

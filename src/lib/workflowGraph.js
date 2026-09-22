@@ -22,12 +22,36 @@ export const NODE_TYPES = [
   "merge",
   "loop",
   "approval",
+  "try",
+  "subworkflow",
   "output",
   "convert",
+  "extract",
+  "rag",
+  "set",
+  "condition",
 ];
 
 /** What a convert node can turn its input into; mirrors the backend's CONVERT_TARGETS. */
-export const CONVERT_TARGETS = ["text", "json", "number", "boolean", "list"];
+export const CONVERT_TARGETS = ["text", "json", "number", "boolean", "list", "csv", "date"];
+
+/** A condition node's two fixed outgoing routes — never user-named, unlike router/classifier. */
+export const CONDITION_ROUTES = ["true", "false"];
+
+/** A try node's two fixed outgoing routes — mirrors the backend's TRY_ROUTES. */
+export const TRY_ROUTES = ["ok", "error"];
+export const TRY_RETRIES_CAP = 3;
+export const TRY_RETRY_DELAY_MS_CAP = 5000;
+
+/** Field types an extract node can declare; mirrors the backend's EXTRACT_FIELD_TYPES. */
+export const EXTRACT_FIELD_TYPES = ["string", "number", "boolean", "list", "object"];
+export const EXTRACT_FIELD_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const EXTRACT_FIELDS_MIN = 1;
+export const EXTRACT_FIELDS_MAX = 30;
+
+export const RAG_TOP_K_DEFAULT = 5;
+export const RAG_TOP_K_MIN = 1;
+export const RAG_TOP_K_MAX = 20;
 
 // Present in the palette but the backend's /run and /validate reject it —
 // kept in one place so the inspector, the palette badge and local
@@ -62,8 +86,17 @@ export const NODE_FAMILIES = {
   merge: { family: "logic", color: "blue" },
   loop: { family: "logic", color: "violet" },
   approval: { family: "logic", color: "violet" },
+  try: { family: "logic", color: "violet" },
+  subworkflow: { family: "logic", color: "violet" },
   convert: { family: "tools", color: "emerald" },
   output: { family: "output", color: "amber" },
+  // Both agent-driven (an `agent_id` in config, same selector as agent/classifier) —
+  // "intelligence" already covers that shape; a dedicated "knowledge" family for
+  // rag alone would be one node wide and split the palette for no reason.
+  extract: { family: "intelligence", color: "violet" },
+  rag: { family: "intelligence", color: "blue" },
+  set: { family: "tools", color: "emerald" },
+  condition: { family: "logic", color: "blue" },
 };
 
 export function createEmptyGraph() {
@@ -96,8 +129,20 @@ function defaultConfig(type) {
       return { agent_id: "", routes: [] };
     case "loop":
       return { mode: "foreach", max_iterations: 10, items: "", body: createLoopBody() };
+    case "try":
+      return { body: createLoopBody(), retries: 0, retry_delay_ms: 0 };
+    case "subworkflow":
+      return { workflow_id: "" };
     case "convert":
       return { to: "text" };
+    case "extract":
+      return { agent_id: "", input: "", fields: [] };
+    case "rag":
+      return { agent_id: "", query: "", top_k: RAG_TOP_K_DEFAULT };
+    case "set":
+      return { fields: [] };
+    case "condition":
+      return { rules: [], match: "all" };
     default:
       return {};
   }
@@ -247,6 +292,15 @@ export function templateSuggestionsFor(node) {
     case "router":
     case "classifier":
       return [`{{${node.id}.route}}`, `{{${node.id}.output}}`, ...base];
+    case "rag":
+      return [`{{${node.id}.passages}}`, ...base];
+    case "extract":
+      // Its output has no single ".output" — each declared field is its own
+      // path ({{id.field_name}}), which this generic helper can't know; the
+      // field editor shows that path once a field is named.
+    case "condition":
+      // Passthrough: the engine stores the input unchanged, never the route.
+      return base;
     default:
       return [`{{${node.id}.output}}`, ...base];
   }
@@ -263,10 +317,40 @@ function declaredRoutes(node) {
   if (node.type === "classifier") {
     return new Set((node.config?.routes || []).map((r) => r.route).filter(Boolean));
   }
+  if (node.type === "try") {
+    return new Set(TRY_ROUTES); // fixed "ok"/"error" — not configurable, unlike router/classifier
+  }
+  if (node.type === "condition") {
+    return new Set(CONDITION_ROUTES);
+  }
   return null; // not a routing node
 }
 
-function validateLoopConfig(node, ctx) {
+function validateSetConfig(node) {
+  const errors = [];
+  const fields = node.config?.fields || [];
+  if (fields.length === 0) {
+    errors.push({ nodeId: node.id, message: "setNoFields" });
+    return errors;
+  }
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const f of fields) {
+    const key = (f?.key || "").trim();
+    if (!key) {
+      errors.push({ nodeId: node.id, message: "setFieldKeyRequired" });
+      continue;
+    }
+    if (seen.has(key)) duplicates.add(key);
+    seen.add(key);
+  }
+  for (const key of duplicates) {
+    errors.push({ nodeId: node.id, message: `setDuplicateKey:${key}` });
+  }
+  return errors;
+}
+
+function validateLoopConfig(node, options) {
   const errors = [];
   const cfg = node.config || {};
   const push = (message, extra) => errors.push({ nodeId: node.id, message, ...extra });
@@ -297,9 +381,87 @@ function validateLoopConfig(node, ctx) {
   if (triggerCount !== 1) {
     push(`loopBodyTriggerCount:${triggerCount}`);
   }
-  const bodyResult = validateGraphCore(body, ctx);
+  const bodyResult = validateGraphCore(body, options);
   for (const e of bodyResult.errors) {
     errors.push({ ...e, nodeId: `${node.id}.${e.nodeId}` });
+  }
+  return errors;
+}
+
+/**
+ * `try`'s body validation mirrors `validateLoopConfig` (body present, exactly
+ * one trigger, recursed and namespaced as `${node.id}.${innerId}`) plus its
+ * own bounds on `retries`/`retry_delay_ms`. Its routing (outgoing edges
+ * restricted to the fixed "ok"/"error" set, at most one per route) is
+ * checked alongside router/classifier in `validateGraphCore`, since
+ * `declaredRoutes` already knows about `try`.
+ */
+function validateTryConfig(node, options) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message, extra) => errors.push({ nodeId: node.id, message, ...extra });
+
+  const retries = cfg.retries ?? 0;
+  if (!Number.isInteger(retries) || retries < 0 || retries > TRY_RETRIES_CAP) {
+    push(`tryRetries:${retries}`);
+  }
+  const delay = cfg.retry_delay_ms ?? 0;
+  if (!Number.isInteger(delay) || delay < 0 || delay > TRY_RETRY_DELAY_MS_CAP) {
+    push(`tryRetryDelay:${delay}`);
+  }
+
+  const body = cfg.body;
+  if (!body || !Array.isArray(body.nodes)) {
+    push("tryBodyMissing");
+    return errors;
+  }
+  const triggerCount = body.nodes.filter((n) => n.type === "trigger").length;
+  if (triggerCount !== 1) {
+    push(`tryBodyTriggerCount:${triggerCount}`);
+  }
+  const bodyResult = validateGraphCore(body, options);
+  for (const e of bodyResult.errors) {
+    errors.push({ ...e, nodeId: `${node.id}.${e.nodeId}` });
+  }
+  return errors;
+}
+
+function validateExtractConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+
+  if (!cfg.agent_id) push("extractAgentRequired");
+
+  const fields = Array.isArray(cfg.fields) ? cfg.fields : [];
+  if (fields.length < EXTRACT_FIELDS_MIN || fields.length > EXTRACT_FIELDS_MAX) {
+    push(`extractFieldsCount:${fields.length}`);
+  }
+
+  const seen = new Set();
+  for (const f of fields) {
+    const name = f?.name || "";
+    if (!EXTRACT_FIELD_NAME_PATTERN.test(name)) {
+      push(`extractFieldNameInvalid:${name}`);
+    } else if (seen.has(name)) {
+      push(`extractFieldNameDuplicate:${name}`);
+    }
+    seen.add(name);
+  }
+  return errors;
+}
+
+function validateRagConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+
+  if (!cfg.agent_id) push("ragAgentRequired");
+  if (!cfg.query || typeof cfg.query !== "string" || !cfg.query.trim()) push("ragQueryRequired");
+
+  const topK = cfg.top_k;
+  if (!Number.isInteger(topK) || topK < RAG_TOP_K_MIN || topK > RAG_TOP_K_MAX) {
+    push(`ragTopKRange:${topK}`);
   }
   return errors;
 }
@@ -312,8 +474,8 @@ function validateLoopConfig(node, ctx) {
  * whose schema hasn't been fetched yet (or failed to load) are silently
  * skipped; the warning simply appears once the schema is cached.
  */
-function validateToolArgs(node, ctx) {
-  const entry = ctx?.toolSchemas?.[node.config?.tool];
+function validateToolArgs(node, options) {
+  const entry = options?.toolSchemas?.[node.config?.tool];
   if (!entry || entry.status !== "ready" || !entry.schema) return [];
   const args = node.config?.args || {};
   const errors = [];
@@ -331,20 +493,25 @@ function validateToolArgs(node, ctx) {
  * outside their node's upstream set. Returns {valid, errors:[{nodeId, message}]}.
  *
  * `validateGraphLocal` is the public entry point for the main canvas.
- * `validateGraphCore` is also used recursively on a loop node's `body`
- * sub-graph, which is why the loop/template checks below never need to know
- * whether they're looking at the outer graph or a nested one.
+ * `validateGraphCore` is also used recursively on a loop/try node's `body`
+ * sub-graph, which is why the loop/try/template checks below never need to
+ * know whether they're looking at the outer graph or a nested one.
  *
- * `ctx.toolSchemas` (optional) is the studio's tool-schema cache — a map of
- * `{[tool_ref]: {status, schema}}` — threaded through so tool nodes (at any
- * nesting level) can be checked against their real parameter list. Omitting
- * it just skips that one check, so existing callers are unaffected.
+ * `options.currentWorkflowId` is the id of the workflow being edited — the
+ * only bit of validation that needs context outside the graph itself (a
+ * `subworkflow` node can't call the workflow it lives in). It threads
+ * through the loop/try body recursion unchanged.
+ *
+ * `options.toolSchemas` (optional) is the studio's tool-schema cache — a map
+ * of `{[tool_ref]: {status, schema}}` — threaded the same way so tool nodes
+ * (at any nesting level) can be checked against their real parameter list.
+ * Omitting it just skips that one check.
  */
-export function validateGraphLocal(graph, ctx = {}) {
-  return validateGraphCore(graph, ctx);
+export function validateGraphLocal(graph, options = {}) {
+  return validateGraphCore(graph, options);
 }
 
-function validateGraphCore(graph, ctx = {}) {
+function validateGraphCore(graph, options = {}) {
   const nodes = graph?.nodes || [];
   const edges = graph?.edges || [];
   const errors = [];
@@ -382,21 +549,65 @@ function validateGraphCore(graph, ctx = {}) {
       if (n.type === "classifier" && (n.config?.routes || []).length < 2) {
         errors.push({ nodeId: n.id, message: "classifierNeedsTwoRoutes" });
       }
+      if (n.type === "try") {
+        const counts = {};
+        for (const e of outgoing) {
+          if (e.route) counts[e.route] = (counts[e.route] || 0) + 1;
+        }
+        for (const [route, count] of Object.entries(counts)) {
+          if (count > 1) errors.push({ nodeId: n.id, message: `tryDuplicateRoute:${route}` });
+        }
+      }
+      if (n.type === "condition") {
+        // Router/classifier allow several edges per route (fan-out); a
+        // condition's two routes are a fixed if/else, so each may carry at
+        // most one edge.
+        const perRoute = {};
+        for (const e of outgoing) {
+          if (e.route) perRoute[e.route] = (perRoute[e.route] || 0) + 1;
+        }
+        for (const [route, count] of Object.entries(perRoute)) {
+          if (count > 1) errors.push({ nodeId: n.id, message: `conditionDuplicateRoute:${route}` });
+        }
+      }
     }
     if (UNRUNNABLE_NODE_TYPES.has(n.type)) {
       errors.push({ nodeId: n.id, message: `notRunnable:${n.type}`, level: "warning" });
     }
     if (n.type === "loop") {
-      errors.push(...validateLoopConfig(n, ctx));
+      errors.push(...validateLoopConfig(n, options));
+    }
+    if (n.type === "try") {
+      errors.push(...validateTryConfig(n, options));
     }
     if (n.type === "convert" && !CONVERT_TARGETS.includes(n.config?.to)) {
       errors.push({ nodeId: n.id, message: `convertUnknownTarget:${n.config?.to}` });
     }
     if (n.type === "tool") {
-      errors.push(...validateToolArgs(n, ctx));
+      errors.push(...validateToolArgs(n, options));
     }
     if (n.type === "output" && edges.some((e) => e.source === n.id)) {
       errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
+    }
+    if (n.type === "extract") {
+      errors.push(...validateExtractConfig(n));
+    }
+    if (n.type === "rag") {
+      errors.push(...validateRagConfig(n));
+    }
+    if (n.type === "subworkflow") {
+      const targetId = n.config?.workflow_id;
+      if (!targetId) {
+        errors.push({ nodeId: n.id, message: "subworkflowRequired" });
+      } else if (options.currentWorkflowId != null && String(targetId) === String(options.currentWorkflowId)) {
+        errors.push({ nodeId: n.id, message: "subworkflowSelfReference" });
+      }
+    }
+    if (n.type === "set") {
+      errors.push(...validateSetConfig(n));
+    }
+    if (n.type === "condition" && (n.config?.rules || []).length === 0) {
+      errors.push({ nodeId: n.id, message: "conditionNoRules" });
     }
   }
 
