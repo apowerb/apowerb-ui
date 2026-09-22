@@ -1160,10 +1160,12 @@ export const getWorkflowDef = (workflowId) =>
 
 // `data` porte toujours `expected_version` (verrou optimiste) en plus des
 // champs modifiés. Un 409 laisse `err.detail = {message, current_version}`.
-export const updateWorkflowDef = (workflowId, data) =>
+// `keepalive` laisse la requête aboutir quand la page se ferme.
+export const updateWorkflowDef = (workflowId, data, { keepalive = false } = {}) =>
   request(`/api/workflows/defs/${workflowId}`, {
     method: "PUT",
     body: JSON.stringify(data),
+    ...(keepalive ? { keepalive: true } : {}),
   });
 
 export const deleteWorkflowDef = (workflowId) =>

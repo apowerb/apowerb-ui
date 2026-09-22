@@ -301,4 +301,51 @@ describe("WorkflowStudio", () => {
     await user.click(screen.getByRole("button", { name: /retry/i }));
     await waitFor(() => expect(runWorkflowDef).toHaveBeenCalledTimes(2));
   });
+
+  it("says the change is not saved yet while the autosave waits", async () => {
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+    expect(screen.getByText("All changes saved")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Tool$/ }));
+
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    expect(screen.queryByText("All changes saved")).not.toBeInTheDocument();
+    await waitFor(() => expect(updateWorkflowDef).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByText("All changes saved")).toBeInTheDocument());
+  });
+
+  it("saves a pending change right away when the studio is left", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByRole("button", { name: /^Tool$/ }));
+    unmount();
+
+    expect(updateWorkflowDef).toHaveBeenCalledTimes(1);
+    expect(updateWorkflowDef.mock.calls[0][1].graph.nodes).toHaveLength(4);
+  });
+
+  it("saves a pending change with keepalive when the page is hidden or closed", async () => {
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByRole("button", { name: /^Tool$/ }));
+    window.dispatchEvent(new Event("pagehide"));
+
+    expect(updateWorkflowDef).toHaveBeenCalledTimes(1);
+    expect(updateWorkflowDef.mock.calls[0][1].graph.nodes).toHaveLength(4);
+    expect(updateWorkflowDef.mock.calls[0][2]).toEqual({ keepalive: true });
+  });
+
+  it("does not save on leaving when nothing changed", async () => {
+    const { unmount } = render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+    window.dispatchEvent(new Event("pagehide"));
+    unmount();
+    expect(updateWorkflowDef).not.toHaveBeenCalled();
+  });
 });

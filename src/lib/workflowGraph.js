@@ -479,6 +479,8 @@ function validateHttpConfig(node) {
     if (isHttpHeaderForbidden(header?.key)) {
       push(`httpHeaderForbidden:${header.key}`);
     }
+    // The engine sets Host from the resolved, checked address (DNS rebinding).
+    if (String(header?.key || "").trim().toLowerCase() === "host") push("httpHeaderHost");
   }
 
   return errors;
@@ -686,6 +688,13 @@ function validateGraphCore(graph, options = {}) {
     if (!NODE_TYPES.includes(n.type)) {
       errors.push({ nodeId: n.id, message: `unknownType:${n.type}` });
     }
+  }
+
+  // One trigger per workflow: the engine arms only the first, yet each would
+  // emit the payload on a run. The extra ones carry the error.
+  const triggers = nodes.filter((n) => n.type === "trigger");
+  for (const t of triggers.slice(1)) {
+    errors.push({ nodeId: t.id, message: `multipleTriggers:${triggers.length}` });
   }
 
   for (const e of edges) {

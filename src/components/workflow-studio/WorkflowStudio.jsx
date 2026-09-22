@@ -127,6 +127,9 @@ export default function WorkflowStudio({ workflowId }) {
   const [triggerRefreshKey, setTriggerRefreshKey] = useState(0);
 
   const lastSavedSnapshotRef = useRef(null);
+  // Mirrors lastSavedSnapshotRef for rendering: the top bar must say
+  // "Unsaved changes" as soon as the graph differs, not once the timer fires.
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
   const saveTimeoutRef = useRef(null);
   const conflictRef = useRef(false);
 
@@ -193,6 +196,7 @@ export default function WorkflowStudio({ workflowId }) {
           setWorkflowMeta({ name: wf.name, status: wf.status, version: wf.version });
           expectedVersionRef.current = wf.version;
           lastSavedSnapshotRef.current = JSON.stringify({ name: wf.name, graph: flowToGraph(n, e) });
+          setSavedSnapshot(lastSavedSnapshotRef.current);
           setConflict(null);
           conflictRef.current = false;
           setLoadState("loaded");
@@ -324,7 +328,7 @@ export default function WorkflowStudio({ workflowId }) {
 
   // --- autosave --------------------------------------------------------------
   const doSave = useCallback(
-    async (overrides = {}) => {
+    async (overrides = {}, { keepalive = false } = {}) => {
       if (conflictRef.current) return;
       const graph = flowToGraph(nodes, edges);
       const name = overrides.name ?? workflowMeta?.name ?? "";
@@ -336,10 +340,13 @@ export default function WorkflowStudio({ workflowId }) {
       };
       setSaveState("saving");
       try {
-        const updated = await updateWorkflowDef(workflowId, body);
+        const updated = keepalive
+          ? await updateWorkflowDef(workflowId, body, { keepalive: true })
+          : await updateWorkflowDef(workflowId, body);
         expectedVersionRef.current = updated.version;
         setWorkflowMeta({ name: updated.name, status: updated.status, version: updated.version });
         lastSavedSnapshotRef.current = JSON.stringify({ name, graph });
+        setSavedSnapshot(lastSavedSnapshotRef.current);
         setSaveState("idle");
         return updated;
       } catch (err) {
@@ -365,6 +372,42 @@ export default function WorkflowStudio({ workflowId }) {
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, workflowMeta?.name, loadState]);
+
+  const currentSnapshot = useMemo(
+    () => JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) }),
+    [nodes, edges, workflowMeta?.name],
+  );
+  const dirty = loadState === "loaded" && savedSnapshot !== null && currentSnapshot !== savedSnapshot;
+  const shownSaveState = saveState === "idle" && dirty ? "dirty" : saveState;
+
+  // Leaving the studio (in-app navigation, hidden tab, closed page) must not
+  // wait for the autosave timer: the pending change would be lost. The refs
+  // give the listeners the latest save and whether one is pending.
+  const doSaveRef = useRef(doSave);
+  const dirtyRef = useRef(false);
+  useEffect(() => {
+    doSaveRef.current = doSave;
+    dirtyRef.current = dirty;
+  });
+  useEffect(() => {
+    const flush = (keepalive) => {
+      if (!dirtyRef.current || conflictRef.current) return;
+      dirtyRef.current = false;
+      clearTimeout(saveTimeoutRef.current);
+      doSaveRef.current({}, { keepalive }).catch(() => {});
+    };
+    const onPageHide = () => flush(true);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flush(true);
+    };
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      flush(false);
+    };
+  }, []);
 
   const handleReloadConflict = useCallback(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -410,6 +453,7 @@ export default function WorkflowStudio({ workflowId }) {
       setWorkflowMeta({ name: updated.name, status: updated.status, version: updated.version });
       expectedVersionRef.current = updated.version;
       lastSavedSnapshotRef.current = JSON.stringify({ name: updated.name, graph: flowToGraph(n, e) });
+      setSavedSnapshot(lastSavedSnapshotRef.current);
       setVersionsOpen(false);
     },
     [resetHistory],
@@ -614,7 +658,7 @@ export default function WorkflowStudio({ workflowId }) {
         onNameChange={handleNameChange}
         status={workflowMeta.status}
         version={workflowMeta.version}
-        saveState={saveState}
+        saveState={shownSaveState}
         validation={validation}
         onOpenVersions={() => setVersionsOpen(true)}
         testOpen={testOpen}
