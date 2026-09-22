@@ -71,6 +71,8 @@ const TRANSLATED_ERRORS = new Set([
   "subworkflow_not_found",
   "subworkflow_cycle",
   "subworkflow_too_deep",
+  // refused before the run (validation), 22/09.
+  "single_trigger",
 ]);
 
 function errorText(t, error) {

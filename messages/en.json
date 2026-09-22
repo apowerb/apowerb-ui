@@ -3705,6 +3705,7 @@
     "runError_rag_failed": "RAG {node} could not query its knowledge base. Try again in a moment, or check the agent's knowledge base connection.",
     "attempt": "Attempt {index}",
     "runError_subworkflow_not_found": "Sub-workflow {workflow} referenced by {node} was not found (deleted, or not yours): pick another workflow in the node.",
+    "runError_single_trigger": "A workflow has a single trigger ({triggers} found): keep one and delete the others, then run again.",
     "runError_subworkflow_cycle": "Sub-workflow {workflow} called from {node} would call back into a workflow already running: this cycle is not allowed.",
     "runError_subworkflow_too_deep": "Sub-workflow {node} exceeds the nesting depth limit ({max}): flatten the call chain."
   },
