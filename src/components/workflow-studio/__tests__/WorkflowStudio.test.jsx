@@ -116,6 +116,7 @@ beforeEach(() => {
   listAgents.mockResolvedValue([{ agent_id: 1, agent_name: "Agent One" }]);
   listTools.mockResolvedValue({});
   listToolConfigs.mockResolvedValue([]);
+  listWorkflowDefs.mockResolvedValue([]);
   listWorkflowRevisions.mockResolvedValue([]);
   listWorkflowDefs.mockResolvedValue([]);
   getWorkflowTriggerState.mockResolvedValue({ kind: "manual", active: false, reason: "unpublished", webhook_url: null, form_url: null, hmac_enabled: false, next_run_at: null, last_fired_at: null, last_status: null });

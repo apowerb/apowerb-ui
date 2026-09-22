@@ -613,6 +613,23 @@ export const createSavedApiKey = (data) =>
 export const deleteSavedApiKey = (id) =>
   request(`/api/saved-api-keys/${id}`, { method: "DELETE" });
 
+// --- Teams Incoming Webhook (apowerb#198) ---
+// L'URL n'est jamais renvoyée par le GET : seul `configured` distingue les
+// deux états. Le coeur refuse (422) une URL non https ou hors liste blanche
+// (webhook.office.com / logic.azure.com / api.powerplatform.com) ou visant
+// une cible interne.
+export const getTeamsWebhookStatus = () =>
+  request("/api/integrations/teams-webhook");
+
+export const saveTeamsWebhook = (url) =>
+  request("/api/integrations/teams-webhook", {
+    method: "PUT",
+    body: JSON.stringify({ url }),
+  });
+
+export const deleteTeamsWebhook = () =>
+  request("/api/integrations/teams-webhook", { method: "DELETE" });
+
 // --- Webhook Subscriptions ---
 export const listWebhookSubscriptions = () =>
   request("/api/webhooks/subscriptions");
@@ -1168,6 +1185,13 @@ export const validateWorkflowGraph = (graph) =>
     method: "POST",
     body: JSON.stringify({ graph }),
   });
+
+// Arg schema for a `tool` node's `config.tool` — drives the generated args
+// form in the inspector. 404 (unknown tool) and 409 (`tool_ambiguous`) carry
+// `err.detail = {code, params}`; the caller falls back to the free-form
+// args editor on any failure, so it doesn't need to branch on the code.
+export const getToolSchema = (tool, { signal } = {}) =>
+  request(`/api/workflows/tools/schema?tool=${encodeURIComponent(tool)}`, { signal });
 
 export const cancelWorkflowRun = (workflowId) =>
   request(`/api/workflows/${workflowId}/cancel`, { method: "POST" });

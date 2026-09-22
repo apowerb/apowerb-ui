@@ -86,6 +86,30 @@ describe("graphToFlow / flowToGraph round trip", () => {
     const back = flowToGraph(nodes, edges);
     expect(back.edges[0]).toEqual({ source: "trigger1", target: "router1", route: "a" });
   });
+
+  // xyflow reserves "input"/"default"/"output"/"group" as built-in node type
+  // names and styles `.react-flow__node-<type>` itself (fixed width, white
+  // background, dark border) — our own "output" node type collides, and
+  // that default styling rendered behind our custom card, showing as a
+  // white rectangle once selected. This marker class lets globals.css
+  // reset just that collision.
+  it("marks output nodes so their xyflow reserved-type-name collision can be reset in CSS", () => {
+    const { nodes } = graphToFlow({
+      version: 1,
+      nodes: [{ id: "out1", type: "output", config: {}, position: { x: 0, y: 0 } }],
+      edges: [],
+    });
+    expect(nodes[0].className).toBe("workflow-output-node");
+  });
+
+  it("does not mark other node types", () => {
+    const { nodes } = graphToFlow({
+      version: 1,
+      nodes: [{ id: "agent1", type: "agent", config: {}, position: { x: 0, y: 0 } }],
+      edges: [],
+    });
+    expect(nodes[0].className).toBeUndefined();
+  });
 });
 
 describe("getUpstreamNodeIds", () => {
@@ -122,10 +146,66 @@ describe("extractTemplateRefs / templateSuggestionsFor", () => {
     expect(refs[0]).toMatchObject({ nodeId: "trigger1", path: "payload.name" });
   });
 
-  it("suggests a bare and a dotted form for a node", () => {
+  // An agent's stored output is raw text (a scalar) — the engine has no
+  // "output" field to resolve on it, so `{{agent1.output}}` fails at
+  // validation with template_ref_invalid. Only the whole-node form
+  // resolves. Was "suggests a bare and a dotted form for a node", asserting
+  // the {{agent1.output}} suggestion the engine now rejects — rewritten for
+  // the fix/workflow-template-refs decision (2026-09-22).
+  it("suggests only the whole-node form for a scalar-output node", () => {
     const suggestions = templateSuggestionsFor({ id: "agent1", type: "agent" });
-    expect(suggestions).toContain("{{agent1}}");
-    expect(suggestions).toContain("{{agent1.output}}");
+    expect(suggestions).toEqual(["{{agent1}}"]);
+  });
+
+  it("never suggests .output, .route or .payload, for any node type", () => {
+    const nodeTypes = ["trigger", "agent", "tool", "router", "classifier", "merge", "loop", "approval", "output", "convert"];
+    for (const type of nodeTypes) {
+      const suggestions = templateSuggestionsFor({ id: "n1", type, config: {} });
+      expect(suggestions).toContain("{{n1}}");
+      for (const s of suggestions) {
+        expect(s).not.toMatch(/\.output}}$/);
+        expect(s).not.toMatch(/\.route}}$/);
+        expect(s).not.toMatch(/\.payload}}$/);
+      }
+    }
+  });
+
+  it("suggests declared fields from a trigger's sample_payload", () => {
+    const suggestions = templateSuggestionsFor({
+      id: "trigger1",
+      type: "trigger",
+      config: { kind: "manual", sample_payload: { name: "Ada", age: 30 } },
+    });
+    expect(suggestions).toEqual(["{{trigger1}}", "{{trigger1.name}}", "{{trigger1.age}}"]);
+  });
+
+  it("suggests only the whole-node form for a trigger without sample_payload", () => {
+    const suggestions = templateSuggestionsFor({ id: "trigger1", type: "trigger", config: { kind: "manual" } });
+    expect(suggestions).toEqual(["{{trigger1}}"]);
+  });
+
+  // The engine stores a condition's input unchanged: neither its true/false
+  // route nor an `.output` field is ever written, so only `{{id}}` resolves.
+  it("offers only the whole-node ref for a condition", () => {
+    expect(templateSuggestionsFor({ id: "cond1", type: "condition" })).toEqual(["{{cond1}}"]);
+  });
+
+  // Mirrors the engine's `_output_form`: these nodes' output keys are known
+  // up front, and any other path is refused server-side.
+  it("suggests the known output fields of set, extract, rag, http and notification", () => {
+    expect(templateSuggestionsFor({ id: "s", type: "set", config: { fields: [{ key: "a", value: "x" }, { key: "" }] } })).toEqual(["{{s}}", "{{s.a}}"]);
+    expect(templateSuggestionsFor({ id: "e", type: "extract", config: { fields: [{ name: "montant", type: "number" }] } })).toEqual(["{{e}}", "{{e.montant}}"]);
+    expect(templateSuggestionsFor({ id: "r", type: "rag", config: {} })).toEqual(["{{r}}", "{{r.passages}}", "{{r.query}}"]);
+    expect(templateSuggestionsFor({ id: "h", type: "http", config: {} })).toEqual(["{{h}}", "{{h.status}}", "{{h.body}}", "{{h.headers}}"]);
+    expect(templateSuggestionsFor({ id: "n", type: "notification", config: {} })).toEqual(["{{n}}", "{{n.sent}}", "{{n.channel}}"]);
+  });
+
+  it("never suggests .output for the lot 1-4 nodes either", () => {
+    for (const type of ["set", "extract", "rag", "http", "notification", "condition", "try", "subworkflow"]) {
+      for (const s of templateSuggestionsFor({ id: "n1", type, config: {} })) {
+        expect(s).not.toMatch(/\.output}}$/);
+      }
+    }
   });
 });
 
@@ -134,7 +214,7 @@ describe("validateGraphLocal", () => {
     version: 1,
     nodes: [
       { id: "trigger1", type: "trigger", config: { kind: "manual" }, position: { x: 0, y: 0 } },
-      { id: "router1", type: "router", config: { rules: [{ route: "yes", field: "{{trigger1.payload.ok}}", op: "eq", value: true }], default_route: "no" }, position: { x: 200, y: 0 } },
+      { id: "router1", type: "router", config: { rules: [{ route: "yes", field: "{{trigger1.ok}}", op: "eq", value: true }], default_route: "no" }, position: { x: 200, y: 0 } },
       { id: "agentA", type: "agent", config: { agent_id: "agent1" }, position: { x: 400, y: -80 } },
       { id: "agentB", type: "agent", config: { agent_id: "agent2" }, position: { x: 400, y: 80 } },
     ],
@@ -192,6 +272,112 @@ describe("validateGraphLocal", () => {
     };
     const result = validateGraphLocal(graph);
     expect(result.errors.some((e) => e.message === "templateNotUpstream:{{agentC.output}}")).toBe(true);
+  });
+
+  // The engine JSON-parses an agent's reply when it can, so a real field
+  // path (e.g. {{agentA.montant}}) is legitimate — only the legacy
+  // {{id.output}} pastille form is worth flagging, and only as a
+  // non-blocking warning (it resolves whenever the agent replies in JSON).
+  it("warns, without failing validity, on the legacy {{agentX.output}} form", () => {
+    const graph = {
+      version: 1,
+      nodes: [
+        { id: "agentA", type: "agent", config: { agent_id: "agent1" }, position: { x: 0, y: 0 } },
+        { id: "agentB", type: "agent", config: { agent_id: "agent2", input: "{{agentA.output}}" }, position: { x: 200, y: 0 } },
+      ],
+      edges: [{ source: "agentA", target: "agentB" }],
+    };
+    const result = validateGraphLocal(graph);
+    expect(result.valid).toBe(true);
+    const warning = result.errors.find((e) => e.message === "templateRefLegacyOutput:{{agentA.output}}");
+    expect(warning).toMatchObject({ level: "warning" });
+  });
+
+  it("does not flag a real field path on an agent's (JSON) output", () => {
+    const graph = {
+      version: 1,
+      nodes: [
+        { id: "agentA", type: "agent", config: { agent_id: "agent1" }, position: { x: 0, y: 0 } },
+        { id: "agentB", type: "agent", config: { agent_id: "agent2", input: "{{agentA.montant}}" }, position: { x: 200, y: 0 } },
+      ],
+      edges: [{ source: "agentA", target: "agentB" }],
+    };
+    const result = validateGraphLocal(graph);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it("warns on the legacy {{trigger.payload}} form when the sample has no payload key", () => {
+    const graph = {
+      version: 1,
+      nodes: [
+        { id: "trigger", type: "trigger", config: { sample_payload: { email: "a@b.c" } }, position: { x: 0, y: 0 } },
+        { id: "agentA", type: "agent", config: { agent_id: "agent1", input: "{{trigger.payload}}" }, position: { x: 200, y: 0 } },
+      ],
+      edges: [{ source: "trigger", target: "agentA" }],
+    };
+    const result = validateGraphLocal(graph);
+    expect(result.valid).toBe(true);
+    const warning = result.errors.find((e) => e.message === "templateRefLegacyPayload:{{trigger.payload}}");
+    expect(warning).toMatchObject({ level: "warning" });
+  });
+
+  it("does not flag {{trigger.payload}} when the sample really has a payload key", () => {
+    const graph = {
+      version: 1,
+      nodes: [
+        { id: "trigger", type: "trigger", config: { sample_payload: { payload: { x: 1 } } }, position: { x: 0, y: 0 } },
+        { id: "agentA", type: "agent", config: { agent_id: "agent1", input: "{{trigger.payload}} {{trigger.email}}" }, position: { x: 200, y: 0 } },
+      ],
+      edges: [{ source: "trigger", target: "agentA" }],
+    };
+    expect(validateGraphLocal(graph).errors).toEqual([]);
+  });
+
+  it("flags .route on an upstream router as template_ref_invalid", () => {
+    const graph = {
+      version: 1,
+      nodes: [
+        { id: "router1", type: "router", config: { rules: [{ route: "yes", field: "x", op: "eq", value: 1 }], default_route: "no" }, position: { x: 0, y: 0 } },
+        { id: "agentA", type: "agent", config: { agent_id: "agent1", input: "{{router1.route}}" }, position: { x: 200, y: 0 } },
+      ],
+      edges: [{ source: "router1", target: "agentA", route: "yes" }],
+    };
+    const result = validateGraphLocal(graph);
+    expect(result.errors.some((e) => e.message === "templateRefInvalid:{{router1.route}}")).toBe(true);
+  });
+
+  it("flags .route on an upstream condition or try as template_ref_invalid", () => {
+    for (const type of ["condition", "try"]) {
+      const graph = {
+        version: 1,
+        nodes: [
+          { id: "trigger", type: "trigger", config: {}, position: { x: 0, y: 0 } },
+          { id: "c", type, config: {}, position: { x: 100, y: 0 } },
+          { id: "agentA", type: "agent", config: { agent_id: "agent1", input: "{{c.route}}" }, position: { x: 200, y: 0 } },
+        ],
+        edges: [{ source: "trigger", target: "c" }, { source: "c", target: "agentA", route: type === "try" ? "ok" : "true" }],
+      };
+      const result = validateGraphLocal(graph);
+      expect(result.errors.some((e) => e.message === "templateRefInvalid:{{c.route}}")).toBe(true);
+    }
+  });
+
+  it("flags a field a known-output node doesn't produce, and accepts one it does", () => {
+    const graph = (ref) => ({
+      version: 1,
+      nodes: [
+        { id: "trigger", type: "trigger", config: {}, position: { x: 0, y: 0 } },
+        { id: "h", type: "http", config: { method: "GET", url: "https://x.fr", headers: [], timeout_s: 10 }, position: { x: 100, y: 0 } },
+        { id: "agentA", type: "agent", config: { agent_id: "agent1", input: ref }, position: { x: 200, y: 0 } },
+      ],
+      edges: [{ source: "trigger", target: "h" }, { source: "h", target: "agentA" }],
+    });
+    const bad = validateGraphLocal(graph("{{h.output}}"));
+    expect(bad.valid).toBe(false);
+    expect(bad.errors.some((e) => e.message === "templateRefUnknownField:{{h.output}}")).toBe(true);
+    const good = validateGraphLocal(graph("{{h.body.items}}"));
+    expect(good.errors.some((e) => e.message.startsWith("templateRef"))).toBe(false);
   });
 
   it("reports an approval node as a warning without failing validity", () => {

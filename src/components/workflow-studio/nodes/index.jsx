@@ -1,6 +1,6 @@
 "use client";
 
-import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag } from "lucide-react";
+import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
 import { NODE_FAMILIES } from "@/lib/workflowGraph";
@@ -21,22 +21,29 @@ function RunFooter({ runStatus, runDuration }) {
   );
 }
 
+// A route is either a plain string (router/classifier — the label a user
+// typed IS the route value) or a {value, label} pair (try — the route value
+// is fixed ("ok"/"error") but shown translated).
 function RouteChips({ routes, taken }) {
   if (!routes || routes.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1 mt-1.5">
-      {routes.map((r) => (
-        <span
-          key={r}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded-md border ${
-            taken === r
-              ? "bg-blue-500/20 border-blue-400/50 text-blue-200"
-              : "th-bg-surface th-text-faint border-white/8"
-          }`}
-        >
-          {r}
-        </span>
-      ))}
+      {routes.map((r) => {
+        const value = typeof r === "string" ? r : r.value;
+        const label = typeof r === "string" ? r : r.label;
+        return (
+          <span
+            key={value}
+            className={`px-1.5 py-0.5 text-[10px] font-medium rounded-md border ${
+              taken === value
+                ? "bg-blue-500/20 border-blue-400/50 text-blue-200"
+                : "th-bg-surface th-text-faint border-white/8"
+            }`}
+          >
+            {label}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -190,6 +197,59 @@ export function ApprovalNode({ data, selected }) {
   );
 }
 
+export function TryNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  const ti = useTranslations("WorkflowInspector");
+  const cfg = data.config || {};
+  const routes = [
+    { value: "ok", label: ti("tryRoute_ok") },
+    { value: "error", label: ti("tryRoute_error") },
+  ];
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeTry")}
+      color={NODE_FAMILIES.try.color}
+      icon={ShieldAlert}
+      footer={
+        data.onOpenBody && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); data.onOpenBody(); }}
+            className="mt-2 w-full text-[11px] font-semibold px-2 py-1 rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary nodrag"
+          >
+            {tn("editTryBody")}
+          </button>
+        )
+      }
+    >
+      {cfg.retries > 0 && (
+        <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-md border bg-violet-500/10 text-violet-300 border-violet-500/20">
+          {tn("tryRetriesBadge", { count: cfg.retries })}
+        </span>
+      )}
+      <RouteChips routes={routes} taken={data.runRoute} />
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function SubworkflowNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeSubworkflow")}
+      subtitle={data.subtitle}
+      color={NODE_FAMILIES.subworkflow.color}
+      icon={Workflow}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
 export function ConvertNode({ data, selected }) {
   const t = useTranslations("WorkflowPalette");
   const ti = useTranslations("WorkflowInspector");
@@ -222,6 +282,118 @@ export function OutputNode({ data, selected }) {
   );
 }
 
+export function HttpNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const method = data.config?.method || "GET";
+  const url = data.config?.url;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeHttp")}
+      subtitle={url ? `${method} ${url}` : method}
+      color={NODE_FAMILIES.http.color}
+      icon={Globe}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function ExtractNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  const fieldCount = (data.config?.fields || []).length;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeExtract")}
+      color={NODE_FAMILIES.extract.color}
+      icon={ScanText}
+    >
+      {fieldCount > 0 && (
+        <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-md border bg-violet-500/10 text-violet-300 border-violet-500/20">
+          {tn("fieldsBadge", { count: fieldCount })}
+        </span>
+      )}
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function SetNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeSet")}
+      color={NODE_FAMILIES.set.color}
+      icon={ListPlus}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function NotificationNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const ti = useTranslations("WorkflowInspector");
+  const channel = data.config?.channel || "app";
+  const subtitle = channel === "email"
+    ? `${ti("notificationChannel_email")} · ${(data.config?.to || []).length}`
+    : ti(`notificationChannel_${channel}`);
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeNotification")}
+      subtitle={subtitle}
+      color={NODE_FAMILIES.notification.color}
+      icon={Bell}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function RagNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  const topK = data.config?.top_k;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeRag")}
+      color={NODE_FAMILIES.rag.color}
+      icon={BookOpen}
+    >
+      {Number.isInteger(topK) && (
+        <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-md border bg-blue-500/10 text-blue-300 border-blue-500/20">
+          {tn("topKBadge", { count: topK })}
+        </span>
+      )}
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function ConditionNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const ti = useTranslations("WorkflowInspector");
+  const trueLabel = ti("conditionRouteTrue");
+  const falseLabel = ti("conditionRouteFalse");
+  const taken = data.runRoute === "true" ? trueLabel : data.runRoute === "false" ? falseLabel : undefined;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeCondition")}
+      color={NODE_FAMILIES.condition.color}
+      icon={Split}
+    >
+      <RouteChips routes={[trueLabel, falseLabel]} taken={taken} />
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
 export const studioNodeTypes = {
   trigger: TriggerNode,
   agent: AgentNode,
@@ -230,7 +402,15 @@ export const studioNodeTypes = {
   classifier: ClassifierNode,
   merge: MergeNode,
   loop: LoopNode,
+  try: TryNode,
+  subworkflow: SubworkflowNode,
   convert: ConvertNode,
   output: OutputNode,
+  http: HttpNode,
+  notification: NotificationNode,
+  extract: ExtractNode,
+  rag: RagNode,
+  set: SetNode,
+  condition: ConditionNode,
   approval: ApprovalNode,
 };
