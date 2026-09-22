@@ -52,6 +52,7 @@ const {
   listWorkflowRevisions,
   getWorkflowTriggerState,
   rotateWorkflowTrigger,
+  restoreWorkflowRevision,
 } = vi.hoisted(() => ({
   getWorkflowDef: vi.fn(),
   updateWorkflowDef: vi.fn(),
@@ -64,6 +65,7 @@ const {
   listWorkflowRevisions: vi.fn(),
   getWorkflowTriggerState: vi.fn(),
   rotateWorkflowTrigger: vi.fn(),
+  restoreWorkflowRevision: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -76,7 +78,7 @@ vi.mock("@/lib/api", () => ({
   runWorkflowDef,
   cancelWorkflowRun,
   listWorkflowRevisions,
-  restoreWorkflowRevision: vi.fn(),
+  restoreWorkflowRevision,
   getWorkflowTriggerState,
   rotateWorkflowTrigger,
 }));
@@ -245,5 +247,58 @@ describe("WorkflowStudio", () => {
 
     await user.type(screen.getByRole("searchbox", { name: /Search tools/i }), "weather");
     expect(within(picker).getAllByRole("option").map((o) => o.value)).toEqual(["", "weather.get_weather"]);
+  });
+
+  it("shows the restored node in the inspector, not the version it replaced", async () => {
+    const restoredGraph = baseGraph();
+    restoredGraph.nodes[2] = { ...restoredGraph.nodes[2], label: "Agent Restored" };
+    listWorkflowRevisions.mockResolvedValue([
+      { revision_id: 7, version: 1, reason: "edit", saved_at: "2026-09-22T06:00:00Z", name: "Test workflow" },
+    ]);
+    getWorkflowDef.mockResolvedValue(baseWorkflow({ version: 2 }));
+    restoreWorkflowRevision.mockResolvedValue(baseWorkflow({ version: 3, graph: restoredGraph }));
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByTestId("node-agentA"));
+    expect(screen.getByDisplayValue("Agent A")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Versions" }));
+    await user.click(await screen.findByRole("button", { name: "Restore" }));
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+
+    await waitFor(() => expect(screen.getByDisplayValue("Agent Restored")).toBeInTheDocument());
+    expect(screen.queryByDisplayValue("Agent A")).not.toBeInTheDocument();
+  });
+
+  it("warns before a restore unpublishes a published workflow", async () => {
+    getWorkflowDef.mockResolvedValue(baseWorkflow({ status: "published", version: 2 }));
+    listWorkflowRevisions.mockResolvedValue([
+      { revision_id: 7, version: 1, reason: "edit", saved_at: "2026-09-22T06:00:00Z", name: "Test workflow" },
+    ]);
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByRole("button", { name: "Versions" }));
+    await user.click(await screen.findByRole("button", { name: "Restore" }));
+    expect(screen.getByText(/disarms its trigger/i)).toBeInTheDocument();
+    expect(restoreWorkflowRevision).not.toHaveBeenCalled();
+  });
+
+  it("names an unreachable server instead of printing the proxy page, and offers a retry", async () => {
+    const proxyError = Object.assign(new Error("HTTP 502"), { status: 502 });
+    runWorkflowDef.mockRejectedValueOnce(proxyError);
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByRole("button", { name: /^Test run/ }));
+    await user.click(screen.getByRole("button", { name: /^Run$/ }));
+    expect(await screen.findByText(/server could not be reached/i)).toBeInTheDocument();
+    runWorkflowDef.mockRejectedValueOnce(proxyError);
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    await waitFor(() => expect(runWorkflowDef).toHaveBeenCalledTimes(2));
   });
 });

@@ -1253,11 +1253,10 @@ export async function runWorkflowDef(workflowId, payload, { signal } = {}) {
     try {
       detail = JSON.parse(text)?.detail;
     } catch {
-      // corps non-JSON (502/504 de proxy) — on garde le texte brut
+      // corps non-JSON (page HTML d'un proxy 502/504) : jamais affiché tel quel
     }
     const message =
       (typeof detail === "string" ? detail : detail && JSON.stringify(detail)) ||
-      (text || "").trim().slice(0, 200) ||
       `HTTP ${res.status}`;
     const err = new Error(message);
     err.status = res.status;

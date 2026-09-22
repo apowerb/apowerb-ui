@@ -39,6 +39,18 @@ import ExecutionPanel from "./ExecutionPanel";
 import VersionsDrawer from "./VersionsDrawer";
 import LoopBodyEditor from "./LoopBodyEditor";
 
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
+// The run request failed before any SSE frame. With no HTTP status (fetch
+// rejected) or a gateway error, the server never answered: there is nothing
+// of its own to show, so name that, retryably, instead of a proxy page.
+function runRequestErrorEvent(err) {
+  if (!err.status || GATEWAY_STATUSES.has(err.status)) {
+    return { event: "error", code: "server_unreachable", detail: err.message, params: { status: err.status ?? "-" } };
+  }
+  return { event: "error", detail: err.message };
+}
+
 const AUTOSAVE_DELAY_MS = 1000;
 
 // `ti` is the "WorkflowInspector" translator — kept as a plain argument
@@ -294,8 +306,9 @@ export default function WorkflowStudio({ workflowId }) {
       });
     } catch (err) {
       if (!controller.signal.aborted) {
-        setRunEvents((list) => [...list, { event: "error", detail: err.message }]);
-        setRunState((s) => applyRunEvent(s, { event: "error", detail: err.message }));
+        const evt = runRequestErrorEvent(err);
+        setRunEvents((list) => [...list, evt]);
+        setRunState((s) => applyRunEvent(s, evt));
       }
     } finally {
       setIsRunning(false);
@@ -401,6 +414,21 @@ export default function WorkflowStudio({ workflowId }) {
     },
     [resetHistory],
   );
+
+  // `selection` keeps the node/edge object it was made with. Resolve it against
+  // the current graph so a restore or an undo never leaves the inspector
+  // showing (and writing back) the values of the replaced version.
+  const liveSelection = useMemo(() => {
+    if (selection?.kind === "node") {
+      const node = nodes.find((n) => n.id === selection.node.id);
+      return node ? { kind: "node", node } : null;
+    }
+    if (selection?.kind === "edge") {
+      const edge = edges.find((e) => e.id === selection.edge.id);
+      return edge ? { kind: "edge", edge } : null;
+    }
+    return selection;
+  }, [selection, nodes, edges]);
 
   // --- node/edge editing ------------------------------------------------------
   const existingIds = useCallback(() => nodes.map((n) => n.id), [nodes]);
@@ -646,7 +674,7 @@ export default function WorkflowStudio({ workflowId }) {
           />
         </div>
         <StudioInspector
-          selection={selection}
+          selection={liveSelection}
           nodes={nodes}
           edges={edges}
           agentOptions={agentOptions}
@@ -671,6 +699,7 @@ export default function WorkflowStudio({ workflowId }) {
         <VersionsDrawer
           workflowId={workflowId}
           currentVersion={workflowMeta.version}
+          published={workflowMeta.status === "published"}
           onClose={() => setVersionsOpen(false)}
           onRestored={handleRestored}
         />
