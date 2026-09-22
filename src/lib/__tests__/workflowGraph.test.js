@@ -183,6 +183,30 @@ describe("extractTemplateRefs / templateSuggestionsFor", () => {
     const suggestions = templateSuggestionsFor({ id: "trigger1", type: "trigger", config: { kind: "manual" } });
     expect(suggestions).toEqual(["{{trigger1}}"]);
   });
+
+  // The engine stores a condition's input unchanged: neither its true/false
+  // route nor an `.output` field is ever written, so only `{{id}}` resolves.
+  it("offers only the whole-node ref for a condition", () => {
+    expect(templateSuggestionsFor({ id: "cond1", type: "condition" })).toEqual(["{{cond1}}"]);
+  });
+
+  // Mirrors the engine's `_output_form`: these nodes' output keys are known
+  // up front, and any other path is refused server-side.
+  it("suggests the known output fields of set, extract, rag, http and notification", () => {
+    expect(templateSuggestionsFor({ id: "s", type: "set", config: { fields: [{ key: "a", value: "x" }, { key: "" }] } })).toEqual(["{{s}}", "{{s.a}}"]);
+    expect(templateSuggestionsFor({ id: "e", type: "extract", config: { fields: [{ name: "montant", type: "number" }] } })).toEqual(["{{e}}", "{{e.montant}}"]);
+    expect(templateSuggestionsFor({ id: "r", type: "rag", config: {} })).toEqual(["{{r}}", "{{r.passages}}", "{{r.query}}"]);
+    expect(templateSuggestionsFor({ id: "h", type: "http", config: {} })).toEqual(["{{h}}", "{{h.status}}", "{{h.body}}", "{{h.headers}}"]);
+    expect(templateSuggestionsFor({ id: "n", type: "notification", config: {} })).toEqual(["{{n}}", "{{n.sent}}", "{{n.channel}}"]);
+  });
+
+  it("never suggests .output for the lot 1-4 nodes either", () => {
+    for (const type of ["set", "extract", "rag", "http", "notification", "condition", "try", "subworkflow"]) {
+      for (const s of templateSuggestionsFor({ id: "n1", type, config: {} })) {
+        expect(s).not.toMatch(/\.output}}$/);
+      }
+    }
+  });
 });
 
 describe("validateGraphLocal", () => {
@@ -321,6 +345,39 @@ describe("validateGraphLocal", () => {
     };
     const result = validateGraphLocal(graph);
     expect(result.errors.some((e) => e.message === "templateRefInvalid:{{router1.route}}")).toBe(true);
+  });
+
+  it("flags .route on an upstream condition or try as template_ref_invalid", () => {
+    for (const type of ["condition", "try"]) {
+      const graph = {
+        version: 1,
+        nodes: [
+          { id: "trigger", type: "trigger", config: {}, position: { x: 0, y: 0 } },
+          { id: "c", type, config: {}, position: { x: 100, y: 0 } },
+          { id: "agentA", type: "agent", config: { agent_id: "agent1", input: "{{c.route}}" }, position: { x: 200, y: 0 } },
+        ],
+        edges: [{ source: "trigger", target: "c" }, { source: "c", target: "agentA", route: type === "try" ? "ok" : "true" }],
+      };
+      const result = validateGraphLocal(graph);
+      expect(result.errors.some((e) => e.message === "templateRefInvalid:{{c.route}}")).toBe(true);
+    }
+  });
+
+  it("flags a field a known-output node doesn't produce, and accepts one it does", () => {
+    const graph = (ref) => ({
+      version: 1,
+      nodes: [
+        { id: "trigger", type: "trigger", config: {}, position: { x: 0, y: 0 } },
+        { id: "h", type: "http", config: { method: "GET", url: "https://x.fr", headers: [], timeout_s: 10 }, position: { x: 100, y: 0 } },
+        { id: "agentA", type: "agent", config: { agent_id: "agent1", input: ref }, position: { x: 200, y: 0 } },
+      ],
+      edges: [{ source: "trigger", target: "h" }, { source: "h", target: "agentA" }],
+    });
+    const bad = validateGraphLocal(graph("{{h.output}}"));
+    expect(bad.valid).toBe(false);
+    expect(bad.errors.some((e) => e.message === "templateRefUnknownField:{{h.output}}")).toBe(true);
+    const good = validateGraphLocal(graph("{{h.body.items}}"));
+    expect(good.errors.some((e) => e.message.startsWith("templateRef"))).toBe(false);
   });
 
   it("reports an approval node as a warning without failing validity", () => {

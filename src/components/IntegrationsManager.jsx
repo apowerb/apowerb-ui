@@ -6,6 +6,8 @@ import { CheckCircle2, Plug, PlugZap, Loader2, Trash2, RefreshCw, ChevronDown, C
 import EntityJumpButton from "@/components/EntityJumpButton";
 import { providerHasToolMapping } from "@/lib/providerMap";
 import OdooConnectModal from "@/components/OdooConnectModal";
+import TeamsWebhookModal from "@/components/TeamsWebhookModal";
+import { getTeamsWebhookStatus, deleteTeamsWebhook } from "@/lib/api";
 import { SkeletonCard } from "./Skeleton";
 
 function GithubIcon({ size = 26 }) {
@@ -718,6 +720,110 @@ function IntegrationCard({ provider, integration, onConnect, onDisconnect, conne
   );
 }
 
+/**
+ * Standalone card for the incoming Teams webhook (apowerb#198). Unlike the
+ * OAuth providers above, this isn't backed by `/api/integrations/` — it has
+ * its own tri-state endpoint (`getTeamsWebhookStatus` never returns the
+ * URL, only `configured`), so it manages its own fetch/refresh instead of
+ * going through `integrationMap`.
+ */
+export function TeamsWebhookCard({ onToast = () => {} }) {
+  const t = useTranslations("IntegrationsManager");
+  const [configured, setConfigured] = useState(null);
+  const [checking, setChecking] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const refreshStatus = useCallback(async () => {
+    setChecking(true);
+    try {
+      const res = await getTeamsWebhookStatus();
+      setConfigured(!!res?.configured);
+    } catch {
+      setConfigured(null);
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshStatus(); // eslint-disable-line react-hooks/set-state-in-effect -- async fetch with setState in callbacks
+  }, [refreshStatus]);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteTeamsWebhook();
+      setConfigured(false);
+      onToast("success", t("teamsWebhookDeletedToast"));
+    } catch (err) {
+      onToast("error", err.message || t("teamsWebhookDeleteFailedError"));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div
+      className={`relative flex flex-col gap-4 p-5 rounded-2xl border th-bg-surface backdrop-blur-xl transition-all duration-300 th-bg-surface-hover hover:scale-[1.02] ${
+        configured ? "border-blue-500/40 shadow-lg shadow-blue-500/5" : "th-border th-border-hover"
+      }`}
+      style={{ width: 240 }}
+    >
+      {configured && (
+        <div className="absolute top-3 right-3">
+          <div className="pill-success flex items-center gap-1 border text-[10px] font-semibold px-2 py-0.5 rounded-full">
+            <CheckCircle2 size={10} /> {t("connectedLabel")}
+          </div>
+        </div>
+      )}
+      <div className="w-12 h-12 rounded-xl bg-indigo-500/20 border th-border flex items-center justify-center">
+        <TeamsIcon size={26} />
+      </div>
+      <div className="flex flex-col gap-1 flex-1">
+        <h3 className="th-text font-bold text-sm">{t("teamsWebhookTitle")}</h3>
+        <p className="th-text-muted text-xs leading-relaxed">{t("teamsWebhookDescription")}</p>
+      </div>
+      {configured ? (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setModalOpen(true)}
+            className="btn-brand flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-white text-xs font-bold shadow-lg shadow-blue-500/20"
+          >
+            <PlugZap size={13} /> {t("teamsWebhookReplaceButton")}
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            title={t("teamsWebhookDeleteButton")}
+            className="btn-danger-outline shrink-0 p-2 rounded-xl border transition-all disabled:opacity-50"
+          >
+            {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setModalOpen(true)}
+          disabled={checking}
+          className="btn-brand flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-white text-xs font-bold shadow-lg shadow-blue-500/20 disabled:opacity-60"
+        >
+          <PlugZap size={13} /> {t("teamsWebhookConfigureButton")}
+        </button>
+      )}
+      {modalOpen && (
+        <TeamsWebhookModal
+          onClose={() => setModalOpen(false)}
+          onSaved={() => {
+            setModalOpen(false);
+            setConfigured(true);
+            onToast("success", t("teamsWebhookConfiguredToast"));
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 function StatsBar({ total, connected }) {
   const t = useTranslations("IntegrationsManager");
   const cards = [
@@ -924,6 +1030,7 @@ export default function IntegrationsManager() {
                     </IntegrationCard>
                   );
                 })}
+                <TeamsWebhookCard onToast={showToast} />
               </div>
             </>
           )}
