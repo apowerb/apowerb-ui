@@ -60,6 +60,7 @@ const TRANSLATED_ERRORS = new Set([
   "http_response_too_large",
   "http_timeout",
   "http_failed",
+  "http_header_forbidden",
   "notification_rate_limited",
   "notification_bad_recipient",
   "teams_not_configured",

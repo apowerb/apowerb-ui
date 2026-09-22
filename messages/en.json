@@ -3693,6 +3693,7 @@
     "runError_http_url_refused": "HTTP {node}: the URL was refused ({reason}). Point it at a public http(s) address — internal, local or loopback addresses are blocked for security.",
     "runError_http_response_too_large": "HTTP {node}: the response exceeded the {max}-byte limit. Ask the endpoint for less data (pagination, a narrower field set) or read it another way.",
     "runError_http_timeout": "HTTP {node} timed out after {seconds}s. Raise the timeout (up to 30s) or check the endpoint's availability.",
+    "runError_http_header_forbidden": "HTTP {node}: the header “{header}” can’t be sent from a workflow — credentials and Host are refused. Remove it from the node’s headers.",
     "runError_http_failed": "HTTP {node} failed to complete the request. Check the URL, method and network path; a plain 4xx/5xx status would not raise this — that comes back as output.",
     "runError_notification_rate_limited": "Notification {node} was rate limited ({limit} per period): space out notifications from this workflow, or batch them.",
     "runError_notification_bad_recipient": "Notification {node} could not be sent to {recipient}: check the address is a valid, deliverable email.",
