@@ -50,6 +50,8 @@ const {
   runWorkflowDef,
   cancelWorkflowRun,
   listWorkflowRevisions,
+  getWorkflowTriggerState,
+  rotateWorkflowTrigger,
 } = vi.hoisted(() => ({
   getWorkflowDef: vi.fn(),
   updateWorkflowDef: vi.fn(),
@@ -60,6 +62,8 @@ const {
   runWorkflowDef: vi.fn(),
   cancelWorkflowRun: vi.fn(),
   listWorkflowRevisions: vi.fn(),
+  getWorkflowTriggerState: vi.fn(),
+  rotateWorkflowTrigger: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -73,6 +77,8 @@ vi.mock("@/lib/api", () => ({
   cancelWorkflowRun,
   listWorkflowRevisions,
   restoreWorkflowRevision: vi.fn(),
+  getWorkflowTriggerState,
+  rotateWorkflowTrigger,
 }));
 
 function baseGraph() {
@@ -112,6 +118,9 @@ beforeEach(() => {
   listToolConfigs.mockResolvedValue([]);
   listWorkflowDefs.mockResolvedValue([]);
   listWorkflowRevisions.mockResolvedValue([]);
+  listWorkflowDefs.mockResolvedValue([]);
+  getWorkflowTriggerState.mockResolvedValue({ kind: "manual", active: false, reason: "unpublished", webhook_url: null, form_url: null, hmac_enabled: false, next_run_at: null, last_fired_at: null, last_status: null });
+  rotateWorkflowTrigger.mockResolvedValue({ webhook_url: "https://example.test/api/hooks/workflows/tok", hmac_secret: null });
 });
 
 describe("WorkflowStudio", () => {

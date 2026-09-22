@@ -25,6 +25,7 @@ import {
   autoLayout,
   renameNodeId,
 } from "@/lib/workflowGraph";
+import { triggerSamplePayloadFromSchema, triggerPayloadInitialMode, triggerScheduleDetail } from "@/lib/workflowTriggers";
 import { createRunState, applyRunEvent, runStatusByNodeId } from "@/lib/workflowRunState";
 import { consumeWorkflowRun } from "@/lib/workflowSse";
 import { useUndoRedo } from "./hooks/useUndoRedo";
@@ -40,7 +41,10 @@ import LoopBodyEditor from "./LoopBodyEditor";
 
 const AUTOSAVE_DELAY_MS = 1000;
 
-function subtitleFor(node, agentOptions, toolOptions, workflowOptions) {
+// `ti` is the "WorkflowInspector" translator — kept as a plain argument
+// (rather than a hook call in here) because this runs inside a `useMemo`,
+// not as its own component.
+function subtitleFor(node, agentOptions, toolOptions, workflowOptions, ti) {
   const cfg = node.data.config || {};
   if (node.type === "agent" || node.type === "classifier") {
     return agentOptions.find((a) => a.value === cfg.agent_id)?.label;
@@ -48,14 +52,44 @@ function subtitleFor(node, agentOptions, toolOptions, workflowOptions) {
   if (node.type === "tool") {
     return toolOptions.find((tt) => tt.value === cfg.tool)?.label;
   }
+  if (node.type === "trigger") {
+    return triggerSubtitle(cfg, ti);
+  }
   if (node.type === "subworkflow") {
     return workflowOptions.find((w) => String(w.value) === String(cfg.workflow_id))?.label;
   }
   return undefined;
 }
 
+// "Planifié · jours ouvrés 9:00" — the kind's own label plus, for kinds that
+// have one, a one-line detail. `manual` (the default) stays subtitle-less,
+// matching the node's look before triggers had more than one kind.
+function triggerSubtitle(cfg, ti) {
+  const kind = cfg.kind || "manual";
+  if (kind === "manual" || !ti) return undefined;
+  const kindLabel = ti(`triggerKind_${kind}`);
+  switch (kind) {
+    case "schedule": {
+      const detail = triggerScheduleDetail(cfg);
+      const params = detail.key === "scheduleWeeklyAt" ? { ...detail.params, weekday: ti(`weekday_${detail.params.weekday}`) } : detail.params;
+      return `${kindLabel} · ${ti(`triggerSubtitle_${detail.key}`, params)}`;
+    }
+    case "email":
+      return `${kindLabel} · ${ti(`emailProvider_${cfg.provider || "outlook"}`)}`;
+    case "agent_tool":
+      return cfg.tool_name ? `${kindLabel} · ${cfg.tool_name}` : kindLabel;
+    case "form":
+      return cfg.title ? `${kindLabel} · ${cfg.title}` : kindLabel;
+    case "file":
+      return `${kindLabel} · ${ti(`fileProvider_${cfg.provider || "onedrive"}`)}`;
+    default:
+      return kindLabel;
+  }
+}
+
 export default function WorkflowStudio({ workflowId }) {
   const t = useTranslations("WorkflowStudio");
+  const ti = useTranslations("WorkflowInspector");
 
   const [loadState, setLoadState] = useState("loading");
   const [loadError, setLoadError] = useState(null);
@@ -76,6 +110,9 @@ export default function WorkflowStudio({ workflowId }) {
   const [toolOptions, setToolOptions] = useState([]);
   const { schemas: toolSchemas, ensure: ensureToolSchema } = useToolSchemas();
   const [workflowOptions, setWorkflowOptions] = useState([]);
+  // Bumped after publish/unpublish so the trigger status panel (webhook URL,
+  // active/inactive reason…) refetches instead of showing a stale state.
+  const [triggerRefreshKey, setTriggerRefreshKey] = useState(0);
 
   const lastSavedSnapshotRef = useRef(null);
   const saveTimeoutRef = useRef(null);
@@ -164,7 +201,7 @@ export default function WorkflowStudio({ workflowId }) {
 
   // --- validation ------------------------------------------------------------
   const validation = useMemo(
-    () => validateGraphLocal(flowToGraph(nodes, edges), { toolSchemas, currentWorkflowId: workflowId }),
+    () => validateGraphLocal(flowToGraph(nodes, edges), { toolSchemas, currentWorkflowId: workflowId, now: new Date() }),
     [nodes, edges, toolSchemas, workflowId],
   );
   const errorsByNode = useMemo(() => {
@@ -193,11 +230,23 @@ export default function WorkflowStudio({ workflowId }) {
   useEffect(() => {
     if (prefilledPayloadRef.current || !testOpen) return;
     const trigger = nodes.find((n) => n.type === "trigger");
-    if (trigger?.data?.config?.sample_payload) {
-      setPayloadText(JSON.stringify(trigger.data.config.sample_payload, null, 2));
+    const cfg = trigger?.data?.config;
+    // agent_tool / form declare their own payload shape (input_schema /
+    // fields): that beats a hand-written sample_payload, which is the only
+    // option left for every other kind.
+    const schemaPayload = cfg && triggerSamplePayloadFromSchema(cfg);
+    if (schemaPayload) {
+      setPayloadText(JSON.stringify(schemaPayload, null, 2));
+    } else if (cfg?.sample_payload) {
+      setPayloadText(JSON.stringify(cfg.sample_payload, null, 2));
     }
     prefilledPayloadRef.current = true;
   }, [testOpen, nodes]);
+
+  const payloadInitialMode = useMemo(() => {
+    const trigger = nodes.find((n) => n.type === "trigger");
+    return triggerPayloadInitialMode(trigger?.data?.config);
+  }, [nodes]);
 
   const handlePayloadTextChange = (text) => {
     setPayloadText(text);
@@ -320,6 +369,8 @@ export default function WorkflowStudio({ workflowId }) {
     setPublishing(true);
     try {
       await doSave({ status: "published" });
+      // A trigger only activates once published — refetch its status panel.
+      setTriggerRefreshKey((k) => k + 1);
     } catch {
       // surfaced via saveState/conflict already
     } finally {
@@ -331,6 +382,7 @@ export default function WorkflowStudio({ workflowId }) {
     setPublishing(true);
     try {
       await doSave({ status: "draft" });
+      setTriggerRefreshKey((k) => k + 1);
     } catch {
       // surfaced via saveState/conflict already
     } finally {
@@ -469,7 +521,7 @@ export default function WorkflowStudio({ workflowId }) {
         selected: selection?.kind === "node" && selection.node.id === n.id,
         data: {
           ...n.data,
-          subtitle: subtitleFor(n, agentOptions, toolOptions, workflowOptions),
+          subtitle: subtitleFor(n, agentOptions, toolOptions, workflowOptions, ti),
           errorCount: errorsByNode[n.id] || 0,
           runStatus: runStatusMap[n.id],
           runDuration: runDurationById[n.id],
@@ -485,7 +537,7 @@ export default function WorkflowStudio({ workflowId }) {
           onOpenBody: n.type === "loop" || n.type === "try" ? () => setBodyEditorNodeId(n.id) : undefined,
         },
       })),
-    [nodes, edges, selection, agentOptions, toolOptions, workflowOptions, errorsByNode, runStatusMap, runDurationById, runRouteById, deleteNode, existingIds, setNodes, pushHistory],
+    [nodes, edges, selection, agentOptions, toolOptions, workflowOptions, ti, errorsByNode, runStatusMap, runDurationById, runRouteById, deleteNode, existingIds, setNodes, pushHistory],
   );
 
   const displayEdges = useMemo(
@@ -585,6 +637,7 @@ export default function WorkflowStudio({ workflowId }) {
             payloadText={payloadText}
             onPayloadTextChange={handlePayloadTextChange}
             payloadError={payloadError}
+            payloadInitialMode={payloadInitialMode}
             isRunning={isRunning}
             runState={runState}
             replay={replay}
@@ -598,6 +651,8 @@ export default function WorkflowStudio({ workflowId }) {
           edges={edges}
           agentOptions={agentOptions}
           toolOptions={toolOptions}
+          workflowId={workflowId}
+          triggerRefreshKey={triggerRefreshKey}
           toolSchemas={toolSchemas}
           ensureToolSchema={ensureToolSchema}
           workflowOptions={workflowOptions}

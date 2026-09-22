@@ -10,6 +10,7 @@
  */
 
 import dagre from "dagre";
+import { validateTriggerConfig } from "./workflowTriggers";
 
 export const NODE_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 
@@ -620,8 +621,7 @@ function validateToolArgs(node, options) {
  * sub-graph, which is why the loop/try/template checks below never need to
  * know whether they're looking at the outer graph or a nested one.
  *
- * `options.currentWorkflowId` is the id of the workflow being edited — the
- * only bit of validation that needs context outside the graph itself (a
+ * `options.currentWorkflowId` is the id of the workflow being edited (a
  * `subworkflow` node can't call the workflow it lives in). It threads
  * through the loop/try body recursion unchanged.
  *
@@ -629,6 +629,10 @@ function validateToolArgs(node, options) {
  * of `{[tool_ref]: {status, schema}}` — threaded the same way so tool nodes
  * (at any nesting level) can be checked against their real parameter list.
  * Omitting it just skips that one check.
+ *
+ * `options.now` feeds the trigger checks (an `at` schedule refusing a past
+ * date); `options.currentWorkflowId` also stops a `workflow_done` trigger
+ * from listening to its own workflow. Both default to safe values.
  */
 export function validateGraphLocal(graph, options = {}) {
   return validateGraphCore(graph, options);
@@ -742,6 +746,9 @@ function validateGraphCore(graph, options = {}) {
     }
     if (n.type === "output" && edges.some((e) => e.source === n.id)) {
       errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
+    }
+    if (n.type === "trigger") {
+      errors.push(...validateTriggerConfig(n, options));
     }
     if (n.type === "http") {
       errors.push(...validateHttpConfig(n));
