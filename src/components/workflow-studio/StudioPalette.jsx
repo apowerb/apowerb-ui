@@ -54,6 +54,7 @@ const EMPTY_HIDDEN = new Set();
  */
 export default function StudioPalette({ onAdd, hiddenTypes = EMPTY_HIDDEN }) {
   const t = useTranslations("WorkflowPalette");
+  const tHelp = useTranslations("WorkflowNodeHelp");
   const [query, setQuery] = useState("");
 
   const items = useMemo(() => {
@@ -111,7 +112,7 @@ export default function StudioPalette({ onAdd, hiddenTypes = EMPTY_HIDDEN }) {
                     draggable
                     onDragStart={(e) => onDragStart(e, item.type)}
                     onClick={() => onAdd?.(item.type)}
-                    title={`${t(`node${capitalize(item.type)}`)} — ${t("dragHint")}`}
+                    title={`${t(`node${capitalize(item.type)}`)} — ${tHelp(`${item.type}_what`)} ${t("dragHint")}`}
                     className="flex items-center justify-center xl:justify-start gap-2.5 px-0 xl:px-2.5 py-2 rounded-xl th-bg-surface hover:th-bg-surface-hover border th-border-secondary hover:th-border-hover text-left transition-colors cursor-grab active:cursor-grabbing"
                   >
                     <span className={`p-1.5 rounded-lg bg-linear-to-br ${colorGradient(item.color)} shadow-sm shrink-0`}>
