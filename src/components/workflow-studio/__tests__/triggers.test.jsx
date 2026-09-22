@@ -319,6 +319,13 @@ describe("TriggerStatusPanel", () => {
     await waitFor(() => expect(getWorkflowTriggerState).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByText("Active")).toBeInTheDocument());
   });
+
+  it("links to /integrations when the reason is integration_missing (T2)", async () => {
+    getWorkflowTriggerState.mockResolvedValue(idleTriggerState({ reason: "integration_missing" }));
+    render(<Harness workflowId="wf1" kind="email" refreshKey={0} />);
+    await waitFor(() => expect(screen.getByText("Connect the integration first.")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Go to Integrations →" })).toHaveAttribute("href", "/integrations");
+  });
 });
 
 const TRIGGER_KIND_LABEL = {

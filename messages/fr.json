@@ -3459,6 +3459,7 @@
     "triggerReason_unpublished": "Publie le workflow pour activer ce déclencheur.",
     "triggerReason_not_available": "Bientôt disponible.",
     "triggerReason_integration_missing": "Connecte l'intégration d'abord.",
+    "triggerReasonIntegrationsLink": "Aller aux intégrations →",
     "triggerReason_other": "Pas encore actif.",
     "webhookUrl": "URL du webhook",
     "formUrl": "Page du formulaire",
@@ -3615,5 +3616,23 @@
     "workflowDoneOnUnknown": "Condition inconnue « {value} »",
     "workflowDoneSelfListen": "Un workflow ne peut pas écouter sa propre fin",
     "triggerKindUnknown": "Type de déclencheur inconnu « {value} »"
+  },
+  "WorkflowFormView": {
+    "loading": "Chargement du formulaire…",
+    "notFoundTitle": "Formulaire introuvable",
+    "notFoundBody": "Ce formulaire n'existe pas, ou n'est plus actif.",
+    "authRequiredTitle": "Connexion requise",
+    "authRequiredBody": "Ce formulaire est réservé aux personnes connectées.",
+    "signIn": "Se connecter",
+    "genericErrorTitle": "Une erreur est survenue",
+    "genericErrorBody": "{message}",
+    "requiredFieldError": "Ce champ est requis.",
+    "selectPlaceholder": "Choisir…",
+    "submit": "Envoyer",
+    "submitting": "Envoi…",
+    "submitFailed": "Échec de l'envoi : {message}",
+    "successTitle": "Merci !",
+    "successBody": "Votre réponse a été enregistrée.",
+    "backHome": "apowerb"
   }
 }

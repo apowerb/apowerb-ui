@@ -1182,6 +1182,31 @@ export const getWorkflowTriggerState = (workflowId) => request(`/api/workflows/$
 export const rotateWorkflowTrigger = (workflowId) =>
   request(`/api/workflows/${workflowId}/triggers/rotate`, { method: "POST" });
 
+// --- Workflow forms (public `form`-kind trigger page, T2) ------------------
+
+/**
+ * Public form definition behind a `form`-kind trigger — fetched from the
+ * standalone /forms/[token] page, never from inside the dashboard. Returns
+ * an opaque 404 for an unknown or inactive token. `silent401` matches the
+ * public-dashboard endpoints above: this page is never wrapped in
+ * AuthProvider, so a stray 401 here must not clear another tab's session
+ * or fire the app-wide auth:unauthorized event.
+ */
+export const getWorkflowFormDefinition = (token) =>
+  request(`/api/hooks/forms/${token}`, { silent401: true });
+
+/**
+ * Submits the form's values. 202 -> { run_id }; 422 -> { detail } (surfaced
+ * as err.message); 401 when access is "authenticated" and no session is
+ * present.
+ */
+export const submitWorkflowForm = (token, values) =>
+  request(`/api/hooks/forms/${token}`, {
+    method: "POST",
+    body: JSON.stringify(values),
+    silent401: true,
+  });
+
 /**
  * Lance un run et retourne la Response brute (flux SSE) : `request()` ne
  * convient pas ici, il attend un corps JSON complet. L'appelant

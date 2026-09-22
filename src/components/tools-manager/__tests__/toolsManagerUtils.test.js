@@ -10,6 +10,10 @@ describe("toolLeafName", () => {
     expect(toolLeafName("tool_alpha")).toBe("alpha");
     expect(toolLeafName("plain")).toBe("plain");
   });
+
+  it("strips the `workflow:` prefix of a published workflow tool (T2)", () => {
+    expect(toolLeafName("workflow:send_report")).toBe("send_report");
+  });
 });
 
 describe("filterAndSortTools", () => {

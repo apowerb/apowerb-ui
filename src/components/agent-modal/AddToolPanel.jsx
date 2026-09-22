@@ -2,6 +2,7 @@
 
 import { useTranslations } from "use-intl";
 import { Loader2 } from "lucide-react";
+import { toolLeafName } from "@/components/tools-manager/toolsManagerUtils";
 
 /**
  * Inline panel to pick a tool + configure its params to create a new Tool Config.
@@ -76,7 +77,7 @@ export default function AddToolPanel({
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full th-bg-surface th-text-faint shrink-0">
                         {category}
                       </span>
-                      <span className="truncate">{toolName.split(".").pop()}</span>
+                      <span className="truncate">{toolLeafName(toolName)}</span>
                     </button>
                   ))}
                 </div>

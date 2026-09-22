@@ -3459,6 +3459,7 @@
     "triggerReason_unpublished": "Publish the workflow to activate this trigger.",
     "triggerReason_not_available": "Coming soon.",
     "triggerReason_integration_missing": "Connect the integration first.",
+    "triggerReasonIntegrationsLink": "Go to Integrations →",
     "triggerReason_other": "Not active yet.",
     "webhookUrl": "Webhook URL",
     "formUrl": "Form page",
@@ -3615,5 +3616,23 @@
     "workflowDoneOnUnknown": "Unknown condition “{value}”",
     "workflowDoneSelfListen": "A workflow can't listen to its own completion",
     "triggerKindUnknown": "Unknown trigger kind “{value}”"
+  },
+  "WorkflowFormView": {
+    "loading": "Loading the form…",
+    "notFoundTitle": "Form not found",
+    "notFoundBody": "This form doesn't exist, or it isn't active anymore.",
+    "authRequiredTitle": "Sign in required",
+    "authRequiredBody": "This form is only open to signed-in users.",
+    "signIn": "Sign in",
+    "genericErrorTitle": "Something went wrong",
+    "genericErrorBody": "{message}",
+    "requiredFieldError": "This field is required.",
+    "selectPlaceholder": "Select…",
+    "submit": "Submit",
+    "submitting": "Submitting…",
+    "submitFailed": "Couldn't submit: {message}",
+    "successTitle": "Thanks!",
+    "successBody": "Your response has been recorded.",
+    "backHome": "apowerb"
   }
 }

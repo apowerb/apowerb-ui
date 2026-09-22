@@ -84,9 +84,18 @@ export function flattenTools(availableTools) {
   );
 }
 
-/** Human-facing leaf name of a fully-qualified tool string (mirrors the UI display). */
+/**
+ * Human-facing leaf name of a fully-qualified tool string (mirrors the UI
+ * display). Namespacing uses "." for most categories ("pkg.mod.tool_x")
+ * and ":" for a published workflow tool ("workflow:send_report", T2) —
+ * strip whichever separator appears last, so the leaf never repeats the
+ * category badge shown next to it.
+ */
 export function toolLeafName(tool) {
-  return String(tool).split(".").pop().replace(/^tool_/, "");
+  const str = String(tool);
+  const cut = Math.max(str.lastIndexOf("."), str.lastIndexOf(":"));
+  const leaf = cut >= 0 ? str.slice(cut + 1) : str;
+  return leaf.replace(/^tool_/, "");
 }
 
 /** Filter + sort the category-grouped tools for the Available Tools tab. */
