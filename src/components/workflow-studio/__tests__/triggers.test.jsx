@@ -244,7 +244,7 @@ describe("TriggerStatusPanel", () => {
     expect(screen.getByText(expectedText)).toBeInTheDocument();
   });
 
-  it("shows the webhook URL with a working copy button and a curl example", async () => {
+  it("shows the webhook URL with a working copy button", async () => {
     const user = userEvent.setup();
     // userEvent.setup() installs its own navigator.clipboard stub for its copy/paste
     // helpers, overwriting the one from beforeEach — redefine it after setup() so the
@@ -258,8 +258,6 @@ describe("TriggerStatusPanel", () => {
     );
     render(<Harness workflowId="wf1" kind="webhook" refreshKey={0} />);
     await waitFor(() => expect(screen.getByText("https://api.test/api/hooks/workflows/tok1")).toBeInTheDocument());
-    expect(screen.getByText(/curl -X POST/)).toBeInTheDocument();
-    expect(screen.getByText(/X-Apowerb-Signature/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith("https://api.test/api/hooks/workflows/tok1");

@@ -983,6 +983,7 @@ export default function StudioInspector({
       {node.type === "trigger" && (
         <>
           <TriggerInspector
+            nodeId={node.id}
             config={config}
             patch={patch}
             workflowId={workflowId}

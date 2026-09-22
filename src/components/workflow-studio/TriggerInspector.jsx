@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   TRIGGER_KINDS,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/workflowTriggers";
 import { Field, TextInput, SelectInput } from "./StudioInspector";
 import TriggerStatusPanel from "./TriggerStatusPanel";
+import TriggerUsageGuide from "./TriggerUsageGuide";
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0]; // Monday-first, matches the "weekdaysAt"/"weeklyAt" presets
 
@@ -446,8 +448,9 @@ function WorkflowDoneFields({ config, patch, workflowOptions, t }) {
  * status panel. Lives outside `StudioInspector.jsx` because the 8 forms
  * together are as big as the rest of that file.
  */
-export default function TriggerInspector({ config, patch, workflowId, workflowOptions = [], triggerRefreshKey, t }) {
+export default function TriggerInspector({ nodeId, config, patch, workflowId, workflowOptions = [], triggerRefreshKey, t }) {
   const kind = config.kind || "manual";
+  const [liveState, setLiveState] = useState(null);
 
   return (
     <>
@@ -468,7 +471,9 @@ export default function TriggerInspector({ config, patch, workflowId, workflowOp
       {kind === "file" && <FileFields config={config} patch={patch} t={t} />}
       {kind === "workflow_done" && <WorkflowDoneFields config={config} patch={patch} workflowOptions={workflowOptions} t={t} />}
 
-      {workflowId && <TriggerStatusPanel workflowId={workflowId} kind={kind} refreshKey={triggerRefreshKey} t={t} />}
+      <TriggerUsageGuide kind={kind} config={config} workflowId={workflowId} nodeId={nodeId} webhookUrl={liveState?.webhook_url} />
+
+      {workflowId && <TriggerStatusPanel workflowId={workflowId} kind={kind} refreshKey={triggerRefreshKey} onState={setLiveState} t={t} />}
     </>
   );
 }
