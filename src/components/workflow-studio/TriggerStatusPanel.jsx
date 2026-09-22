@@ -6,6 +6,7 @@ import { Copy, Check, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react"
 import { useFormatter } from "use-intl";
 import { getWorkflowTriggerState, rotateWorkflowTrigger } from "@/lib/api";
 import { triggerInactiveReasonKey } from "@/lib/workflowTriggers";
+import { isMissingRouteError } from "@/lib/triggerGuide";
 
 function CopyButton({ text, t }) {
   const [copied, setCopied] = useState(false);
@@ -35,21 +36,16 @@ function UrlBox({ url, t }) {
   );
 }
 
-function curlExample(state) {
-  const lines = [`curl -X POST '${state.webhook_url}' \\`, `  -H 'Content-Type: application/json' \\`];
-  if (state.hmac_enabled) lines.push(`  -H 'X-Apowerb-Signature: sha256=<signature>' \\`);
-  lines.push(`  -d '{"example": true}'`);
-  return lines.join("\n");
-}
-
 /**
  * Live state of the workflow's trigger — active/inactive with a worded
  * reason, the webhook/form URL with a copy button, the webhook's rotate
  * flow (confirm -> new secret shown once -> hidden), and the next/last run.
  * `refreshKey` is bumped by the parent after publish/unpublish so this
- * refetches instead of showing a state from before the flip.
+ * refetches instead of showing a state from before the flip. `onState`
+ * hands the loaded state (null on failure) to the usage guide, which builds
+ * the call to copy from the live webhook URL.
  */
-export default function TriggerStatusPanel({ workflowId, kind, refreshKey, t }) {
+export default function TriggerStatusPanel({ workflowId, kind, refreshKey, onState, t }) {
   const format = useFormatter();
   const [state, setState] = useState(null);
   const [error, setError] = useState(null);
@@ -64,9 +60,13 @@ export default function TriggerStatusPanel({ workflowId, kind, refreshKey, t }) 
       .then((data) => {
         setState(data);
         setError(null);
+        onState?.(data);
       })
-      .catch((err) => setError(err.message));
-  }, [workflowId]);
+      .catch((err) => {
+        setError(isMissingRouteError(err) ? { routeMissing: true } : { message: err.message });
+        onState?.(null);
+      });
+  }, [workflowId, onState]);
 
   useEffect(() => {
     load();
@@ -87,11 +87,25 @@ export default function TriggerStatusPanel({ workflowId, kind, refreshKey, t }) 
     }
   };
 
+  if (error?.routeMissing) {
+    return <p className="mt-3 text-[11px] text-amber-400">{t("triggerRouteMissing")}</p>;
+  }
   if (error) {
-    return <p className="mt-3 text-[11px] text-red-400">{t("triggerStatusFailed", { message: error })}</p>;
+    return <p className="mt-3 text-[11px] text-red-400">{t("triggerStatusFailed", { message: error.message })}</p>;
   }
   if (!state) {
     return <p className="mt-3 text-[11px] th-text-ghost">{t("triggerStatusLoading")}</p>;
+  }
+
+  // A manual trigger is never armed (the server answers active:false with no
+  // reason) yet it is usable at any time: say so instead of "Inactive".
+  if (kind === "manual" && !state.active && !state.reason) {
+    return (
+      <div className="mt-3 p-3 rounded-xl th-bg-surface border th-border-secondary flex items-start gap-1.5">
+        <CheckCircle2 size={13} className="text-emerald-400 shrink-0 mt-0.5" />
+        <span className="text-[11px] th-text-secondary">{t("triggerManualReady")}</span>
+      </div>
+    );
   }
 
   const reasonKey = !state.active && state.reason ? triggerInactiveReasonKey(state.reason) : null;
@@ -114,9 +128,6 @@ export default function TriggerStatusPanel({ workflowId, kind, refreshKey, t }) 
         <div className="mt-2">
           <span className="block text-[10px] font-semibold th-text-ghost">{t("webhookUrl")}</span>
           <UrlBox url={state.webhook_url} t={t} />
-          <pre className="mt-1.5 p-1.5 rounded-lg th-bg-elevated border th-border-secondary text-[9px] font-mono th-text-faint overflow-x-auto whitespace-pre-wrap break-all">
-            {curlExample(state)}
-          </pre>
 
           {rotatedSecret && (
             <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
