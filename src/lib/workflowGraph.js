@@ -26,6 +26,8 @@ export const NODE_TYPES = [
   "subworkflow",
   "output",
   "convert",
+  "extract",
+  "rag",
   "set",
   "condition",
 ];
@@ -40,6 +42,16 @@ export const CONDITION_ROUTES = ["true", "false"];
 export const TRY_ROUTES = ["ok", "error"];
 export const TRY_RETRIES_CAP = 3;
 export const TRY_RETRY_DELAY_MS_CAP = 5000;
+
+/** Field types an extract node can declare; mirrors the backend's EXTRACT_FIELD_TYPES. */
+export const EXTRACT_FIELD_TYPES = ["string", "number", "boolean", "list", "object"];
+export const EXTRACT_FIELD_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const EXTRACT_FIELDS_MIN = 1;
+export const EXTRACT_FIELDS_MAX = 30;
+
+export const RAG_TOP_K_DEFAULT = 5;
+export const RAG_TOP_K_MIN = 1;
+export const RAG_TOP_K_MAX = 20;
 
 // Present in the palette but the backend's /run and /validate reject it —
 // kept in one place so the inspector, the palette badge and local
@@ -78,6 +90,11 @@ export const NODE_FAMILIES = {
   subworkflow: { family: "logic", color: "violet" },
   convert: { family: "tools", color: "emerald" },
   output: { family: "output", color: "amber" },
+  // Both agent-driven (an `agent_id` in config, same selector as agent/classifier) —
+  // "intelligence" already covers that shape; a dedicated "knowledge" family for
+  // rag alone would be one node wide and split the palette for no reason.
+  extract: { family: "intelligence", color: "violet" },
+  rag: { family: "intelligence", color: "blue" },
   set: { family: "tools", color: "emerald" },
   condition: { family: "logic", color: "blue" },
 };
@@ -118,6 +135,10 @@ function defaultConfig(type) {
       return { workflow_id: "" };
     case "convert":
       return { to: "text" };
+    case "extract":
+      return { agent_id: "", input: "", fields: [] };
+    case "rag":
+      return { agent_id: "", query: "", top_k: RAG_TOP_K_DEFAULT };
     case "set":
       return { fields: [] };
     case "condition":
@@ -271,6 +292,12 @@ export function templateSuggestionsFor(node) {
     case "router":
     case "classifier":
       return [`{{${node.id}.route}}`, `{{${node.id}.output}}`, ...base];
+    case "rag":
+      return [`{{${node.id}.passages}}`, ...base];
+    case "extract":
+      // Its output has no single ".output" — each declared field is its own
+      // path ({{id.field_name}}), which this generic helper can't know; the
+      // field editor shows that path once a field is named.
     case "condition":
       // Passthrough: the engine stores the input unchanged, never the route.
       return base;
@@ -399,6 +426,46 @@ function validateTryConfig(node, options) {
   return errors;
 }
 
+function validateExtractConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+
+  if (!cfg.agent_id) push("extractAgentRequired");
+
+  const fields = Array.isArray(cfg.fields) ? cfg.fields : [];
+  if (fields.length < EXTRACT_FIELDS_MIN || fields.length > EXTRACT_FIELDS_MAX) {
+    push(`extractFieldsCount:${fields.length}`);
+  }
+
+  const seen = new Set();
+  for (const f of fields) {
+    const name = f?.name || "";
+    if (!EXTRACT_FIELD_NAME_PATTERN.test(name)) {
+      push(`extractFieldNameInvalid:${name}`);
+    } else if (seen.has(name)) {
+      push(`extractFieldNameDuplicate:${name}`);
+    }
+    seen.add(name);
+  }
+  return errors;
+}
+
+function validateRagConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+
+  if (!cfg.agent_id) push("ragAgentRequired");
+  if (!cfg.query || typeof cfg.query !== "string" || !cfg.query.trim()) push("ragQueryRequired");
+
+  const topK = cfg.top_k;
+  if (!Number.isInteger(topK) || topK < RAG_TOP_K_MIN || topK > RAG_TOP_K_MAX) {
+    push(`ragTopKRange:${topK}`);
+  }
+  return errors;
+}
+
 /**
  * Fast local pass: node id shape/uniqueness, dangling edges, missing/unknown
  * route labels on router|classifier outgoing edges, and templates pointing
@@ -492,6 +559,12 @@ function validateGraphCore(graph, options = {}) {
     }
     if (n.type === "output" && edges.some((e) => e.source === n.id)) {
       errors.push({ nodeId: n.id, message: "outputHasSuccessor" });
+    }
+    if (n.type === "extract") {
+      errors.push(...validateExtractConfig(n));
+    }
+    if (n.type === "rag") {
+      errors.push(...validateRagConfig(n));
     }
     if (n.type === "subworkflow") {
       const targetId = n.config?.workflow_id;

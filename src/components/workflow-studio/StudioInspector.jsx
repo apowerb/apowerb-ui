@@ -8,6 +8,9 @@ import {
   templateSuggestionsFor,
   LOOP_OPERATORS,
   CONVERT_TARGETS,
+  EXTRACT_FIELD_TYPES,
+  RAG_TOP_K_MIN,
+  RAG_TOP_K_MAX,
   TRY_ROUTES,
   TRY_RETRIES_CAP,
   TRY_RETRY_DELAY_MS_CAP,
@@ -413,6 +416,66 @@ function RoutesEditor({ routes, onChange, t }) {
   );
 }
 
+/** Add/remove editor for an extract node's declared fields: name, type, description, required. */
+function ExtractFieldsEditor({ fields, onChange, t }) {
+  const update = (i, patch) => {
+    const next = fields.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange(next);
+  };
+  const remove = (i) => onChange(fields.filter((_, idx) => idx !== i));
+  const add = () => onChange([...fields, { name: "", type: "string", description: "", required: false }]);
+
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("extractFieldsTitle")}</label>
+      <div className="flex flex-col gap-2">
+        {fields.map((f, i) => (
+          <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
+            <div className="flex gap-1.5">
+              <input
+                value={f.name || ""}
+                onChange={(e) => update(i, { name: e.target.value })}
+                placeholder={t("extractFieldNamePlaceholder")}
+                aria-label={t("extractFieldName")}
+                className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text"
+              />
+              <select
+                value={f.type || "string"}
+                onChange={(e) => update(i, { type: e.target.value })}
+                aria-label={t("extractFieldType")}
+                className="px-1.5 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text"
+              >
+                {EXTRACT_FIELD_TYPES.map((type) => <option key={type} value={type}>{t(`extractFieldType_${type}`)}</option>)}
+              </select>
+              <button type="button" onClick={() => remove(i)} title={t("removeField")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+                <Trash2 size={12} />
+              </button>
+            </div>
+            <textarea
+              value={f.description || ""}
+              onChange={(e) => update(i, { description: e.target.value })}
+              placeholder={t("extractFieldDescriptionPlaceholder")}
+              aria-label={t("extractFieldDescription")}
+              rows={2}
+              className="px-2 py-1 text-[11px] rounded-md th-bg-elevated border th-border-secondary th-text resize-y"
+            />
+            <label className="flex items-center gap-1.5 text-[11px] th-text-secondary">
+              <input type="checkbox" checked={!!f.required} onChange={(e) => update(i, { required: e.target.checked })} />
+              {t("extractFieldRequired")}
+            </label>
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={add} className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary">
+        <Plus size={12} />
+        {t("addExtractField")}
+      </button>
+      {(fields.length < 1 || fields.length > 30) && <p className="mt-1.5 text-[10px] text-amber-400">{t("extractFieldsCountHelp")}</p>}
+    </div>
+  );
+}
+
 function ArgsEditor({ args, onChange, upstreamNodes, t }) {
   const entries = Object.entries(args || {});
   const update = (key, newKey, value) => {
@@ -617,6 +680,53 @@ export default function StudioInspector({
         <Field label={t("outputValue")} help={t("outputValueHelp")}>
           <TemplateInput value={config.value} onChange={(v) => patch({ value: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
         </Field>
+      )}
+
+      {node.type === "extract" && (
+        <>
+          <Field label={t("agentLabel")}>
+            {agentOptions.length === 0 ? (
+              <p className="text-xs th-text-ghost">{t("agentNone")}</p>
+            ) : (
+              <SelectInput value={config.agent_id || ""} onChange={(e) => patch({ agent_id: e.target.value })}>
+                <option value="">{t("agentPlaceholder")}</option>
+                {agentOptions.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+              </SelectInput>
+            )}
+          </Field>
+          <Field label={t("extractInput")} help={t("extractInputHelp")}>
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+          </Field>
+          <ExtractFieldsEditor fields={config.fields || []} onChange={(fields) => patch({ fields })} t={t} />
+          <p className="mt-1.5 text-[10px] th-text-ghost">{t("extractFieldsHelp", { id: node.id })}</p>
+        </>
+      )}
+
+      {node.type === "rag" && (
+        <>
+          <Field label={t("agentLabel")}>
+            {agentOptions.length === 0 ? (
+              <p className="text-xs th-text-ghost">{t("agentNone")}</p>
+            ) : (
+              <SelectInput value={config.agent_id || ""} onChange={(e) => patch({ agent_id: e.target.value })}>
+                <option value="">{t("agentPlaceholder")}</option>
+                {agentOptions.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+              </SelectInput>
+            )}
+          </Field>
+          <Field label={t("ragQuery")} help={t("ragHelp", { id: node.id })}>
+            <TemplateInput value={config.query} onChange={(v) => patch({ query: v })} upstreamNodes={upstreamNodes} t={t} />
+          </Field>
+          <Field label={t("ragTopK")} help={t("ragTopKHelp")}>
+            <TextInput
+              type="number"
+              min={RAG_TOP_K_MIN}
+              max={RAG_TOP_K_MAX}
+              value={config.top_k ?? ""}
+              onChange={(e) => patch({ top_k: e.target.value === "" ? "" : Number(e.target.value) })}
+            />
+          </Field>
+        </>
       )}
 
       {node.type === "set" && (
