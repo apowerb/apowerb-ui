@@ -52,6 +52,7 @@ const TRANSLATED_ERRORS = new Set([
   "classifier_no_route",
   "loop_items_not_list",
   "convert_failed",
+  "template_ref_invalid",
   // http / notification nodes (LOT 3, 21/09).
   "http_url_refused",
   "http_response_too_large",
