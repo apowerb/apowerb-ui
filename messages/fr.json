@@ -3693,6 +3693,7 @@
     "runError_http_url_refused": "HTTP {node} : l’URL a été refusée ({reason}). Pointe vers une adresse http(s) publique — les adresses internes, locales ou de bouclage sont bloquées pour des raisons de sécurité.",
     "runError_http_response_too_large": "HTTP {node} : la réponse dépasse la limite de {max} octets. Demande moins de données à l’API (pagination, champs plus étroits) ou lis-la autrement.",
     "runError_http_timeout": "HTTP {node} a expiré après {seconds} s. Augmente le délai (jusqu’à 30 s) ou vérifie la disponibilité du service.",
+    "runError_http_header_forbidden": "HTTP {node} : l’en-tête « {header} » ne peut pas être envoyé depuis un workflow — les identifiants et Host sont refusés. Retire-le des en-têtes du nœud.",
     "runError_http_failed": "HTTP {node} n’a pas pu aboutir. Vérifie l’URL, la méthode et l’accès réseau ; un simple statut 4xx/5xx ne provoque pas cette erreur — il revient dans la sortie.",
     "runError_notification_rate_limited": "La notification {node} a été limitée en fréquence ({limit} par période) : espace les notifications de ce workflow, ou regroupe-les.",
     "runError_notification_bad_recipient": "La notification {node} n’a pas pu être envoyée à {recipient} : vérifie qu’il s’agit d’une adresse e-mail valide et joignable.",

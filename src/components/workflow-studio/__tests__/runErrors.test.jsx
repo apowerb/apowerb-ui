@@ -65,6 +65,13 @@ describe("run errors", () => {
     expect(screen.getAllByText(/internal error.*ab12cd34/i)).toHaveLength(2);
   });
 
+  it("names a refused HTTP header instead of showing the server's French text", () => {
+    panel(failedRun({ code: "http_header_forbidden", detail: "h : en-tête 'authorization' interdit", params: { node: "h", header: "authorization" } }));
+    const shown = screen.getAllByText(/header .authorization. can.t be sent/i);
+    expect(shown).toHaveLength(2);
+    expect(screen.queryByText(/interdit/)).not.toBeInTheDocument();
+  });
+
   it("shows the studio's own errors as written", () => {
     panel(failedRun({ code: "workflow_error", detail: "unknown agent: agent9" }));
     expect(screen.getAllByText(/unknown agent: agent9/)).toHaveLength(2);
