@@ -1,12 +1,15 @@
 /**
  * Pure reducer turning a stream of workflow-run SSE events (see
  * workflowSse.js) into UI-ready state: one timeline entry per top-level
- * node, and — for a `loop` node — its nested per-iteration entries.
+ * node, and — for a `loop` or `try` node — its nested per-pass entries.
  *
  * A loop's inner nodes arrive as `node_id: "<loopId>.<innerId>"` with an
- * `iteration` field (0-based); this groups them under the loop's own
- * timeline entry instead of flattening them into the top-level list, so the
- * execution panel can render "iteration 0 / 1 / 2 …" sub-rows.
+ * `iteration` field (0-based); a try's inner nodes arrive the same way but
+ * with an `attempt` field (0-based) instead — same shape, same grouping
+ * code, only the field name differs on the wire. This groups them under the
+ * container's own timeline entry instead of flattening them into the
+ * top-level list, so the execution panel can render "iteration 0 / 1 / 2 …"
+ * (or "attempt 0 / 1 …") sub-rows.
  */
 
 export function createRunState() {
@@ -61,7 +64,7 @@ export function applyRunEvent(state, evt) {
         applyToEntry(top, evt);
       } else {
         if (top.status !== "error") top.status = "running";
-        const iteration = evt.iteration ?? 0;
+        const iteration = evt.iteration ?? evt.attempt ?? 0;
         const list = (top.iterations[iteration] || []).slice();
         const idx = list.findIndex((it) => it.innerId === innerId);
         const inner = idx === -1 ? blankInner(innerId) : { ...list[idx] };

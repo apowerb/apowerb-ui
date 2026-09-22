@@ -1,6 +1,6 @@
 "use client";
 
-import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split } from "lucide-react";
+import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
 import { NODE_FAMILIES } from "@/lib/workflowGraph";
@@ -21,22 +21,29 @@ function RunFooter({ runStatus, runDuration }) {
   );
 }
 
+// A route is either a plain string (router/classifier — the label a user
+// typed IS the route value) or a {value, label} pair (try — the route value
+// is fixed ("ok"/"error") but shown translated).
 function RouteChips({ routes, taken }) {
   if (!routes || routes.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1 mt-1.5">
-      {routes.map((r) => (
-        <span
-          key={r}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded-md border ${
-            taken === r
-              ? "bg-blue-500/20 border-blue-400/50 text-blue-200"
-              : "th-bg-surface th-text-faint border-white/8"
-          }`}
-        >
-          {r}
-        </span>
-      ))}
+      {routes.map((r) => {
+        const value = typeof r === "string" ? r : r.value;
+        const label = typeof r === "string" ? r : r.label;
+        return (
+          <span
+            key={value}
+            className={`px-1.5 py-0.5 text-[10px] font-medium rounded-md border ${
+              taken === value
+                ? "bg-blue-500/20 border-blue-400/50 text-blue-200"
+                : "th-bg-surface th-text-faint border-white/8"
+            }`}
+          >
+            {label}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -190,6 +197,59 @@ export function ApprovalNode({ data, selected }) {
   );
 }
 
+export function TryNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  const ti = useTranslations("WorkflowInspector");
+  const cfg = data.config || {};
+  const routes = [
+    { value: "ok", label: ti("tryRoute_ok") },
+    { value: "error", label: ti("tryRoute_error") },
+  ];
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeTry")}
+      color={NODE_FAMILIES.try.color}
+      icon={ShieldAlert}
+      footer={
+        data.onOpenBody && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); data.onOpenBody(); }}
+            className="mt-2 w-full text-[11px] font-semibold px-2 py-1 rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary nodrag"
+          >
+            {tn("editTryBody")}
+          </button>
+        )
+      }
+    >
+      {cfg.retries > 0 && (
+        <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-md border bg-violet-500/10 text-violet-300 border-violet-500/20">
+          {tn("tryRetriesBadge", { count: cfg.retries })}
+        </span>
+      )}
+      <RouteChips routes={routes} taken={data.runRoute} />
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function SubworkflowNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeSubworkflow")}
+      subtitle={data.subtitle}
+      color={NODE_FAMILIES.subworkflow.color}
+      icon={Workflow}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
 export function ConvertNode({ data, selected }) {
   const t = useTranslations("WorkflowPalette");
   const ti = useTranslations("WorkflowInspector");
@@ -263,6 +323,8 @@ export const studioNodeTypes = {
   classifier: ClassifierNode,
   merge: MergeNode,
   loop: LoopNode,
+  try: TryNode,
+  subworkflow: SubworkflowNode,
   convert: ConvertNode,
   output: OutputNode,
   set: SetNode,

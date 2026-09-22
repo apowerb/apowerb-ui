@@ -52,6 +52,9 @@ const TRANSLATED_ERRORS = new Set([
   "classifier_no_route",
   "loop_items_not_list",
   "convert_failed",
+  "subworkflow_not_found",
+  "subworkflow_cycle",
+  "subworkflow_too_deep",
 ]);
 
 function errorText(t, error) {
@@ -108,7 +111,9 @@ function TimelineEntry({ entry, t }) {
               </button>
               {open && iterationKeys.map((k) => (
                 <div key={k} className="mb-1.5">
-                  <p className="text-[10px] font-semibold th-text-faint mb-0.5">{t("iteration", { index: k })}</p>
+                  <p className="text-[10px] font-semibold th-text-faint mb-0.5">
+                    {t(entry.type === "try" ? "attempt" : "iteration", { index: k })}
+                  </p>
                   {entry.iterations[k].map((inner) => (
                     <IterationRow key={inner.innerId} {...inner} t={t} />
                   ))}
