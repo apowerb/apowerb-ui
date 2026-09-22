@@ -107,6 +107,10 @@ describe("validateTriggerConfig", () => {
 
   it("accepts manual and webhook with no extra config", () => {
     expect(validateTriggerConfig(node({ kind: "manual" }))).toEqual([]);
+    // Same default as the backend (`cfg.get("kind", "manual")`): a trigger
+    // saved before triggers existed has no `kind` and is a manual one.
+    expect(validateTriggerConfig(node({}))).toEqual([]);
+    expect(validateTriggerConfig({ id: "t", type: "trigger" })).toEqual([]);
     expect(validateTriggerConfig(node({ kind: "webhook", hmac: true }))).toEqual([]);
   });
 

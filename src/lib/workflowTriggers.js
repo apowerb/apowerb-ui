@@ -361,7 +361,8 @@ function validateWorkflowDoneConfig(node, cfg, context) {
  */
 export function validateTriggerConfig(node, context = {}) {
   const cfg = node.config || {};
-  const kind = cfg.kind;
+  // A missing kind is a manual trigger, as on the backend.
+  const kind = cfg.kind === undefined ? "manual" : cfg.kind;
   if (!TRIGGER_KINDS.includes(kind)) {
     return [{ nodeId: node.id, message: `triggerKindUnknown:${kind}` }];
   }
