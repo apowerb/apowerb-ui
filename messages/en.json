@@ -3227,7 +3227,9 @@
     "nodeOutput": "Output",
     "nodeConvert": "Convert",
     "nodeTry": "Try",
-    "nodeSubworkflow": "Subworkflow"
+    "nodeSubworkflow": "Subworkflow",
+    "nodeSet": "Set",
+    "nodeCondition": "Condition"
   },
   "WorkflowNode": {
     "untitled": "Untitled",
@@ -3352,6 +3354,10 @@
     "convertTo_list": "List",
     "convertInput": "Value to convert",
     "convertInputHelp": "Leave empty to convert the upstream output. Text becomes a list line by line; JSON is read even inside a ``` block.",
+    "convertTo_csv": "CSV",
+    "convertTo_csv_help": "A list of objects becomes CSV text (and back); the header lists every key found.",
+    "convertTo_date": "Date",
+    "convertTo_date_help": "Text or a timestamp becomes an ISO date.",
     "outputValue": "Output value",
     "outputValueHelp": "What the workflow returns. Leave empty to return the upstream output; an object can combine several nodes.",
     "tryRetries": "Retries (0–3)",
@@ -3367,7 +3373,19 @@
     "subworkflowPlaceholder": "Select a workflow…",
     "subworkflowNone": "No other workflow to call yet.",
     "subworkflowInput": "Input (template)",
-    "subworkflowInputHelp": "Sent as the sub-workflow's trigger payload. Leave empty to pass this node's own input."
+    "subworkflowInputHelp": "Sent as the sub-workflow's trigger payload. Leave empty to pass this node's own input.",
+    "setFields": "Fields",
+    "setFieldKeyPlaceholder": "field name",
+    "setFieldValuePlaceholder": "Value (template)",
+    "addField": "Add field",
+    "removeField": "Remove",
+    "setFieldsMin": "A Set node needs at least one field.",
+    "conditionMatch": "Match",
+    "conditionMatchAll": "All rules (AND)",
+    "conditionMatchAny": "Any rule (OR)",
+    "conditionRulesMin": "A condition needs at least one rule.",
+    "conditionRouteTrue": "True",
+    "conditionRouteFalse": "False"
   },
   "WorkflowExecutionPanel": {
     "title": "Test run",
@@ -3497,6 +3515,11 @@
     "tryBodyTriggerCount": "The try body needs exactly one trigger ({value} found)",
     "tryDuplicateRoute": "Route “{value}” is used by more than one connection",
     "subworkflowRequired": "Pick a workflow to call",
-    "subworkflowSelfReference": "A workflow can't call itself"
+    "subworkflowSelfReference": "A workflow can't call itself",
+    "setNoFields": "A Set node needs at least one field",
+    "setFieldKeyRequired": "A field needs a non-empty key",
+    "setDuplicateKey": "Duplicate field key “{value}”",
+    "conditionNoRules": "A condition needs at least one rule",
+    "conditionDuplicateRoute": "Route “{value}” already has a connection"
   }
 }

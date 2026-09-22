@@ -3227,7 +3227,9 @@
     "nodeOutput": "Sortie",
     "nodeConvert": "Conversion",
     "nodeTry": "Essai (try)",
-    "nodeSubworkflow": "Sous-workflow"
+    "nodeSubworkflow": "Sous-workflow",
+    "nodeSet": "Affecter",
+    "nodeCondition": "Condition"
   },
   "WorkflowNode": {
     "untitled": "Sans titre",
@@ -3352,6 +3354,10 @@
     "convertTo_list": "Liste",
     "convertInput": "Valeur à convertir",
     "convertInputHelp": "Laisse vide pour convertir la sortie amont. Un texte devient une liste ligne par ligne ; le JSON est lu même dans un bloc ```.",
+    "convertTo_csv": "CSV",
+    "convertTo_csv_help": "Une liste d’objets devient du texte CSV (et inversement) ; l’en-tête reprend toutes les clés rencontrées.",
+    "convertTo_date": "Date",
+    "convertTo_date_help": "Un texte ou un horodatage devient une date au format ISO.",
     "outputValue": "Valeur de sortie",
     "outputValueHelp": "Ce que renvoie le workflow. Laisse vide pour renvoyer la sortie amont ; un objet peut combiner plusieurs nœuds.",
     "tryRetries": "Nouvelles tentatives (0 à 3)",
@@ -3367,7 +3373,19 @@
     "subworkflowPlaceholder": "Choisir un workflow…",
     "subworkflowNone": "Aucun autre workflow à appeler pour l'instant.",
     "subworkflowInput": "Entrée (gabarit)",
-    "subworkflowInputHelp": "Envoyée comme charge utile du déclencheur du sous-workflow. Laisse vide pour transmettre l'entrée de ce nœud."
+    "subworkflowInputHelp": "Envoyée comme charge utile du déclencheur du sous-workflow. Laisse vide pour transmettre l'entrée de ce nœud.",
+    "setFields": "Champs",
+    "setFieldKeyPlaceholder": "nom du champ",
+    "setFieldValuePlaceholder": "Valeur (gabarit)",
+    "addField": "Ajouter un champ",
+    "removeField": "Retirer",
+    "setFieldsMin": "Un nœud Affecter a besoin d'au moins un champ.",
+    "conditionMatch": "Correspondance",
+    "conditionMatchAll": "Toutes les règles (ET)",
+    "conditionMatchAny": "Au moins une règle (OU)",
+    "conditionRulesMin": "Une condition a besoin d'au moins une règle.",
+    "conditionRouteTrue": "Vrai",
+    "conditionRouteFalse": "Faux"
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
@@ -3497,6 +3515,11 @@
     "tryBodyTriggerCount": "Le corps du try a besoin d'exactement un déclencheur ({value} trouvé(s))",
     "tryDuplicateRoute": "La route « {value} » est utilisée par plus d'une connexion",
     "subworkflowRequired": "Choisis un workflow à appeler",
-    "subworkflowSelfReference": "Un workflow ne peut pas s'appeler lui-même"
+    "subworkflowSelfReference": "Un workflow ne peut pas s'appeler lui-même",
+    "setNoFields": "Un nœud Affecter a besoin d'au moins un champ",
+    "setFieldKeyRequired": "Un champ a besoin d'une clé non vide",
+    "setDuplicateKey": "Clé de champ en double « {value} »",
+    "conditionNoRules": "Une condition a besoin d'au moins une règle",
+    "conditionDuplicateRoute": "La route « {value} » a déjà une connexion"
   }
 }

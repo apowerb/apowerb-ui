@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag, ShieldAlert, Workflow } from "lucide-react";
+import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { NODE_FAMILIES, UNRUNNABLE_NODE_TYPES } from "@/lib/workflowGraph";
 
@@ -18,6 +18,8 @@ const ICONS = {
   subworkflow: Workflow,
   convert: ArrowRightLeft,
   output: Flag,
+  set: ListPlus,
+  condition: Split,
 };
 
 const FAMILY_ORDER = ["trigger", "intelligence", "tools", "logic", "output"];

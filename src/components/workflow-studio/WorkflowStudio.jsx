@@ -476,7 +476,7 @@ export default function WorkflowStudio({ workflowId }) {
     () =>
       edges.map((e) => {
         const sourceNode = nodes.find((n) => n.id === e.source);
-        const isRouting = sourceNode && (sourceNode.type === "router" || sourceNode.type === "classifier");
+        const isRouting = sourceNode && (sourceNode.type === "router" || sourceNode.type === "classifier" || sourceNode.type === "condition");
         return {
           ...e,
           selected: selection?.kind === "edge" && selection.edge.id === e.id,
