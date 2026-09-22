@@ -13,7 +13,7 @@ function routedTemplate() {
   const trigger = createNode("trigger", { id: "trigger1", position: { x: 0, y: 0 } });
   const tool = createNode("tool", { id: "tool1", position: { x: 240, y: 0 } });
   const router = createNode("router", { id: "router1", position: { x: 480, y: 0 } });
-  router.config = { rules: [{ route: "a", field: "{{tool1.output.status}}", op: "eq", value: "ok" }], default_route: "b" };
+  router.config = { rules: [{ route: "a", field: "{{tool1.status}}", op: "eq", value: "ok" }], default_route: "b" };
   const agentA = createNode("agent", { id: "agentA", position: { x: 720, y: -90 } });
   const agentB = createNode("agent", { id: "agentB", position: { x: 720, y: 90 } });
   return {

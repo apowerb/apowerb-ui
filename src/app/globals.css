@@ -873,6 +873,35 @@ html.light .sidebar-row-active .sidebar-row-actions {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
 }
 
+/* xyflow reserves "input"/"default"/"output"/"group" as built-in node type
+ * names and styles `.react-flow__node-<type>` itself: fixed 150px width,
+ * padding, a solid white background and a dark 1px border (see
+ * @xyflow/react/dist/style.css). Workflow Studio's Output node re-uses
+ * "output" as its own type, so that default styling rendered behind our
+ * translucent NodeShell card — a white rectangle poking out past its
+ * rounded corners, most visible once selected. `graphToFlow` tags every
+ * Output node with this marker class (workflowGraph.js) so we can reset
+ * just the collision, without touching xyflow's real built-in types
+ * (none of which this app uses). The selectors carry `.react-flow__node`
+ * so they outrank xyflows rules whatever the stylesheet order: xyflows
+ * CSS is imported by the canvas component, so it loads after this file.
+ */
+.react-flow__node.workflow-output-node {
+  width: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  color: inherit;
+  background-color: transparent;
+}
+.react-flow__node.workflow-output-node.selectable:hover,
+.react-flow__node.workflow-output-node.selectable.selected,
+.react-flow__node.workflow-output-node.selectable:focus,
+.react-flow__node.workflow-output-node.selectable:focus-visible {
+  box-shadow: none;
+}
+
 /* Handle styles */
 .react-flow__handle {
   transition: all 0.2s ease;
