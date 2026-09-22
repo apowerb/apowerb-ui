@@ -15,7 +15,7 @@ const REASON_KEY = {
   restore: "reasonRestore",
 };
 
-export default function VersionsDrawer({ workflowId, currentVersion, onClose, onRestored }) {
+export default function VersionsDrawer({ workflowId, currentVersion, published = false, onClose, onRestored }) {
   const t = useTranslations("WorkflowVersions");
   const format = useFormatter();
   const [revisions, setRevisions] = useState(null);
@@ -89,6 +89,8 @@ export default function VersionsDrawer({ workflowId, currentVersion, onClose, on
                           <p className="text-[11px] th-text-secondary">
                             {t("restoreConfirmBody", { version: rev.version, reason: t(REASON_KEY[rev.reason] || "reasonEdit") })}
                           </p>
+                          {/* The server always restores as a draft: say so before it disarms a live trigger. */}
+                          {published && <p className="text-[11px] text-amber-400">{t("restoreUnpublishWarning")}</p>}
                           {restoreError && <p className="text-[11px] text-red-400">{t("restoreFailed", { message: restoreError })}</p>}
                           <div className="flex gap-1.5">
                             <button type="button" disabled={restoring} onClick={() => handleRestore(rev.revision_id)} className="flex-1 px-2 py-1 text-[11px] font-semibold rounded-lg bg-brand text-white hover:opacity-90 disabled:opacity-50">

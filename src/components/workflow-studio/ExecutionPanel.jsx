@@ -38,6 +38,8 @@ function OutputBlock({ value, t }) {
 // own written errors) are shown as the server wrote them.
 const TRANSLATED_ERRORS = new Set([
   "internal",
+  // Set by the studio itself when the run request never reached the server.
+  "server_unreachable",
   "model_provider_auth",
   "model_provider_rate_limit",
   "model_provider_unavailable",
@@ -213,7 +215,14 @@ export default function ExecutionPanel({
             </div>
             {replay && replay.total > 0 && !isRunning && <ReplayControls replay={replay} t={t} />}
             {runState.status === "error" && runState.finalError && (
-              <p className="mt-2 text-[11px] text-red-400">{t("errorDetail")}: {errorText(t, runState.finalError)}</p>
+              <p className="mt-2 text-[11px] text-red-400">
+                {t("errorDetail")}: {errorText(t, runState.finalError)}
+                {runState.finalError.code === "server_unreachable" && (
+                  <button type="button" onClick={onRun} className="ml-2 underline font-semibold hover:opacity-80">
+                    {t("retry")}
+                  </button>
+                )}
+              </p>
             )}
             {runState.status === "done" && (
               <div className="mt-2">
