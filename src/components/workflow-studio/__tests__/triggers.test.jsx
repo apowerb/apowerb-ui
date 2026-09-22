@@ -129,7 +129,7 @@ describe("a form for each of the 8 trigger kinds", () => {
 
   it("email: provider and filters", () => {
     render(<Inspector graph={triggerGraph({ kind: "email", provider: "outlook", from_filter: null, subject_filter: null })} nodeId="trigger1" onConfig={() => {}} />);
-    expect(screen.getByLabelText(/From contains/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^From$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Subject contains/i)).toBeInTheDocument();
   });
 
