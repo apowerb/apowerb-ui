@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { useTranslations } from "use-intl";
 import {
   getUpstreamNodeIds,
@@ -25,6 +25,7 @@ import {
 } from "@/lib/workflowGraph";
 import TriggerInspector from "./TriggerInspector";
 import NodeUsageHelp from "./NodeUsageHelp";
+import { templateExamplesFor } from "@/lib/templateExamples";
 import { getTeamsWebhookStatus } from "@/lib/api";
 import { Link } from "@/lib/navigation";
 
@@ -90,12 +91,56 @@ function insertAtCursor(ref, value, onChange, snippet) {
 }
 
 /**
+ * "Examples" menu of a template field: ready-made values built from the
+ * nearest upstream node (see lib/templateExamples). Picking one fills an
+ * empty field, or is appended after the text already there.
+ */
+function TemplateExamples({ kind, upstreamNodes, onPick, t }) {
+  const [open, setOpen] = useState(false);
+  const examples = templateExamplesFor(kind, upstreamNodes, (key) => t.raw(key));
+  if (examples.length === 0) return null;
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        title={t("templateExamplesHelp")}
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded-md th-text-brand hover:th-bg-surface-hover"
+      >
+        {t("templateExamples")}
+        <ChevronDown size={10} aria-hidden="true" className={open ? "rotate-180" : undefined} />
+      </button>
+      {open && (
+        <div className="mt-1 flex flex-col gap-1 rounded-lg border th-border-secondary th-bg-elevated p-1.5">
+          <p className="text-[10px] th-text-ghost">{t("templateExamplesHelp")}</p>
+          {examples.map((ex) => (
+            <button
+              key={ex.id}
+              type="button"
+              onClick={() => {
+                onPick(ex.snippet);
+                setOpen(false);
+              }}
+              className="text-left px-1.5 py-1 rounded-md hover:th-bg-surface-hover"
+            >
+              <span className="block text-[11px] font-semibold th-text">{t(ex.labelKey)}</span>
+              <span className="block text-[10px] font-mono th-text-faint whitespace-pre-wrap break-all">{ex.snippet}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * A text input/textarea plus one-click `{{node...}}` chips for every
- * upstream node. `numeric` only hints the on-screen keyboard/font — the
+ * upstream node, and an optional "Examples" menu (`examples` = field kind). `numeric` only hints the on-screen keyboard/font — the
  * value stays free text so a `{{node.output}}` template still fits, which
  * is why a tool's number/integer arguments use this instead of `type="number"`.
  */
-function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline, numeric, t }) {
+function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline, numeric, examples, t }) {
   const ref = useRef(null);
   const suggestions = upstreamNodes.flatMap((n) => templateSuggestionsFor(n).slice(0, 1).map((snippet) => ({ node: n, snippet })));
   const Comp = multiline ? "textarea" : "input";
@@ -124,6 +169,14 @@ function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline,
             </button>
           ))}
         </div>
+      )}
+      {examples && (
+        <TemplateExamples
+          kind={examples}
+          upstreamNodes={upstreamNodes}
+          onPick={(snippet) => onChange((value || "") + snippet)}
+          t={t}
+        />
       )}
       {upstreamNodes.length === 0 && (
         <p className="mt-1 text-[10px] th-text-ghost">{t("upstreamValuesEmpty")}</p>
@@ -1012,7 +1065,7 @@ export default function StudioInspector({
             )}
           </Field>
           <Field label={t("input")} help={t("inputHelp")}>
-            <TemplateInput value={config.input} onChange={(v) => patch({ input: v })} upstreamNodes={upstreamNodes} multiline t={t} />
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v })} upstreamNodes={upstreamNodes} multiline examples="agentInput" t={t} />
           </Field>
         </>
       )}
@@ -1059,14 +1112,14 @@ export default function StudioInspector({
             </SelectInput>
           </Field>
           <Field label={t("convertInput")} help={t("convertInputHelp")}>
-            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} t={t} />
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} examples="convertInput" t={t} />
           </Field>
         </>
       )}
 
       {node.type === "output" && (
         <Field label={t("outputValue")} help={t("outputValueHelp")}>
-          <TemplateInput value={config.value} onChange={(v) => patch({ value: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+          <TemplateInput value={config.value} onChange={(v) => patch({ value: v || undefined })} upstreamNodes={upstreamNodes} multiline examples="outputValue" t={t} />
         </Field>
       )}
 
@@ -1078,12 +1131,12 @@ export default function StudioInspector({
             </SelectInput>
           </Field>
           <Field label={t("httpUrl")} help={t("httpUrlHelp")}>
-            <TemplateInput value={config.url} onChange={(v) => patch({ url: v })} placeholder={t("httpUrlPlaceholder")} upstreamNodes={upstreamNodes} t={t} />
+            <TemplateInput value={config.url} onChange={(v) => patch({ url: v })} placeholder={t("httpUrlPlaceholder")} upstreamNodes={upstreamNodes} examples="httpUrl" t={t} />
           </Field>
           <HttpHeadersEditor headers={config.headers || []} onChange={(headers) => patch({ headers })} t={t} />
           {HTTP_METHODS_WITH_BODY.has(config.method || "GET") && (
             <Field label={t("httpBody")} help={t("httpBodyHelp")}>
-              <TemplateInput value={config.body} onChange={(v) => patch({ body: v || undefined })} multiline upstreamNodes={upstreamNodes} t={t} />
+              <TemplateInput value={config.body} onChange={(v) => patch({ body: v || undefined })} multiline upstreamNodes={upstreamNodes} examples="httpBody" t={t} />
             </Field>
           )}
           <Field label={t("httpTimeout")} help={t("httpTimeoutHelp")}>
@@ -1111,7 +1164,7 @@ export default function StudioInspector({
             )}
           </Field>
           <Field label={t("extractInput")} help={t("extractInputHelp")}>
-            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} multiline examples="extractInput" t={t} />
           </Field>
           <ExtractFieldsEditor fields={config.fields || []} onChange={(fields) => patch({ fields })} t={t} />
           <p className="mt-1.5 text-[10px] th-text-ghost">{t("extractFieldsHelp", { id: node.id })}</p>
@@ -1131,7 +1184,7 @@ export default function StudioInspector({
             )}
           </Field>
           <Field label={t("ragQuery")} help={t("ragHelp", { id: node.id })}>
-            <TemplateInput value={config.query} onChange={(v) => patch({ query: v })} upstreamNodes={upstreamNodes} t={t} />
+            <TemplateInput value={config.query} onChange={(v) => patch({ query: v })} upstreamNodes={upstreamNodes} examples="ragQuery" t={t} />
           </Field>
           <Field label={t("ragTopK")} help={t("ragTopKHelp")}>
             <TextInput
@@ -1159,7 +1212,7 @@ export default function StudioInspector({
                 <TextInput value={config.subject || ""} onChange={(e) => patch({ subject: e.target.value })} />
               </Field>
               <Field label={t("notificationBody")}>
-                <TemplateInput value={config.body} onChange={(v) => patch({ body: v })} multiline upstreamNodes={upstreamNodes} t={t} />
+                <TemplateInput value={config.body} onChange={(v) => patch({ body: v })} multiline upstreamNodes={upstreamNodes} examples="notificationBody" t={t} />
               </Field>
             </>
           )}
@@ -1169,7 +1222,7 @@ export default function StudioInspector({
                 <TextInput value={config.subject || ""} onChange={(e) => patch({ subject: e.target.value })} />
               </Field>
               <Field label={t("notificationBody")}>
-                <TemplateInput value={config.body} onChange={(v) => patch({ body: v })} multiline upstreamNodes={upstreamNodes} t={t} />
+                <TemplateInput value={config.body} onChange={(v) => patch({ body: v })} multiline upstreamNodes={upstreamNodes} examples="notificationBody" t={t} />
               </Field>
               <p className="text-xs th-text-ghost">{t("notificationTeamsHelp")}</p>
               {teamsWebhookConfigured === false && (
@@ -1233,7 +1286,7 @@ export default function StudioInspector({
             </>
           ) : (
             <Field label={t("loopItems")} help={t("loopItemsHelp")}>
-              <TemplateInput value={config.items} onChange={(v) => patch({ items: v })} placeholder={t("loopItemsPlaceholder")} upstreamNodes={upstreamNodes} t={t} />
+              <TemplateInput value={config.items} onChange={(v) => patch({ items: v })} placeholder={t("loopItemsPlaceholder")} upstreamNodes={upstreamNodes} examples="loopItems" t={t} />
             </Field>
           )}
           <Field label={t("loopBody")} help={t("loopBodyHelp")}>
@@ -1299,7 +1352,7 @@ export default function StudioInspector({
             })()}
           </Field>
           <Field label={t("subworkflowInput")} help={t("subworkflowInputHelp")}>
-            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+            <TemplateInput value={config.input} onChange={(v) => patch({ input: v || undefined })} upstreamNodes={upstreamNodes} multiline examples="subworkflowInput" t={t} />
           </Field>
         </>
       )}
