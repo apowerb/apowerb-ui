@@ -22,6 +22,7 @@ import {
   listAgents,
   listNotifications,
   createAgent,
+  getModels,
   listAllSessions,
   listPipelines,
   listSuperAgents,
@@ -33,6 +34,8 @@ import { useToast } from "./Toast";
 import OnboardingTour from "./OnboardingTour";
 import { formatDate as formatDateParis } from "@/lib/datetime";
 import { isNavVisible } from "@/lib/hiddenScreens";
+import { starterAgentModel } from "@/lib/starterAgent";
+import { DEFAULT_LLM_MODEL_ID } from "./ModelSelector";
 
 const FEATURED_TEMPLATE_COUNT = 3;
 
@@ -218,13 +221,14 @@ export default function HomeDashboard() {
     setCreatingStarter(true);
     try {
       const name = `starter_agent_${Date.now()}`;
+      const models = await getModels().catch(() => null);
       await createAgent({
         agent_name: name,
         agent_type: "base",
         agent_description: "Your first agent. Ask it anything.",
         agent_instruction:
           "You are a helpful AI assistant. Answer clearly and concisely.",
-        agent_model: "gemini-2.0-flash",
+        agent_model: starterAgentModel(models, DEFAULT_LLM_MODEL_ID),
         agent_tools: [],
         sub_agents: [],
       });
