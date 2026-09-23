@@ -32,6 +32,7 @@ import { useUndoRedo } from "./hooks/useUndoRedo";
 import { useRunReplay } from "./hooks/useRunReplay";
 import { useToolSchemas } from "./hooks/useToolSchemas";
 import StudioTopBar from "./StudioTopBar";
+import { suggestNextNodes, applySuggestion } from "@/lib/nextNodeSuggestions";
 import StudioPalette from "./StudioPalette";
 import StudioCanvas from "./StudioCanvas";
 import StudioInspector from "./StudioInspector";
@@ -505,6 +506,26 @@ export default function WorkflowStudio({ workflowId }) {
     [addNodeAt, nodes, selection],
   );
 
+  // What could come after the selected node — rules only, recomputed from
+  // the graph on every change (see lib/nextNodeSuggestions).
+  const suggestions = useMemo(
+    () => (liveSelection?.kind === "node" ? suggestNextNodes(liveSelection.node, nodes, edges) : []),
+    [liveSelection, nodes, edges],
+  );
+
+  const pickSuggestion = useCallback(
+    (suggestion) => {
+      const source = liveSelection?.node;
+      if (!source) return;
+      const { nodes: nextNodes, edges: nextEdges, node } = applySuggestion(nodes, edges, source, suggestion);
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      pushHistory(nextNodes, nextEdges);
+      setSelection({ kind: "node", node });
+    },
+    [liveSelection, nodes, edges, setNodes, setEdges, pushHistory],
+  );
+
   const onConnect = useCallback(
     (connection) => {
       const nextEdges = addEdge({ ...connection, type: "route", data: { route: null } }, edges);
@@ -706,6 +727,9 @@ export default function WorkflowStudio({ workflowId }) {
               onUndo={undo}
               onRedo={redo}
               onAutoLayout={handleAutoLayout}
+              suggestions={suggestions}
+              suggestionAnchor={suggestions.length ? liveSelection.node.position : null}
+              onPickSuggestion={pickSuggestion}
             />
           </div>
           <ExecutionPanel

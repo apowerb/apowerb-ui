@@ -1,30 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell } from "lucide-react";
+import { Search } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { NODE_FAMILIES, UNRUNNABLE_NODE_TYPES } from "@/lib/workflowGraph";
+import { NODE_ICONS } from "./nodeIcons";
 
-const ICONS = {
-  trigger: Zap,
-  agent: Bot,
-  classifier: Sparkles,
-  tool: Wrench,
-  router: GitBranch,
-  merge: Merge,
-  loop: Repeat,
-  approval: UserCheck,
-  try: ShieldAlert,
-  subworkflow: Workflow,
-  convert: ArrowRightLeft,
-  output: Flag,
-  http: Globe,
-  notification: Bell,
-  extract: ScanText,
-  rag: BookOpen,
-  set: ListPlus,
-  condition: Split,
-};
 
 const FAMILY_ORDER = ["trigger", "intelligence", "tools", "logic", "output"];
 const FAMILY_LABEL_KEY = {
@@ -38,7 +19,7 @@ const FAMILY_LABEL_KEY = {
 const PALETTE_ITEMS = Object.entries(NODE_FAMILIES).map(([type, meta]) => ({
   type,
   ...meta,
-  icon: ICONS[type],
+  icon: NODE_ICONS[type],
 }));
 
 const EMPTY_HIDDEN = new Set();

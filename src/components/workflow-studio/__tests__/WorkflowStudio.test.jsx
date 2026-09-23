@@ -30,6 +30,12 @@ vi.mock("@/components/workflow-studio/StudioCanvas", () => ({
         </button>
       ))}
       <button data-testid="undo" onClick={props.onUndo}>undo</button>
+      <div data-testid="suggestion-anchor">{props.suggestionAnchor ? `${props.suggestionAnchor.x},${props.suggestionAnchor.y}` : ""}</div>
+      {(props.suggestions || []).map((s) => (
+        <button key={`${s.type}-${s.route || ""}`} data-testid={`suggest-${s.type}`} onClick={() => props.onPickSuggestion(s)}>
+          {s.type}{s.route ? `:${s.route}` : ""}
+        </button>
+      ))}
       {props.edges.map((e) => (
         <button key={e.id} data-testid={`edge-${e.source}-${e.target}`} onClick={() => props.onEdgeClick(e)}>
           {e.source}-{e.target}
@@ -367,5 +373,35 @@ describe("WorkflowStudio", () => {
     window.dispatchEvent(new Event("pagehide"));
     unmount();
     expect(updateWorkflowDef).not.toHaveBeenCalled();
+  });
+});
+
+describe("next-step suggestions", () => {
+  it("offers the branch with no edge after the selected router, and one click adds, wires and pre-fills it", async () => {
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await screen.findByTestId("canvas-mock");
+
+    await user.click(screen.getByTestId("node-agentA"));
+    expect(screen.getByTestId("suggestion-anchor").textContent).toBe("400,0");
+    expect(screen.getByTestId("suggest-output")).toBeTruthy();
+
+    await user.click(screen.getByTestId("suggest-output"));
+
+    expect(screen.getByTestId("node-count").textContent).toBe("4");
+    expect(screen.getByTestId("edge-agentA-output1")).toBeTruthy();
+    const value = await screen.findByDisplayValue("{{agentA}}");
+    expect(value).toBeTruthy();
+  });
+
+  it("says nothing after a node that is already wired", async () => {
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await screen.findByTestId("canvas-mock");
+
+    await user.click(screen.getByTestId("node-trigger1"));
+
+    expect(screen.getByTestId("suggestion-anchor").textContent).toBe("");
+    expect(screen.queryByTestId("suggest-agent")).toBeNull();
   });
 });
