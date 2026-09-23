@@ -1182,6 +1182,15 @@ export const restoreWorkflowRevision = (workflowId, revisionId) =>
     method: "POST",
   });
 
+// Nœuds proposés par le modèle après `node_id` (brouillon non enregistré).
+// 404 : fonction éteinte ; 402 : plafond de jetons ; 503 : modèle indisponible.
+export const suggestNextWorkflowNode = (body, { signal } = {}) =>
+  request("/api/workflows/defs/suggest-next", {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal,
+  });
+
 export const validateWorkflowGraph = (graph) =>
   request("/api/workflows/defs/validate", {
     method: "POST",

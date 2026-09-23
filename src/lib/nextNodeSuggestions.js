@@ -120,11 +120,41 @@ export function suggestNextNodes(node, nodes = [], edges = []) {
  */
 export function applySuggestion(nodes = [], edges = [], sourceNode, suggestion) {
   const position = findFreePosition(nodes, sourceNode.id);
-  const graphNode = createNode(suggestion.type, { position, existingIds: nodes.map((n) => n.id) });
+  const graphNode = createNode(suggestion.type, {
+    position,
+    existingIds: nodes.map((n) => n.id),
+    label: suggestion.label,
+  });
   graphNode.config = { ...graphNode.config, ...suggestion.config };
   const node = graphToFlow({ nodes: [graphNode], edges: [] }).nodes[0];
   const edge = graphToFlow({ nodes: [], edges: [{ source: sourceNode.id, target: node.id, route: suggestion.route || undefined }] }).edges[0];
   return { nodes: [...nodes, node], edges: [...edges, edge], node };
+}
+
+/**
+ * The server's answer as chips. The branch comes with the answer, computed
+ * by the server the same way as here, never chosen by the model.
+ */
+export function aiSuggestionsFrom(response) {
+  const route = response?.route ?? null;
+  return (response?.suggestions || []).map((s) => ({
+    type: s.type,
+    route,
+    config: s.config || {},
+    label: s.label || "",
+    reason: s.reason || "",
+    source: "ai",
+  }));
+}
+
+/**
+ * Rule chips once the model has answered: its proposals first, then the rule
+ * chips of the other types. One chip per type — the model's version wins,
+ * it carries a complete config a rule cannot guess.
+ */
+export function mergeAiSuggestions(ruleSuggestions = [], aiSuggestions = []) {
+  const aiTypes = new Set(aiSuggestions.map((s) => s.type));
+  return [...aiSuggestions, ...ruleSuggestions.filter((s) => !aiTypes.has(s.type))];
 }
 
 /** Chip strip size in canvas pixels; the strip does not scale with the zoom. */

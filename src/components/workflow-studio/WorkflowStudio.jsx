@@ -13,6 +13,8 @@ import {
   listWorkflowDefs,
   runWorkflowDef,
   cancelWorkflowRun,
+  getPublicConfig,
+  suggestNextWorkflowNode,
 } from "@/lib/api";
 import { toolLeafName } from "@/components/tools-manager/toolsManagerUtils";
 import {
@@ -33,7 +35,7 @@ import { useUndoRedo } from "./hooks/useUndoRedo";
 import { useRunReplay } from "./hooks/useRunReplay";
 import { useToolSchemas } from "./hooks/useToolSchemas";
 import StudioTopBar from "./StudioTopBar";
-import { suggestNextNodes, applySuggestion } from "@/lib/nextNodeSuggestions";
+import { suggestNextNodes, applySuggestion, aiSuggestionsFrom, mergeAiSuggestions } from "@/lib/nextNodeSuggestions";
 import StudioPalette from "./StudioPalette";
 import StudioCanvas from "./StudioCanvas";
 import StudioInspector from "./StudioInspector";
@@ -105,6 +107,8 @@ function triggerSubtitle(cfg, ti) {
       return kindLabel;
   }
 }
+
+const AI_IDLE = { slot: null, status: "idle", items: [] };
 
 export default function WorkflowStudio({ workflowId }) {
   const t = useTranslations("WorkflowStudio");
@@ -533,10 +537,62 @@ export default function WorkflowStudio({ workflowId }) {
 
   // What could come after the selected node — rules only, recomputed from
   // the graph on every change (see lib/nextNodeSuggestions).
-  const suggestions = useMemo(
+  const ruleSuggestions = useMemo(
     () => (liveSelection?.kind === "node" ? suggestNextNodes(liveSelection.node, nodes, edges) : []),
     [liveSelection, nodes, edges],
   );
+
+  // Model suggestions (roadmap#87): only when the server serves them, only on
+  // an explicit click — each call costs tokens — and only for the slot they
+  // were asked for: selecting another node or wiring this one drops them.
+  const [aiEnabled, setAiEnabled] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    getPublicConfig()
+      .then((config) => alive && setAiEnabled(Boolean(config?.workflow_suggest_enabled)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const suggestionSlot = ruleSuggestions.length ? `${liveSelection.node.id}|${ruleSuggestions[0].route ?? ""}` : null;
+  const [aiAnswer, setAiAnswer] = useState(AI_IDLE);
+  // Forget the answer as soon as the slot changes, even to come back to it:
+  // the graph may have moved on in between. Adjusted while rendering rather
+  // than in an effect (react.dev, "you might not need an effect").
+  const [aiSlot, setAiSlot] = useState(suggestionSlot);
+  if (aiSlot !== suggestionSlot) {
+    setAiSlot(suggestionSlot);
+    setAiAnswer(AI_IDLE);
+  }
+  const ai = aiAnswer.slot === suggestionSlot ? aiAnswer : AI_IDLE;
+
+  const requestAiSuggestions = useCallback(async () => {
+    const source = liveSelection?.node;
+    const slot = suggestionSlot;
+    if (!source || !slot) return;
+    setAiAnswer({ slot, status: "loading", items: [] });
+    const settle = (next) => setAiAnswer((current) => (current.slot === slot ? { slot, ...next } : current));
+    try {
+      const answer = await suggestNextWorkflowNode({
+        graph: flowToGraph(nodes, edges),
+        node_id: source.id,
+        name: workflowMeta?.name,
+        description: workflowMeta?.description,
+      });
+      settle({ status: "done", items: aiSuggestionsFrom(answer) });
+    } catch (err) {
+      settle({ status: err?.status === 402 ? "quota" : "unavailable", items: [] });
+    }
+  }, [liveSelection, suggestionSlot, nodes, edges, workflowMeta]);
+
+  const suggestions = useMemo(
+    () => (ai.status === "done" ? mergeAiSuggestions(ruleSuggestions, ai.items) : ruleSuggestions),
+    [ai, ruleSuggestions],
+  );
+  const aiSuggest = aiEnabled
+    ? { enabled: true, status: ai.status, count: ai.items.length, onRequest: requestAiSuggestions }
+    : null;
 
   const pickSuggestion = useCallback(
     (suggestion) => {
@@ -758,6 +814,7 @@ export default function WorkflowStudio({ workflowId }) {
               suggestions={suggestions}
               suggestionAnchor={suggestions.length ? liveSelection.node.position : null}
               onPickSuggestion={pickSuggestion}
+              aiSuggest={aiSuggest}
             />
           </div>
           <ExecutionPanel

@@ -34,9 +34,12 @@ vi.mock("@/components/workflow-studio/StudioCanvas", () => ({
       <div data-testid="suggestion-anchor">{props.suggestionAnchor ? `${props.suggestionAnchor.x},${props.suggestionAnchor.y}` : ""}</div>
       {(props.suggestions || []).map((s) => (
         <button key={`${s.type}-${s.route || ""}`} data-testid={`suggest-${s.type}`} onClick={() => props.onPickSuggestion(s)}>
-          {s.type}{s.route ? `:${s.route}` : ""}
+          {s.type}{s.route ? `:${s.route}` : ""}{s.source === "ai" ? " (ai)" : ""}
         </button>
       ))}
+      {props.aiSuggest?.enabled && (
+        <button data-testid="ai-suggest" onClick={props.aiSuggest.onRequest}>{props.aiSuggest.status}</button>
+      )}
       {props.edges.map((e) => (
         <button key={e.id} data-testid={`edge-${e.source}-${e.target}`} onClick={() => props.onEdgeClick(e)}>
           {e.source}-{e.target}
@@ -60,6 +63,8 @@ const {
   getWorkflowTriggerState,
   rotateWorkflowTrigger,
   restoreWorkflowRevision,
+  getPublicConfig,
+  suggestNextWorkflowNode,
 } = vi.hoisted(() => ({
   getWorkflowDef: vi.fn(),
   updateWorkflowDef: vi.fn(),
@@ -73,6 +78,8 @@ const {
   getWorkflowTriggerState: vi.fn(),
   rotateWorkflowTrigger: vi.fn(),
   restoreWorkflowRevision: vi.fn(),
+  getPublicConfig: vi.fn(),
+  suggestNextWorkflowNode: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -88,6 +95,8 @@ vi.mock("@/lib/api", () => ({
   restoreWorkflowRevision,
   getWorkflowTriggerState,
   rotateWorkflowTrigger,
+  getPublicConfig,
+  suggestNextWorkflowNode,
 }));
 
 function baseGraph() {
@@ -129,6 +138,7 @@ beforeEach(() => {
   listWorkflowRevisions.mockResolvedValue([]);
   listWorkflowDefs.mockResolvedValue([]);
   getWorkflowTriggerState.mockResolvedValue({ kind: "manual", active: false, reason: "unpublished", webhook_url: null, form_url: null, hmac_enabled: false, next_run_at: null, last_fired_at: null, last_status: null });
+  getPublicConfig.mockResolvedValue({ workflow_suggest_enabled: false });
   rotateWorkflowTrigger.mockResolvedValue({ webhook_url: "https://example.test/api/hooks/workflows/tok", hmac_secret: null });
 });
 
@@ -406,5 +416,79 @@ describe("next-step suggestions", () => {
 
     expect(screen.getByTestId("suggestion-anchor").textContent).toBe("");
     expect(screen.queryByTestId("suggest-agent")).toBeNull();
+  });
+});
+
+describe("model suggestions", () => {
+  const answer = {
+    route: null,
+    suggestions: [
+      { type: "output", label: "Réponse", config: { value: "{{agentA.text}}" }, reason: "Rendre la réponse." },
+      { type: "notification", label: "", config: { channel: "app", body: "{{agentA}}" }, reason: "" },
+    ],
+  };
+
+  async function openAgent(user) {
+    render(<WorkflowStudio workflowId="wf1" />);
+    await screen.findByTestId("canvas-mock");
+    await user.click(screen.getByTestId("node-agentA"));
+  }
+
+  it("shows no AI button when the server does not serve model suggestions", async () => {
+    const user = userEvent.setup();
+    await openAgent(user);
+    expect(screen.getByTestId("suggest-output")).toBeTruthy();
+    expect(screen.queryByTestId("ai-suggest")).toBeNull();
+    expect(suggestNextWorkflowNode).not.toHaveBeenCalled();
+  });
+
+  it("asks only on click, sends the draft on screen, and puts the model's complete nodes first", async () => {
+    getPublicConfig.mockResolvedValue({ workflow_suggest_enabled: true });
+    suggestNextWorkflowNode.mockResolvedValue(answer);
+    const user = userEvent.setup();
+    await openAgent(user);
+    await user.click(await screen.findByTestId("ai-suggest"));
+
+    expect(suggestNextWorkflowNode).toHaveBeenCalledTimes(1);
+    const [body] = suggestNextWorkflowNode.mock.calls[0];
+    expect(body.node_id).toBe("agentA");
+    expect(body.name).toBe("Test workflow");
+    expect(body.graph.nodes.map((n) => n.id)).toEqual(["trigger1", "router1", "agentA"]);
+
+    await waitFor(() => expect(screen.getByTestId("suggest-output").textContent).toBe("output (ai)"));
+    const chips = screen.getAllByTestId(/^suggest-/).map((b) => b.textContent);
+    expect(chips).toEqual(["output (ai)", "notification (ai)", "condition"]);
+
+    await user.click(screen.getByTestId("suggest-output"));
+    expect(screen.getByTestId("edge-agentA-output1")).toBeTruthy();
+    expect(await screen.findByDisplayValue("{{agentA.text}}")).toBeTruthy();
+  });
+
+  it("keeps the rule chips and says why when the model is unavailable or the quota is reached", async () => {
+    getPublicConfig.mockResolvedValue({ workflow_suggest_enabled: true });
+    suggestNextWorkflowNode.mockRejectedValueOnce(Object.assign(new Error("unavailable"), { status: 503 }));
+    const user = userEvent.setup();
+    await openAgent(user);
+    await user.click(await screen.findByTestId("ai-suggest"));
+    await waitFor(() => expect(screen.getByTestId("ai-suggest").textContent).toBe("unavailable"));
+    expect(screen.getByTestId("suggest-output").textContent).toBe("output");
+
+    suggestNextWorkflowNode.mockRejectedValueOnce(Object.assign(new Error("quota"), { status: 402 }));
+    await user.click(screen.getByTestId("ai-suggest"));
+    await waitFor(() => expect(screen.getByTestId("ai-suggest").textContent).toBe("quota"));
+  });
+
+  it("drops the model's chips when another node is selected", async () => {
+    getPublicConfig.mockResolvedValue({ workflow_suggest_enabled: true });
+    suggestNextWorkflowNode.mockResolvedValue(answer);
+    const user = userEvent.setup();
+    await openAgent(user);
+    await user.click(await screen.findByTestId("ai-suggest"));
+    await waitFor(() => expect(screen.getByTestId("suggest-output").textContent).toBe("output (ai)"));
+
+    await user.click(screen.getByTestId("node-trigger1"));
+    await user.click(screen.getByTestId("node-agentA"));
+    expect(screen.getByTestId("suggest-output").textContent).toBe("output");
+    expect(screen.getByTestId("ai-suggest").textContent).toBe("idle");
   });
 });
