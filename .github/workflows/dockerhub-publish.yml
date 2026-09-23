@@ -84,8 +84,9 @@ jobs:
 
       # Each runner builds its own architecture natively and pushes an untagged
       # image; the manifest list that carries the tags is assembled below. The
-      # emulated arm64 build this replaces took 42 minutes without a single log
-      # line and had to be cancelled by hand (release 0.1.29, 23/09/26).
+      # emulated arm64 build this replaces usually took minutes, but stalled for
+      # 42 minutes without a log line on 0.1.29 (23/09/26) and had to be
+      # cancelled by hand; the rerun then took 8.
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v6
@@ -95,11 +96,15 @@ jobs:
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
 
+      # The digest reads `sha256:<hex>`; the file keeps only the hex, which
+      # the manifest step prefixes back with `@sha256:`.
       - name: Export the digest
         shell: bash
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           mkdir -p /tmp/digests
-          touch "/tmp/digests/${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${DIGEST#sha256:}"
 
       - name: Upload the digest
         uses: actions/upload-artifact@v4
