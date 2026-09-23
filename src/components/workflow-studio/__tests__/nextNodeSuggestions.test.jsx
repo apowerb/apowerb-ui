@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NextNodeSuggestions from "@/components/workflow-studio/NextNodeSuggestions";
-import { suggestNextNodes, firstUnwiredRoute, prefillFor, applySuggestion, chipsPosition, CHIPS_BOX } from "@/lib/nextNodeSuggestions";
+import { suggestNextNodes, firstUnwiredRoute, prefillFor, applySuggestion, chipsPosition, visibleCanvasWidth, CHIPS_BOX } from "@/lib/nextNodeSuggestions";
 
 const trigger = { id: "trigger1", type: "trigger", config: { kind: "manual" } };
 const agent = { id: "agent1", type: "agent", config: { agent_id: "a1" } };
@@ -119,10 +119,15 @@ describe("chipsPosition", () => {
     expect(chipsPosition({ x: 100, y: 80 }, viewport, canvas, 3)).toEqual({ left: 100 + 244, top: 80 });
   });
 
-  it("flips to the left of the node rather than hiding behind the inspector", () => {
-    const { left } = chipsPosition({ x: 700, y: 50 }, viewport, canvas, 3);
+  it("goes under the node when the right side is full, instead of covering the node before it", () => {
+    expect(chipsPosition({ x: 700, y: 50 }, viewport, canvas, 3)).toEqual({ left: 700, top: 50 + 80 + 8 });
+  });
+
+  it("falls back to the left only when neither the right nor below fits", () => {
+    const { left, top } = chipsPosition({ x: 700, y: 500 }, viewport, canvas, 3);
     expect(left).toBe(700 - 176 - 24);
     expect(left + CHIPS_BOX.width).toBeLessThanOrEqual(canvas.width);
+    expect(top).toBeLessThanOrEqual(600 - CHIPS_BOX.header - 3 * (CHIPS_BOX.row + CHIPS_BOX.gap));
   });
 
   it("follows pan and zoom", () => {
@@ -140,5 +145,18 @@ describe("chipsPosition", () => {
     const narrow = chipsPosition({ x: 100, y: 10 }, viewport, { width: 120, height: 90 }, 3);
     expect(narrow.left).toBe(CHIPS_BOX.margin);
     expect(narrow.top).toBe(CHIPS_BOX.margin);
+  });
+});
+
+describe("visibleCanvasWidth", () => {
+  const canvas = { left: 100, right: 1000 };
+
+  it("stops at an inspector laid over the canvas (narrow screens)", () => {
+    expect(visibleCanvasWidth(canvas, { left: 680, right: 1000 })).toBe(580);
+  });
+
+  it("keeps the whole canvas when the inspector sits beside it or is absent", () => {
+    expect(visibleCanvasWidth(canvas, { left: 1000, right: 1320 })).toBe(900);
+    expect(visibleCanvasWidth(canvas, null)).toBe(900);
   });
 });

@@ -9,7 +9,7 @@ import { studioNodeTypes } from "./nodes";
 import RouteEdge from "./edges/RouteEdge";
 import { NODE_BOX } from "@/lib/workflowGraph";
 import NextNodeSuggestions from "./NextNodeSuggestions";
-import { chipsPosition } from "@/lib/nextNodeSuggestions";
+import { chipsPosition, visibleCanvasWidth } from "@/lib/nextNodeSuggestions";
 
 const nodeTypes = studioNodeTypes;
 const edgeTypes = { route: RouteEdge };
@@ -86,19 +86,30 @@ function StudioCanvasInner({
   const wrapperRef = useRef(null);
   const { screenToFlowPosition, setCenter, getZoom } = useReactFlow();
   const viewport = useViewport();
-  // The chips are placed in canvas pixels, so they need its size; it changes
-  // with the window and when the test panel opens.
+  // The chips are placed in canvas pixels, so they need its visible size: it
+  // changes with the window, when the test panel opens, and when an inspector
+  // laid over the canvas (narrow screens) appears with a new selection.
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-  useEffect(() => {
+  const measureCanvas = useCallback(() => {
     const el = wrapperRef.current;
-    if (!el) return undefined;
-    const measure = () => setCanvasSize({ width: el.clientWidth, height: el.clientHeight });
-    measure();
-    if (typeof ResizeObserver === "undefined") return undefined;
-    const observer = new ResizeObserver(measure);
+    if (!el) return;
+    const cover = document.querySelector("[data-studio-inspector]");
+    setCanvasSize({
+      width: visibleCanvasWidth(el.getBoundingClientRect(), cover?.getBoundingClientRect() ?? null),
+      height: el.clientHeight,
+    });
+  }, []);
+  useEffect(() => {
+    measureCanvas();
+    const el = wrapperRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(measureCanvas);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [measureCanvas]);
+  useEffect(() => {
+    if (suggestionAnchor) measureCanvas();
+  }, [suggestionAnchor, measureCanvas]);
 
   // Un nœud ajouté depuis la palette peut tomber hors du cadre : on y amène la vue.
   useEffect(() => {

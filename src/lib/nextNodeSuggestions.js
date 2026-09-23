@@ -131,10 +131,10 @@ export function applySuggestion(nodes = [], edges = [], sourceNode, suggestion) 
 export const CHIPS_BOX = { width: 176, header: 18, row: 28, gap: 4, margin: 8 };
 
 /**
- * Where to draw the chips: right of the node, in canvas pixels rather than
- * flow coordinates, and kept inside the canvas. Placed in flow coordinates
- * they sat off-screen behind the inspector as soon as the node was near the
- * right edge — a suggestion nobody can see is no suggestion.
+ * Where to draw the chips, in canvas pixels, always inside the canvas:
+ * right of the node when they fit, else under it, else left of it. Under
+ * comes before left because the left side is where the previous node sits —
+ * chips there cover the very node the user just came from.
  */
 export function chipsPosition(anchor, viewport, canvas, count) {
   const { x: vx = 0, y: vy = 0, zoom = 1 } = viewport || {};
@@ -144,11 +144,20 @@ export function chipsPosition(anchor, viewport, canvas, count) {
   const nodeLeft = anchor.x * zoom + vx;
   const nodeTop = anchor.y * zoom + vy;
   const right = nodeLeft + (NODE_BOX.width + 24) * zoom;
-  // Right of the node when it fits, else left of it, else hard against the edge.
-  const left = right + width + m <= canvas.width ? right : Math.max(m, nodeLeft - width - 24 * zoom);
-  const maxTop = Math.max(m, canvas.height - height - m);
-  return {
-    left: Math.min(Math.max(m, left), Math.max(m, canvas.width - width - m)),
-    top: Math.min(Math.max(m, nodeTop), maxTop),
-  };
+  const below = nodeTop + NODE_BOX.height * zoom + m;
+  const clampLeft = (x) => Math.min(Math.max(m, x), Math.max(m, canvas.width - width - m));
+  const clampTop = (y) => Math.min(Math.max(m, y), Math.max(m, canvas.height - height - m));
+  if (right + width + m <= canvas.width) return { left: clampLeft(right), top: clampTop(nodeTop) };
+  if (below + height + m <= canvas.height) return { left: clampLeft(nodeLeft), top: below };
+  return { left: clampLeft(nodeLeft - width - 24 * zoom), top: clampTop(nodeTop) };
+}
+
+/**
+ * How much of the canvas is really visible: below the `xl` breakpoint the
+ * inspector is laid over the canvas' right side instead of beside it.
+ */
+export function visibleCanvasWidth(canvasRect, coverRect) {
+  const full = canvasRect.right - canvasRect.left;
+  if (!coverRect || coverRect.left >= canvasRect.right || coverRect.left <= canvasRect.left) return full;
+  return coverRect.left - canvasRect.left;
 }
