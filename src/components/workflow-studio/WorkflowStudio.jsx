@@ -112,7 +112,7 @@ export default function WorkflowStudio({ workflowId }) {
 
   const [loadState, setLoadState] = useState("loading");
   const [loadError, setLoadError] = useState(null);
-  const [workflowMeta, setWorkflowMeta] = useState(null); // { name, status, version }
+  const [workflowMeta, setWorkflowMeta] = useState(null); // { name, description, status, version }
   const expectedVersionRef = useRef(null);
 
   const { nodes, edges, setNodes, setEdges, onNodesChange, onEdgesChange, pushHistory, resetHistory, undo, redo, canUndo, canRedo } =
@@ -200,7 +200,7 @@ export default function WorkflowStudio({ workflowId }) {
         .then((wf) => {
           const { nodes: n, edges: e } = graphToFlow(wf.graph);
           resetHistory(n, e);
-          setWorkflowMeta({ name: wf.name, status: wf.status, version: wf.version });
+          setWorkflowMeta({ name: wf.name, description: wf.description, status: wf.status, version: wf.version });
           expectedVersionRef.current = wf.version;
           lastSavedSnapshotRef.current = JSON.stringify({ name: wf.name, graph: flowToGraph(n, e) });
           setSavedSnapshot(lastSavedSnapshotRef.current);
@@ -337,7 +337,11 @@ export default function WorkflowStudio({ workflowId }) {
   // l autosave peut ne pas avoir encore tire.
   const handleExport = useCallback(() => {
     downloadWorkflowFile(
-      buildWorkflowFile({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) }),
+      buildWorkflowFile({
+        name: workflowMeta?.name,
+        description: workflowMeta?.description,
+        graph: flowToGraph(nodes, edges),
+      }),
     );
   }, [nodes, edges, workflowMeta]);
 
@@ -359,7 +363,13 @@ export default function WorkflowStudio({ workflowId }) {
           ? await updateWorkflowDef(workflowId, body, { keepalive: true })
           : await updateWorkflowDef(workflowId, body);
         expectedVersionRef.current = updated.version;
-        setWorkflowMeta({ name: updated.name, status: updated.status, version: updated.version });
+        setWorkflowMeta((m) => ({
+          ...m,
+          name: updated.name,
+          description: updated.description ?? m?.description,
+          status: updated.status,
+          version: updated.version,
+        }));
         lastSavedSnapshotRef.current = JSON.stringify({ name, graph });
         setSavedSnapshot(lastSavedSnapshotRef.current);
         setSaveState("idle");
@@ -465,7 +475,13 @@ export default function WorkflowStudio({ workflowId }) {
     (updated) => {
       const { nodes: n, edges: e } = graphToFlow(updated.graph);
       resetHistory(n, e);
-      setWorkflowMeta({ name: updated.name, status: updated.status, version: updated.version });
+      setWorkflowMeta((m) => ({
+          ...m,
+          name: updated.name,
+          description: updated.description ?? m?.description,
+          status: updated.status,
+          version: updated.version,
+        }));
       expectedVersionRef.current = updated.version;
       lastSavedSnapshotRef.current = JSON.stringify({ name: updated.name, graph: flowToGraph(n, e) });
       setSavedSnapshot(lastSavedSnapshotRef.current);
