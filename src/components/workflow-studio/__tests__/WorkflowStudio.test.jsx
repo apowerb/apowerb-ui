@@ -30,6 +30,7 @@ vi.mock("@/components/workflow-studio/StudioCanvas", () => ({
         </button>
       ))}
       <button data-testid="undo" onClick={props.onUndo}>undo</button>
+      <div data-testid="focus-request">{props.focusRequest ? `${props.focusRequest.x},${props.focusRequest.y}` : ""}</div>
       <div data-testid="suggestion-anchor">{props.suggestionAnchor ? `${props.suggestionAnchor.x},${props.suggestionAnchor.y}` : ""}</div>
       {(props.suggestions || []).map((s) => (
         <button key={`${s.type}-${s.route || ""}`} data-testid={`suggest-${s.type}`} onClick={() => props.onPickSuggestion(s)}>
@@ -392,6 +393,8 @@ describe("next-step suggestions", () => {
     expect(screen.getByTestId("edge-agentA-output1")).toBeTruthy();
     const value = await screen.findByDisplayValue("{{agentA}}");
     expect(value).toBeTruthy();
+    // The view follows the new node, so its own suggestions have room.
+    expect(screen.getByTestId("focus-request").textContent).not.toBe("");
   });
 
   it("says nothing after a node that is already wired", async () => {

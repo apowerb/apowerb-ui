@@ -547,6 +547,8 @@ export default function WorkflowStudio({ workflowId }) {
       setEdges(nextEdges);
       pushHistory(nextNodes, nextEdges);
       setSelection({ kind: "node", node });
+      // Bring the new node into view: its own suggestions then have room.
+      setFocusRequest({ ...node.position, seq: Date.now() });
     },
     [liveSelection, nodes, edges, setNodes, setEdges, pushHistory],
   );
