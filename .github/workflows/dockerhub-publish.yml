@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to publish (without the leading v)"
+        description: "Version to republish (without the leading v); its v<version> tag is what gets built"
         required: true
         type: string
 
@@ -70,8 +70,12 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
     steps:
-      - name: Check out the repository
+      # A dispatch runs on the default branch: without this ref it would build
+      # main and publish it under the release's version (0.1.29, 23/09/26).
+      - name: Check out the release tag
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/v{0}', needs.version.outputs.value) || github.ref }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
