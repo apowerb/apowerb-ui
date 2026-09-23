@@ -7,7 +7,17 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NextNodeSuggestions from "@/components/workflow-studio/NextNodeSuggestions";
-import { suggestNextNodes, firstUnwiredRoute, prefillFor, applySuggestion, chipsPosition, visibleCanvasWidth, CHIPS_BOX } from "@/lib/nextNodeSuggestions";
+import {
+  suggestNextNodes,
+  firstUnwiredRoute,
+  prefillFor,
+  applySuggestion,
+  chipsPosition,
+  visibleCanvasWidth,
+  CHIPS_BOX,
+  aiSuggestionsFrom,
+  mergeAiSuggestions,
+} from "@/lib/nextNodeSuggestions";
 
 const trigger = { id: "trigger1", type: "trigger", config: { kind: "manual" } };
 const agent = { id: "agent1", type: "agent", config: { agent_id: "a1" } };
@@ -158,5 +168,90 @@ describe("visibleCanvasWidth", () => {
   it("keeps the whole canvas when the inspector sits beside it or is absent", () => {
     expect(visibleCanvasWidth(canvas, { left: 1000, right: 1320 })).toBe(900);
     expect(visibleCanvasWidth(canvas, null)).toBe(900);
+  });
+});
+
+describe("model suggestions", () => {
+  const answer = {
+    route: "normal",
+    suggestions: [
+      { type: "classifier", label: "Tri", config: { agent_id: "agent3", routes: [{ route: "a" }, { route: "b" }] }, reason: "Deux familles de mails." },
+    ],
+  };
+
+  it("turns the server answer into chips wired on the branch the server computed", () => {
+    expect(aiSuggestionsFrom(answer)).toEqual([
+      {
+        type: "classifier",
+        route: "normal",
+        config: answer.suggestions[0].config,
+        label: "Tri",
+        reason: "Deux familles de mails.",
+        source: "ai",
+      },
+    ]);
+    expect(aiSuggestionsFrom(null)).toEqual([]);
+  });
+
+  it("puts the model's chips first and keeps one chip per type, the model's winning", () => {
+    const rules = [
+      { type: "agent", route: null, config: {} },
+      { type: "classifier", route: null, config: {} },
+      { type: "convert", route: null, config: {} },
+    ];
+    const merged = mergeAiSuggestions(rules, aiSuggestionsFrom(answer));
+    expect(merged.map((s) => `${s.type}:${s.source || "rule"}`)).toEqual(["classifier:ai", "agent:rule", "convert:rule"]);
+  });
+
+  it("applies a model chip with its label and complete config", () => {
+    const source = { ...trigger, position: { x: 0, y: 0 } };
+    const [chip] = aiSuggestionsFrom(answer);
+    const { node, edges } = applySuggestion([source], [], source, chip);
+    expect(node.data.label).toBe("Tri");
+    expect(node.data.config.routes).toEqual([{ route: "a" }, { route: "b" }]);
+    expect(edges[0].data).toEqual({ route: "normal" });
+  });
+
+  it("marks a model chip and explains it on hover", () => {
+    render(<NextNodeSuggestions suggestions={aiSuggestionsFrom(answer)} onPick={() => {}} />);
+    const chip = screen.getByRole("button", { name: /Classifier/ });
+    expect(chip.getAttribute("title")).toBe("Tri — Deux familles de mails.");
+    expect(screen.getByLabelText("Suggested by AI")).toBeTruthy();
+  });
+
+  const rules = [{ type: "agent", route: null, config: {} }];
+  const renderRow = (ai) => render(<NextNodeSuggestions suggestions={rules} onPick={() => {}} ai={{ enabled: true, count: 0, onRequest: vi.fn(), ...ai }} />);
+
+  it("offers the AI button only when the server serves it, and asks on click", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<NextNodeSuggestions suggestions={rules} onPick={() => {}} />);
+    expect(screen.queryByRole("button", { name: /Suggest with AI/ })).toBeNull();
+    unmount();
+
+    const onRequest = vi.fn();
+    renderRow({ status: "idle", onRequest });
+    await user.click(screen.getByRole("button", { name: /Suggest with AI/ }));
+    expect(onRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("says what happened instead of failing silently", () => {
+    const { unmount: u1 } = renderRow({ status: "loading" });
+    expect(screen.getByRole("button", { name: /Thinking/ }).disabled).toBe(true);
+    u1();
+
+    const { unmount: u2 } = renderRow({ status: "unavailable" });
+    expect(screen.getByText(/AI unavailable/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Retry with AI/ })).toBeTruthy();
+    u2();
+
+    const { unmount: u3 } = renderRow({ status: "quota" });
+    expect(screen.getByText(/AI quota reached/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /AI/ })).toBeNull();
+    u3();
+
+    renderRow({ status: "done", count: 0 });
+    expect(screen.getByText(/No other idea from the AI/)).toBeTruthy();
+    // The rule chips stay in every case.
+    expect(screen.getByRole("button", { name: /Agent/ })).toBeTruthy();
   });
 });

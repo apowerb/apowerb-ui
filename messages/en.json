@@ -3376,7 +3376,15 @@
     "routeLabelPlaceholder": "route",
     "chooseRoute": "Choose a route",
     "nextStep": "Next step",
-    "nextStepHelp": "Adds the node, connects it and fills what it reads. Nothing is published."
+    "nextStepHelp": "Adds the node, connects it and fills what it reads. Nothing is published.",
+    "aiSuggest": "Suggest with AI",
+    "aiSuggestHelp": "Asks the AI for complete nodes based on this workflow. Uses your AI quota.",
+    "aiLoading": "Thinking…",
+    "aiRetry": "Retry with AI",
+    "aiUnavailable": "AI unavailable — the usual suggestions stay.",
+    "aiQuota": "AI quota reached for now — the usual suggestions stay.",
+    "aiNone": "No other idea from the AI.",
+    "aiBadge": "Suggested by AI"
   },
   "WorkflowInspector": {
     "title": "Inspector",

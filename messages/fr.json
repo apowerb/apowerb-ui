@@ -3376,7 +3376,15 @@
     "routeLabelPlaceholder": "route",
     "chooseRoute": "Choisir une route",
     "nextStep": "Étape suivante",
-    "nextStepHelp": "Ajoute le nœud, le relie et remplit ce qu’il lit. Rien n’est publié."
+    "nextStepHelp": "Ajoute le nœud, le relie et remplit ce qu’il lit. Rien n’est publié.",
+    "aiSuggest": "Suggérer avec l’IA",
+    "aiSuggestHelp": "Demande à l’IA des nœuds complets d’après ce workflow. Consomme votre quota IA.",
+    "aiLoading": "Réflexion…",
+    "aiRetry": "Réessayer avec l’IA",
+    "aiUnavailable": "IA indisponible — les suggestions habituelles restent.",
+    "aiQuota": "Quota IA atteint pour le moment — les suggestions habituelles restent.",
+    "aiNone": "Pas d’autre idée de l’IA.",
+    "aiBadge": "Proposé par l’IA"
   },
   "WorkflowInspector": {
     "title": "Inspecteur",

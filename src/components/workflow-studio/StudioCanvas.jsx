@@ -82,6 +82,7 @@ function StudioCanvasInner({
   suggestions,
   suggestionAnchor,
   onPickSuggestion,
+  aiSuggest,
 }) {
   const wrapperRef = useRef(null);
   const { screenToFlowPosition, setCenter, getZoom } = useReactFlow();
@@ -194,8 +195,11 @@ function StudioCanvasInner({
       </ReactFlow>
       <Toolbar canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} onAutoLayout={onAutoLayout} />
       {suggestionAnchor && suggestions?.length > 0 && canvasSize.width > 0 && (
-        <div className="absolute z-10" style={chipsPosition(suggestionAnchor, viewport, canvasSize, suggestions.length)}>
-          <NextNodeSuggestions suggestions={suggestions} onPick={onPickSuggestion} />
+        <div
+          className="absolute z-10"
+          style={chipsPosition(suggestionAnchor, viewport, canvasSize, suggestions.length + (aiSuggest?.enabled ? 1 : 0))}
+        >
+          <NextNodeSuggestions suggestions={suggestions} onPick={onPickSuggestion} ai={aiSuggest} />
         </div>
       )}
       {nodes.length === 0 && <EmptyState />}
