@@ -21,16 +21,16 @@ on:
 permissions:
   contents: read
 
+env:
+  IMAGE: apowerb/apowerb-ui
+
 jobs:
-  publish:
-    name: Publish the UI image to Docker Hub
+  version:
+    name: Resolve the version
     runs-on: ubuntu-latest
-    environment: release
-
+    outputs:
+      value: ${{ steps.version.outputs.value }}
     steps:
-      - name: Check out the repository
-        uses: actions/checkout@v4
-
       - name: Resolve the version
         id: version
         shell: bash
@@ -56,10 +56,78 @@ jobs:
           echo "value=$VERSION" >> "$GITHUB_OUTPUT"
           echo "version to publish: $VERSION"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    environment: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          cache-image: false
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Each runner builds its own architecture natively and pushes an untagged
+      # image; the manifest list that carries the tags is assembled below. The
+      # emulated arm64 build this replaces usually took minutes, but stalled for
+      # 42 minutes without a log line on 0.1.29 (23/09/26) and had to be
+      # cancelled by hand; the rerun then took 8.
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      # The digest reads `sha256:<hex>`; the file keeps only the hex, which
+      # the manifest step prefixes back with `@sha256:`.
+      - name: Export the digest
+        shell: bash
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - name: Upload the digest
+        uses: actions/upload-artifact@v4
+        with:
+          # One artifact per platform: v4 refuses to have two jobs write the
+          # same artifact name.
+          name: digest-${{ strategy.job-index }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish the UI image to Docker Hub
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Download the digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -74,20 +142,22 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: apowerb/apowerb-ui
+          images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=latest
-            type=raw,value=${{ steps.version.outputs.value }}
+            type=raw,value=${{ needs.version.outputs.value }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          # Same two platforms as the backend image: without this the build is
-          # native to the runner only, and the published image cannot run on an
-          # arm64 machine -- which is what every Apple Silicon laptop is.
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      # The tags only ever move once both architectures exist, so a half-built
+      # release cannot leave `latest` pointing at a single-arch image.
+      - name: Create the manifest list
+        shell: bash
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect the published image
+        shell: bash
+        run: |
+          docker buildx imagetools inspect "${{ env.IMAGE }}:${{ needs.version.outputs.value }}"
