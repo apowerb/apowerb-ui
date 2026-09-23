@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { X, Wand2, GitBranch } from "lucide-react";
+import { X, Wand2, GitBranch, FileJson } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { createNode } from "@/lib/workflowGraph";
+import { parseWorkflowFile, WorkflowFileError } from "@/lib/workflowFile";
 
 function blankTemplate() {
   return { version: 1, nodes: [createNode("trigger", { id: "trigger1" })], edges: [] };
@@ -33,13 +34,37 @@ export default function CreateWorkflowModal({ onClose, onCreate, creating, error
   const [template, setTemplate] = useState("blank");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [imported, setImported] = useState(null); // { fileName, graph }
+  const [importError, setImportError] = useState(null);
+
+  const readFile = async (file) => {
+    if (!file) return;
+    setImported(null);
+    try {
+      const read = parseWorkflowFile(await file.text());
+      setImportError(null);
+      setImported({ fileName: file.name, graph: read.graph });
+      // Le fichier porte souvent déjà le nom : ne pas écraser ce que
+      // l'utilisateur a saisi, mais lui épargner la recopie s'il n'a rien mis.
+      if (read.name && !name.trim()) setName(read.name);
+      if (read.description && !description.trim()) setDescription(read.description);
+    } catch (err) {
+      setImportError(err instanceof WorkflowFileError ? t(err.code) : t("importInvalidJson"));
+    }
+  };
+
+  const ready = template !== "import" || Boolean(imported);
 
   const submit = (e) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    const graph = template === "template" ? routedTemplate() : blankTemplate();
+    if (!name.trim() || !ready) return;
+    const graph =
+      template === "import" ? imported.graph : template === "template" ? routedTemplate() : blankTemplate();
     onCreate({ name: name.trim(), description: description.trim() || undefined, graph });
   };
+
+  const cardClass = (key) =>
+    `flex items-start gap-3 p-3 rounded-xl border text-left transition-colors ${template === key ? "border-brand bg-brand/10" : "th-border-secondary th-bg-surface hover:th-bg-surface-hover"}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
@@ -53,29 +78,50 @@ export default function CreateWorkflowModal({ onClose, onCreate, creating, error
         </div>
 
         <div className="flex flex-col gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => setTemplate("blank")}
-            className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-colors ${template === "blank" ? "border-brand bg-brand/10" : "th-border-secondary th-bg-surface hover:th-bg-surface-hover"}`}
-          >
+          <button type="button" onClick={() => setTemplate("blank")} className={cardClass("blank")}>
             <Wand2 size={16} className="mt-0.5 shrink-0 text-[#5B8AFF]" />
             <span>
               <span className="block text-xs font-semibold th-text">{t("createBlank")}</span>
               <span className="block text-[11px] th-text-ghost mt-0.5">{t("createBlankDesc")}</span>
             </span>
           </button>
-          <button
-            type="button"
-            onClick={() => setTemplate("template")}
-            className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-colors ${template === "template" ? "border-brand bg-brand/10" : "th-border-secondary th-bg-surface hover:th-bg-surface-hover"}`}
-          >
+          <button type="button" onClick={() => setTemplate("template")} className={cardClass("template")}>
             <GitBranch size={16} className="mt-0.5 shrink-0 text-[#5B8AFF]" />
             <span>
               <span className="block text-xs font-semibold th-text">{t("createTemplate")}</span>
               <span className="block text-[11px] th-text-ghost mt-0.5">{t("createTemplateDesc")}</span>
             </span>
           </button>
+          <button type="button" onClick={() => setTemplate("import")} className={cardClass("import")}>
+            <FileJson size={16} className="mt-0.5 shrink-0 text-[#5B8AFF]" />
+            <span>
+              <span className="block text-xs font-semibold th-text">{t("createImport")}</span>
+              <span className="block text-[11px] th-text-ghost mt-0.5">{t("createImportDesc")}</span>
+            </span>
+          </button>
         </div>
+
+        {template === "import" && (
+          <div className="flex flex-col gap-1.5 mb-4">
+            <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed th-border-secondary th-bg-surface hover:th-bg-surface-hover cursor-pointer text-xs th-text-secondary w-fit">
+              <FileJson size={14} />
+              {t("importChoose")}
+              <input
+                type="file"
+                accept="application/json,.json"
+                aria-label={t("importChoose")}
+                className="sr-only"
+                onChange={(e) => readFile(e.target.files?.[0])}
+              />
+            </label>
+            {imported && (
+              <p className="text-[11px] th-text-ghost">
+                {t("importLoaded", { file: imported.fileName, count: imported.graph.nodes.length })}
+              </p>
+            )}
+            {importError && <p className="text-xs text-red-400">{importError}</p>}
+          </div>
+        )}
 
         <div className="flex flex-col gap-2 mb-4">
           <input
@@ -102,7 +148,7 @@ export default function CreateWorkflowModal({ onClose, onCreate, creating, error
           </button>
           <button
             type="submit"
-            disabled={creating || !name.trim()}
+            disabled={creating || !name.trim() || !ready}
             className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-linear-to-r from-brand to-brand-secondary text-white hover:opacity-90 disabled:opacity-50"
           >
             {creating ? t("creating") : t("create")}

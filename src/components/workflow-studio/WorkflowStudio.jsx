@@ -25,6 +25,7 @@ import {
   autoLayout,
   renameNodeId,
 } from "@/lib/workflowGraph";
+import { buildWorkflowFile, downloadWorkflowFile } from "@/lib/workflowFile";
 import { triggerSamplePayloadFromSchema, triggerPayloadInitialMode, triggerScheduleDetail } from "@/lib/workflowTriggers";
 import { createRunState, applyRunEvent, runStatusByNodeId } from "@/lib/workflowRunState";
 import { consumeWorkflowRun } from "@/lib/workflowSse";
@@ -331,6 +332,14 @@ export default function WorkflowStudio({ workflowId }) {
     cancelWorkflowRun(workflowId).catch(() => {});
     setRunState((s) => applyRunEvent(s, { event: "cancelled" }));
   }, [workflowId]);
+
+  // Exporter ce qui est a l'ecran, pas la derniere version enregistree :
+  // l autosave peut ne pas avoir encore tire.
+  const handleExport = useCallback(() => {
+    downloadWorkflowFile(
+      buildWorkflowFile({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) }),
+    );
+  }, [nodes, edges, workflowMeta]);
 
   // --- autosave --------------------------------------------------------------
   const doSave = useCallback(
@@ -687,6 +696,7 @@ export default function WorkflowStudio({ workflowId }) {
         saveState={shownSaveState}
         validation={validation}
         onOpenVersions={() => setVersionsOpen(true)}
+        onExport={handleExport}
         testOpen={testOpen}
         onToggleTest={() => setTestOpen((v) => !v)}
         onPublish={handlePublish}

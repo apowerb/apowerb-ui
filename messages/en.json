@@ -3183,7 +3183,13 @@
     "emptyBody": "Build your first automation: chain a tool, a router and a few agents, then run it or publish it.",
     "emptySearchTitle": "No workflow matches “{query}”",
     "emptySearchBody": "Try another search, or clear it to see every workflow.",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "createImport": "Import a JSON file",
+    "createImportDesc": "Start from a workflow exported here or kept alongside your code.",
+    "importChoose": "Choose a file",
+    "importLoaded": "{file} — {count, plural, =1 {# node} other {# nodes}}",
+    "importInvalidJson": "This file is not valid JSON.",
+    "importNotAWorkflow": "This file does not look like a workflow: it has no nodes and edges."
   },
   "WorkflowStudio": {
     "backToList": "Back to workflows",
@@ -3212,7 +3218,9 @@
     "conflictReload": "Reload the latest version",
     "loadFailed": "Could not load this workflow: {message}",
     "notFoundTitle": "Workflow not found",
-    "notFoundBody": "It may have been deleted."
+    "notFoundBody": "It may have been deleted.",
+    "exportButton": "Export",
+    "exportTitle": "Download this workflow as a JSON file"
   },
   "WorkflowPalette": {
     "title": "Add a node",

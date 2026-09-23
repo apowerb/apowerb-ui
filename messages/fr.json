@@ -3183,7 +3183,13 @@
     "emptyBody": "Construis ta première automatisation : enchaîne un outil, un routeur et quelques agents, puis exécute-la ou publie-la.",
     "emptySearchTitle": "Aucun workflow ne correspond à « {query} »",
     "emptySearchBody": "Essaie une autre recherche, ou efface-la pour tout revoir.",
-    "clearSearch": "Effacer la recherche"
+    "clearSearch": "Effacer la recherche",
+    "createImport": "Importer un fichier JSON",
+    "createImportDesc": "Partir d'un workflow exporté ici ou conservé à côté de votre code.",
+    "importChoose": "Choisir un fichier",
+    "importLoaded": "{file} — {count, plural, =1 {# nœud} other {# nœuds}}",
+    "importInvalidJson": "Ce fichier n'est pas du JSON valide.",
+    "importNotAWorkflow": "Ce fichier ne ressemble pas à un workflow : il n'a ni nodes ni edges."
   },
   "WorkflowStudio": {
     "backToList": "Retour aux workflows",
@@ -3212,7 +3218,9 @@
     "conflictReload": "Recharger la dernière version",
     "loadFailed": "Impossible de charger ce workflow : {message}",
     "notFoundTitle": "Workflow introuvable",
-    "notFoundBody": "Il a peut-être été supprimé."
+    "notFoundBody": "Il a peut-être été supprimé.",
+    "exportButton": "Exporter",
+    "exportTitle": "Télécharger ce workflow en fichier JSON"
   },
   "WorkflowPalette": {
     "title": "Ajouter un nœud",
