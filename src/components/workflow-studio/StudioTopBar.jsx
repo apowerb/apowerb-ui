@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, History, Play, Rocket, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Download, Loader2, History, Play, Rocket, RotateCcw, X } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { Link } from "@/lib/navigation";
 import { parseValidationMessage } from "@/lib/workflowGraph";
@@ -14,6 +14,7 @@ export default function StudioTopBar({
   saveState,
   validation,
   onOpenVersions,
+  onExport,
   testOpen,
   onToggleTest,
   onPublish,
@@ -95,6 +96,11 @@ export default function StudioTopBar({
         <button type="button" onClick={onOpenVersions} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium th-text-secondary hover:th-bg-surface-hover border th-border-secondary">
           <History size={13} />
           {t("versionsButton")}
+        </button>
+
+        <button type="button" onClick={onExport} title={t("exportTitle")} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium th-text-secondary hover:th-bg-surface-hover border th-border-secondary">
+          <Download size={13} />
+          {t("exportButton")}
         </button>
 
         <button type="button" onClick={onToggleTest} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${testOpen ? "bg-brand/15 text-[#5B8AFF] border-brand/30" : "th-text-secondary hover:th-bg-surface-hover th-border-secondary"}`}>
