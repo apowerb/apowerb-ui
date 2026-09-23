@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { ReactFlow, Background, Controls, MiniMap, ReactFlowProvider, useReactFlow } from "@xyflow/react";
+import { ReactFlow, Background, Controls, MiniMap, ReactFlowProvider, ViewportPortal, useReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Undo2, Redo2, LayoutGrid, Workflow as WorkflowIcon } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { studioNodeTypes } from "./nodes";
 import RouteEdge from "./edges/RouteEdge";
 import { NODE_BOX } from "@/lib/workflowGraph";
+import NextNodeSuggestions from "./NextNodeSuggestions";
 
 const nodeTypes = studioNodeTypes;
 const edgeTypes = { route: RouteEdge };
@@ -77,6 +78,9 @@ function StudioCanvasInner({
   onRedo,
   onAutoLayout,
   focusRequest,
+  suggestions,
+  suggestionAnchor,
+  onPickSuggestion,
 }) {
   const wrapperRef = useRef(null);
   const { screenToFlowPosition, setCenter, getZoom } = useReactFlow();
@@ -161,6 +165,18 @@ function StudioCanvasInner({
           maskColor="rgba(0,0,0,0.6)"
           className="react-flow__minimap"
         />
+        {suggestionAnchor && (
+          // In flow coordinates, so the chips stay glued to the node while
+          // the canvas pans and zooms.
+          <ViewportPortal>
+            <div
+              className="absolute"
+              style={{ transform: `translate(${suggestionAnchor.x + NODE_BOX.width + 24}px, ${suggestionAnchor.y}px)` }}
+            >
+              <NextNodeSuggestions suggestions={suggestions} onPick={onPickSuggestion} />
+            </div>
+          </ViewportPortal>
+        )}
       </ReactFlow>
       <Toolbar canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} onAutoLayout={onAutoLayout} />
       {nodes.length === 0 && <EmptyState />}

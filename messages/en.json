@@ -3366,7 +3366,9 @@
     "emptyTitle": "Empty canvas",
     "emptyBody": "Add a trigger from the palette on the left to get started.",
     "routeLabelPlaceholder": "route",
-    "chooseRoute": "Choose a route"
+    "chooseRoute": "Choose a route",
+    "nextStep": "Next step",
+    "nextStepHelp": "Adds the node, connects it and fills what it reads. Nothing is published."
   },
   "WorkflowInspector": {
     "title": "Inspector",
