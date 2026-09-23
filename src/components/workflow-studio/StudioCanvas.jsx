@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
-import { ReactFlow, Background, Controls, MiniMap, ReactFlowProvider, ViewportPortal, useReactFlow } from "@xyflow/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ReactFlow, Background, Controls, MiniMap, ReactFlowProvider, useReactFlow, useViewport } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Undo2, Redo2, LayoutGrid, Workflow as WorkflowIcon } from "lucide-react";
 import { useTranslations } from "use-intl";
@@ -9,6 +9,7 @@ import { studioNodeTypes } from "./nodes";
 import RouteEdge from "./edges/RouteEdge";
 import { NODE_BOX } from "@/lib/workflowGraph";
 import NextNodeSuggestions from "./NextNodeSuggestions";
+import { chipsPosition } from "@/lib/nextNodeSuggestions";
 
 const nodeTypes = studioNodeTypes;
 const edgeTypes = { route: RouteEdge };
@@ -84,6 +85,20 @@ function StudioCanvasInner({
 }) {
   const wrapperRef = useRef(null);
   const { screenToFlowPosition, setCenter, getZoom } = useReactFlow();
+  const viewport = useViewport();
+  // The chips are placed in canvas pixels, so they need its size; it changes
+  // with the window and when the test panel opens.
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return undefined;
+    const measure = () => setCanvasSize({ width: el.clientWidth, height: el.clientHeight });
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Un nœud ajouté depuis la palette peut tomber hors du cadre : on y amène la vue.
   useEffect(() => {
@@ -165,20 +180,13 @@ function StudioCanvasInner({
           maskColor="rgba(0,0,0,0.6)"
           className="react-flow__minimap"
         />
-        {suggestionAnchor && (
-          // In flow coordinates, so the chips stay glued to the node while
-          // the canvas pans and zooms.
-          <ViewportPortal>
-            <div
-              className="absolute"
-              style={{ transform: `translate(${suggestionAnchor.x + NODE_BOX.width + 24}px, ${suggestionAnchor.y}px)` }}
-            >
-              <NextNodeSuggestions suggestions={suggestions} onPick={onPickSuggestion} />
-            </div>
-          </ViewportPortal>
-        )}
       </ReactFlow>
       <Toolbar canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} onAutoLayout={onAutoLayout} />
+      {suggestionAnchor && suggestions?.length > 0 && canvasSize.width > 0 && (
+        <div className="absolute z-10" style={chipsPosition(suggestionAnchor, viewport, canvasSize, suggestions.length)}>
+          <NextNodeSuggestions suggestions={suggestions} onPick={onPickSuggestion} />
+        </div>
+      )}
       {nodes.length === 0 && <EmptyState />}
     </div>
   );

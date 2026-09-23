@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NextNodeSuggestions from "@/components/workflow-studio/NextNodeSuggestions";
-import { suggestNextNodes, firstUnwiredRoute, prefillFor, applySuggestion } from "@/lib/nextNodeSuggestions";
+import { suggestNextNodes, firstUnwiredRoute, prefillFor, applySuggestion, chipsPosition, CHIPS_BOX } from "@/lib/nextNodeSuggestions";
 
 const trigger = { id: "trigger1", type: "trigger", config: { kind: "manual" } };
 const agent = { id: "agent1", type: "agent", config: { agent_id: "a1" } };
@@ -108,5 +108,37 @@ describe("NextNodeSuggestions", () => {
   it("renders nothing without suggestions", () => {
     const { container } = render(<NextNodeSuggestions suggestions={[]} onPick={() => {}} />);
     expect(container.textContent).toBe("");
+  });
+});
+
+describe("chipsPosition", () => {
+  const canvas = { width: 900, height: 600 };
+  const viewport = { x: 0, y: 0, zoom: 1 };
+
+  it("sits right of the node when there is room", () => {
+    expect(chipsPosition({ x: 100, y: 80 }, viewport, canvas, 3)).toEqual({ left: 100 + 244, top: 80 });
+  });
+
+  it("flips to the left of the node rather than hiding behind the inspector", () => {
+    const { left } = chipsPosition({ x: 700, y: 50 }, viewport, canvas, 3);
+    expect(left).toBe(700 - 176 - 24);
+    expect(left + CHIPS_BOX.width).toBeLessThanOrEqual(canvas.width);
+  });
+
+  it("follows pan and zoom", () => {
+    expect(chipsPosition({ x: 100, y: 80 }, { x: 30, y: -20, zoom: 0.5 }, canvas, 3))
+      .toEqual({ left: 100 * 0.5 + 30 + 244 * 0.5, top: 80 * 0.5 - 20 });
+  });
+
+  it("stays inside the canvas, however small or wherever the node is", () => {
+    const tight = chipsPosition({ x: -500, y: -400 }, viewport, canvas, 3);
+    expect(tight).toEqual({ left: CHIPS_BOX.margin, top: CHIPS_BOX.margin });
+
+    const low = chipsPosition({ x: 100, y: 590 }, viewport, canvas, 3);
+    expect(low.top + CHIPS_BOX.header + 3 * (CHIPS_BOX.row + CHIPS_BOX.gap)).toBeLessThanOrEqual(canvas.height);
+
+    const narrow = chipsPosition({ x: 100, y: 10 }, viewport, { width: 120, height: 90 }, 3);
+    expect(narrow.left).toBe(CHIPS_BOX.margin);
+    expect(narrow.top).toBe(CHIPS_BOX.margin);
   });
 });
