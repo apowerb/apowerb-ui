@@ -41,6 +41,14 @@ beforeEach(() => {
 });
 
 describe("WorkflowsPage", () => {
+  it("shows the Preview badge with its tooltip next to the page title (roadmap#100)", async () => {
+    render(<WorkflowsPage />);
+    await waitFor(() => expect(screen.getByText("Lead triage")).toBeInTheDocument());
+    const badge = screen.getByTestId("preview-badge");
+    expect(badge).toHaveTextContent("Preview");
+    expect(badge).toHaveAttribute("title", "Preview feature — feedback welcome");
+  });
+
   it("lists workflows with their status, version and node count", async () => {
     render(<WorkflowsPage />);
     await waitFor(() => expect(screen.getByText("Lead triage")).toBeInTheDocument());

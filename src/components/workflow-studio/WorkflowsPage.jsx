@@ -6,6 +6,7 @@ import { useTranslations, useFormatter, useNow } from "use-intl";
 import { Link } from "@/lib/navigation";
 import { listWorkflowDefs, createWorkflowDef, duplicateWorkflowDef, deleteWorkflowDef } from "@/lib/api";
 import CreateWorkflowModal from "./CreateWorkflowModal";
+import PreviewBadge from "@/components/PreviewBadge";
 
 // POST et duplicate renvoient le workflow complet (graphe compris) ; la liste,
 // elle, ne porte que ``node_count``. On ramène les deux à la forme de la liste.
@@ -169,7 +170,10 @@ export default function WorkflowsPage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-xl font-bold th-text">{t("title")}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold th-text">{t("title")}</h1>
+              <PreviewBadge />
+            </div>
             <p className="text-sm th-text-ghost mt-1">{t("subtitle")}</p>
           </div>
           <button

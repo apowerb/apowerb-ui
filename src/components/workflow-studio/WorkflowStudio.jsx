@@ -172,6 +172,7 @@ export default function WorkflowStudio({ workflowId }) {
                 opts.push({
                   value: name,
                   label: `${toolLeafName(name)} (${category.replace(/^tools_/, "")})`,
+                  category,
                   source: "catalog",
                   needsConfig,
                 });
@@ -181,7 +182,7 @@ export default function WorkflowStudio({ workflowId }) {
         }
         if (configsR.status === "fulfilled") {
           for (const c of configsR.value || []) {
-            opts.push({ value: `tool_config${c.tool_config_id}`, label: c.tool_config_name, source: "config" });
+            opts.push({ value: `tool_config${c.tool_config_id}`, label: c.tool_config_name, category: c.tool_category, source: "config" });
           }
         }
         setToolOptions(opts);
@@ -716,6 +717,10 @@ export default function WorkflowStudio({ workflowId }) {
         data: {
           ...n.data,
           subtitle: subtitleFor(n, agentOptions, toolOptions, workflowOptions, ti),
+          // Resolved the same way as subtitle above, so ToolNode can show
+          // the tool's provider logo instead of the generic wrench icon
+          // (apowerb roadmap #103).
+          toolCategory: n.type === "tool" ? toolOptions.find((tt) => tt.value === n.data.config?.tool)?.category : undefined,
           errorCount: errorsByNode[n.id] || 0,
           runStatus: runStatusMap[n.id],
           runDuration: runDurationById[n.id],
