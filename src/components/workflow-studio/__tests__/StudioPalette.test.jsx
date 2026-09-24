@@ -51,11 +51,14 @@ describe("StudioPalette - collapsible families", () => {
     await user.click(header);
 
     expect(header).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("AI Classifier")).not.toBeInTheDocument();
+    // Collapse only applies from xl up: below 1280px the headers are hidden,
+    // so the items must stay rendered or they would become unreachable.
+    const items = screen.getByText("AI Classifier").closest(`#${header.getAttribute("aria-controls")}`);
+    expect(items).toHaveClass("xl:hidden");
 
     await user.click(header);
     expect(header).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("AI Classifier")).toBeInTheDocument();
+    expect(items).not.toHaveClass("xl:hidden");
   });
 
   it("is keyboard-activatable (Enter) since it's a real <button>", async () => {

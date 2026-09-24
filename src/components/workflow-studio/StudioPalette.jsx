@@ -147,37 +147,37 @@ export default function StudioPalette({ onAdd, hiddenTypes = EMPTY_HIDDEN }) {
                   className={`shrink-0 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
                 />
               </button>
-              {!isCollapsed && (
-                <div id={contentId} className="flex flex-col gap-1">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const soon = UNRUNNABLE_NODE_TYPES.has(item.type);
-                    return (
-                      <button
-                        key={item.type}
-                        type="button"
-                        draggable
-                        onDragStart={(e) => onDragStart(e, item.type)}
-                        onClick={() => onAdd?.(item.type)}
-                        title={`${t(`node${capitalize(item.type)}`)} — ${tHelp(`${item.type}_what`)} ${t("dragHint")}`}
-                        className="flex items-center justify-center xl:justify-start gap-2.5 px-0 xl:px-2.5 py-2 rounded-xl th-bg-surface hover:th-bg-surface-hover border th-border-secondary hover:th-border-hover text-left transition-colors cursor-grab active:cursor-grabbing"
-                      >
-                        <span className={`p-1.5 rounded-lg bg-linear-to-br ${colorGradient(item.color)} shadow-sm shrink-0`}>
-                          <Icon size={13} className="text-white" />
+              {/* Collapse is desktop-only: below xl the header is hidden, so
+                  the items stay visible or the family would be unreachable. */}
+              <div id={contentId} className={`flex flex-col gap-1 ${isCollapsed ? "xl:hidden" : ""}`}>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const soon = UNRUNNABLE_NODE_TYPES.has(item.type);
+                  return (
+                    <button
+                      key={item.type}
+                      type="button"
+                      draggable
+                      onDragStart={(e) => onDragStart(e, item.type)}
+                      onClick={() => onAdd?.(item.type)}
+                      title={`${t(`node${capitalize(item.type)}`)} — ${tHelp(`${item.type}_what`)} ${t("dragHint")}`}
+                      className="flex items-center justify-center xl:justify-start gap-2.5 px-0 xl:px-2.5 py-2 rounded-xl th-bg-surface hover:th-bg-surface-hover border th-border-secondary hover:th-border-hover text-left transition-colors cursor-grab active:cursor-grabbing"
+                    >
+                      <span className={`p-1.5 rounded-lg bg-linear-to-br ${colorGradient(item.color)} shadow-sm shrink-0`}>
+                        <Icon size={13} className="text-white" />
+                      </span>
+                      <span className="hidden xl:block flex-1 min-w-0 text-xs font-medium th-text-secondary truncate">
+                        {t(`node${capitalize(item.type)}`)}
+                      </span>
+                      {soon && (
+                        <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-semibold rounded th-bg-elevated th-text-ghost border th-border-secondary shrink-0">
+                          {t("soon")}
                         </span>
-                        <span className="hidden xl:block flex-1 min-w-0 text-xs font-medium th-text-secondary truncate">
-                          {t(`node${capitalize(item.type)}`)}
-                        </span>
-                        {soon && (
-                          <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-semibold rounded th-bg-elevated th-text-ghost border th-border-secondary shrink-0">
-                            {t("soon")}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           );
         })}
