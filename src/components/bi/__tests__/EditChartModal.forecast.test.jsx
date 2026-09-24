@@ -25,7 +25,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 vi.mock("../AgentSourcePicker", () => ({ default: () => <div>mock-agent-picker</div> }));
 vi.mock("../OneDriveFilePicker", () => ({ default: () => <div>mock-onedrive-picker</div> }));
 
-import { updateChart } from "@/lib/api";
+import { updateChart, getChartData } from "@/lib/api";
 
 const forecastChart = {
   id: "chart-forecast-1",
@@ -101,5 +101,20 @@ describe("EditChartModal — forecast widget", () => {
     const [, payload] = updateChart.mock.calls[0];
     expect(payload.chart_type).toBe("forecast");
     expect(payload.config).toMatchObject({ date_var: "date", target_var: "sales" });
+  });
+});
+
+describe("EditChartModal — forecast diagnostics on a partial sample", () => {
+  it("reads the full row count from pagination and does not flag a short history", async () => {
+    getChartData.mockResolvedValueOnce({
+      rows: [
+        { date: "2024-01-01", sales: 100, store: "Paris" },
+        { date: "2024-02-01", sales: 110, store: "Paris" },
+      ],
+      pagination: { page: 1, page_size: 5, total: 72, has_next: true, has_prev: false },
+    });
+    renderModal(forecastChart);
+    expect(await screen.findByText(/2 of 72 rows/i)).toBeInTheDocument();
+    expect(screen.queryByText(/historique court/i)).not.toBeInTheDocument();
   });
 });

@@ -4003,7 +4003,9 @@
     "reliabilityMape": "Erreur moyenne d'environ {pct} % sur la période de test.",
     "reliabilityBeatsBaseline": "Meilleure que la référence naïve.",
     "reliabilityDoesNotBeatBaseline": "Pas meilleure qu'une simple projection naïve.",
-    "reliabilityUnknownExplanation": "Pas assez d'information pour évaluer la fiabilité."
+    "reliabilityUnknownExplanation": "Pas assez d'information pour évaluer la fiabilité.",
+    "errorMaxValue": "La valeur doit être au plus {limit}.",
+    "errorMinValue": "La valeur doit être au moins {limit}."
   },
   "ForecastConfigStep": {
     "dateColumnLabel": "Colonne date",
@@ -4028,6 +4030,7 @@
     "modelSnaiveExplanation": "Répète la valeur de la même période l'année/saison dernière — une référence simple et honnête.",
     "modelNaiveExplanation": "Répète la dernière valeur observée — la référence la plus simple possible.",
     "pointCount": "{count, plural, =0 {Aucun point de données} one {# point de données} other {# points de données}} dans l'échantillon de prévisualisation.",
-    "noWarnings": "Aucun problème détecté sur l'échantillon de prévisualisation."
+    "noWarnings": "Aucun problème détecté sur l'échantillon de prévisualisation.",
+    "partialSample": "Aperçu de {sample} lignes sur {total} : la longueur de l'historique sera vérifiée sur toutes les lignes au calcul de la prévision."
   }
 }

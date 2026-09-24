@@ -1287,6 +1287,20 @@ export async function runWorkflowDef(workflowId, payload, { signal } = {}) {
 // message actionnable derrière un générique "API error 400". `postForecast`
 // fait donc son propre parsing, en réutilisant `tracedFetch`/`getAuthHeaders`
 // pour rester tracé comme le reste des appels.
+//
+// La validation du corps par le cœur (FastAPI, 422) répond, elle, en
+// `{detail:[{loc, msg, type, ctx}]}` : on la ramène au même format pour que
+// le widget nomme le champ (`loc` = ["body", "horizon"]) et sa limite.
+function validationErrors(detail) {
+  if (!Array.isArray(detail)) return [];
+  return detail.map((d) => ({
+    field: Array.isArray(d?.loc) ? d.loc[d.loc.length - 1] : null,
+    message: d?.msg,
+    type: d?.type,
+    limit: d?.ctx?.le ?? d?.ctx?.ge ?? null,
+  }));
+}
+
 export async function postForecast(payload, { signal } = {}) {
   const url = apiUrl("/api/v1/forecast");
   const headers = {
@@ -1308,7 +1322,7 @@ export async function postForecast(payload, { signal } = {}) {
     throw err;
   }
   if (!res.ok) {
-    const errors = Array.isArray(body.errors) ? body.errors : [];
+    const errors = Array.isArray(body.errors) ? body.errors : validationErrors(body.detail);
     const message = errors[0]?.message || body.message || `Erreur prévision (HTTP ${res.status})`;
     const err = new Error(message);
     err.status = res.status;

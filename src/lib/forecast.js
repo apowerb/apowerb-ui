@@ -73,7 +73,11 @@ export function defaultHorizon(frequency) {
 
 const MIN_POINTS_FOR_HORIZON_FACTOR = 2;
 
-export function buildDiagnostics({ rows, dateColumn, targetColumn, horizon }) {
+// `totalRows` : nombre de lignes de la source complète quand `rows` n'en est
+// qu'un aperçu. Sur un aperçu partiel, la longueur d'historique n'est pas
+// mesurable : pas d'avertissement « historique court » (ForecastChart le
+// recalcule sur toutes les lignes au moment du calcul).
+export function buildDiagnostics({ rows, dateColumn, targetColumn, horizon, totalRows }) {
   const safeRows = Array.isArray(rows) ? rows : [];
   const warnings = [];
 
@@ -82,13 +86,15 @@ export function buildDiagnostics({ rows, dateColumn, targetColumn, horizon }) {
       code: "empty",
       message: "Aucune ligne de données disponible pour cette source.",
     });
-    return { pointCount: 0, warnings };
+    return { pointCount: 0, partial: false, warnings };
   }
+
+  const partial = Number.isFinite(totalRows) && totalRows > safeRows.length;
 
   // History length of one series: distinct dates, not rows (grouped data).
   const pointCount = dateColumn ? distinctTimes(safeRows, dateColumn).length || safeRows.length : safeRows.length;
 
-  if (horizon && pointCount < horizon * MIN_POINTS_FOR_HORIZON_FACTOR) {
+  if (!partial && horizon && pointCount < horizon * MIN_POINTS_FOR_HORIZON_FACTOR) {
     warnings.push({
       code: "short_history",
       message: `Historique court (${pointCount} points) pour un horizon de ${horizon} : la prévision sera peu fiable au-delà des premières périodes.`,
@@ -118,7 +124,7 @@ export function buildDiagnostics({ rows, dateColumn, targetColumn, horizon }) {
     }
   }
 
-  return { pointCount, warnings };
+  return { pointCount, partial, warnings };
 }
 
 const RELIABILITY_LABELS = {

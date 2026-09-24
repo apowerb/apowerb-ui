@@ -97,3 +97,19 @@ describe("ForecastConfigStep", () => {
     expect(screen.getByRole("spinbutton", { name: /horizon/i })).toBeInTheDocument();
   });
 });
+
+describe("ForecastConfigStep on a partial preview", () => {
+  it("says the history is checked at computation instead of flagging a short history", () => {
+    render(
+      <ForecastConfigStep
+        columns={columns}
+        sampleRows={sampleRows}
+        totalRows={72}
+        value={{ dateVar: "date", targetVar: "sales", horizon: 12 }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.queryByText(/historique court/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/3 of 72 rows/i)).toBeInTheDocument();
+  });
+});

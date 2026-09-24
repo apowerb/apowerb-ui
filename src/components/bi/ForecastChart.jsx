@@ -17,7 +17,7 @@ import {
 import { Loader2, Download, Table2, Info, AlertTriangle } from "lucide-react";
 import { postForecast } from "@/lib/api";
 import { buildDiagnostics, forecastToCsv, reliabilityBadge, toChartSeries } from "@/lib/forecast";
-import ChartTooltip from "./ChartTooltip";
+import { formatChartLabel, formatChartValue } from "@/lib/chart-tokens";
 
 const RELIABILITY_TONE = {
   good: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
@@ -39,6 +39,53 @@ const FIELD_LABEL_KEYS = {
   models: "fieldLabelModels",
   data: "fieldLabelData",
 };
+
+// Bornes des erreurs de validation (422 du cœur) traduites en phrase métier ;
+// les autres types gardent le message renvoyé tel quel.
+const LIMIT_MESSAGE_KEYS = {
+  less_than_equal: "errorMaxValue",
+  greater_than_equal: "errorMinValue",
+};
+
+/**
+ * Infobulle du graphique de prévision. ChartTooltip humanise le `dataKey`
+ * (nom de colonne SQL) : ici les zones d'intervalle ont un `dataKey`
+ * fonction et une valeur [bas, haut], d'où un libellé illisible. On affiche
+ * donc le `name` déjà traduit de chaque série, l'intervalle en « bas – haut »,
+ * et on saute les séries sans valeur à cette date (Réel sur un point prévu).
+ */
+export function ForecastTooltip({ active, payload, label }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const entries = payload.filter((e) => e.value != null);
+  if (entries.length === 0) return null;
+
+  return (
+    <div
+      className="rounded-lg border px-3 py-2 text-xs shadow-xl"
+      style={{ borderColor: "var(--border)", background: "var(--bg-elevated)", color: "var(--foreground)" }}
+      role="tooltip"
+    >
+      {label != null && <div className="font-semibold mb-1.5">{formatChartLabel(label)}</div>}
+      <div className="flex flex-col gap-1">
+        {entries.map((entry) => (
+          <div key={entry.name} className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="inline-block h-2 w-2 rounded-full flex-shrink-0"
+              style={{ background: entry.color || entry.fill }}
+            />
+            <span style={{ color: "var(--text-secondary)" }}>{entry.name}</span>
+            <span className="font-mono font-semibold ml-auto">
+              {Array.isArray(entry.value)
+                ? `${formatChartValue(entry.value[0])} – ${formatChartValue(entry.value[1])}`
+                : formatChartValue(entry.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function downloadCsv(csv, filename) {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -195,11 +242,13 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
     const firstError = error?.errors?.[0];
     const fieldKey = firstError?.field ? FIELD_LABEL_KEYS[firstError.field] : null;
     const fieldLabel = fieldKey ? t(fieldKey) : firstError?.field;
+    const limitKey = firstError?.limit != null ? LIMIT_MESSAGE_KEYS[firstError.type] : null;
+    const message = limitKey ? t(limitKey, { limit: firstError.limit }) : error.message;
     return (
       <div className="flex flex-col items-center justify-start h-full gap-2 px-4 pt-4 text-center">
         <AlertTriangle size={28} className="text-red-400" aria-hidden="true" />
         <p className="text-sm font-medium th-text">{t("errorTitle")}</p>
-        <p className="text-xs text-red-400 break-words max-w-full select-text">{error.message}</p>
+        <p className="text-xs text-red-400 break-words max-w-full select-text">{message}</p>
         {fieldLabel && (
           <p className="text-[11px] th-text-faint">{t("errorFieldLabel", { field: fieldLabel })}</p>
         )}
@@ -324,7 +373,7 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip content={<ChartTooltip />} />
+              <Tooltip content={<ForecastTooltip />} />
               <Legend verticalAlign="top" height={24} wrapperStyle={{ fontSize: 10 }} />
               {hasBands && (
                 // Recharts "range area": a dataKey returning [low, high]
