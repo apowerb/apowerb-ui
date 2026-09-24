@@ -956,6 +956,7 @@ export default function DashboardDetail({ dashboardId }) {
                         <ChartRenderer
                           chartId={comp.chart?.chart_id}
                           filterParams={filterParams}
+                          onEditConfig={() => handleEditChart(comp.chart?.chart_id)}
                           onLoaded={(meta) => {
                             const id = comp.chart?.chart_id;
                             if (!id) return;

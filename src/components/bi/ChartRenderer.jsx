@@ -132,6 +132,10 @@ export default function ChartRenderer({
   // this to render the real chart title in its card header instead
   // of the generic "Chart" fallback.
   onLoaded,
+  // Opens the edit modal for this chart. Threaded down to ForecastChart's
+  // error state so "Modifier la configuration" can actually do something —
+  // without it, only the retry button is shown.
+  onEditConfig,
 }) {
   const t = useTranslations("ChartRenderer");
   const [chartData, setChartData] = useState(null);
@@ -470,7 +474,12 @@ export default function ChartRenderer({
       <div className="h-full flex flex-col">
         <AgentBadge />
         <div className="flex-1 min-h-0">
-          <ForecastChart rows={data} config={chartData.config || {}} title={chartData.title} />
+          <ForecastChart
+            rows={data}
+            config={chartData.config || {}}
+            title={chartData.title}
+            onEditConfig={onEditConfig}
+          />
         </div>
       </div>
     );
