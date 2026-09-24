@@ -1,6 +1,7 @@
 "use client";
 
-import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell } from "lucide-react";
+import { getToolCategoryLogo } from "@/components/icons/integrationLogos";
+import { Zap, Bot, Sparkles, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
 import { NODE_FAMILIES } from "@/lib/workflowGraph";
@@ -92,12 +93,16 @@ export function AgentNode({ data, selected }) {
 
 export function ToolNode({ data, selected }) {
   const t = useTranslations("WorkflowPalette");
+  // data.toolCategory is resolved by WorkflowStudio from toolOptions (same
+  // lookup as data.subtitle), so the node shows the tool's provider logo
+  // instead of the generic wrench icon when its category is known
+  // (apowerb roadmap #103).
   return (
     <NodeShell
       {...common(data, selected)}
       title={data.label || t("nodeTool")}
       color={NODE_FAMILIES.tool.color}
-      icon={Wrench}
+      icon={getToolCategoryLogo(data.toolCategory)}
     >
       <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
     </NodeShell>
