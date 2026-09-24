@@ -82,4 +82,18 @@ describe("ForecastConfigStep", () => {
     expect(optionNames).not.toContain("date");
     expect(optionNames).not.toContain("sales");
   });
+
+  it("associates the date and target selects with their visible labels for screen readers", () => {
+    render(
+      <ForecastConfigStep
+        columns={columns}
+        sampleRows={sampleRows}
+        value={{ dateVar: "date", targetVar: "sales" }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByRole("combobox", { name: /date column/i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /target column/i })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: /horizon/i })).toBeInTheDocument();
+  });
 });

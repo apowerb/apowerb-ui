@@ -48,10 +48,17 @@ ENV PORT=3000
 # notes. Override it if you deliberately want a narrower bind.
 ENV HOSTNAME=0.0.0.0
 
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/messages ./messages
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# node:22-alpine ships a built-in unprivileged "node" user (uid/gid 1000).
+# Running the container as root buys nothing here -- the app never needs
+# root -- and widens the blast radius of any RCE in the Next.js server.
+# --chown moves ownership at copy time instead of a separate `chown -R`
+# layer, which would double the image size for these directories.
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/messages ./messages
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+
+USER node
 
 EXPOSE 3000
 
