@@ -76,10 +76,41 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
 
   const safeRows = useMemo(() => (Array.isArray(rows) ? rows : []), [rows]);
 
+  // ChartRenderer recomputes `chartData.rows || []` / `chartData.config ||
+  // {}` on every one of its own re-renders (no memoisation there), so
+  // `rows`/`config` get a fresh object identity even when their content is
+  // unchanged. Keying the fetch effect on those identities re-triggered
+  // POST /v1/jobs 2-3 times for a single widget display. Derive a stable,
+  // content-based key from the rows and the config fields actually sent to
+  // th2forecast, and key the effect on that instead — a real content change
+  // still refetches, a same-content re-render no longer does.
+  const requestKey = useMemo(() => {
+    if (safeRows.length === 0) return null;
+    return JSON.stringify({
+      rows: safeRows,
+      date_var: config.date_var,
+      target_var: config.target_var,
+      group_var: config.group_var || null,
+      horizon: config.horizon,
+      frequency: config.frequency || null,
+      models: config.models || ["prophet"],
+      confidence_levels: config.confidence_levels || [0.8, 0.95],
+    });
+  }, [
+    safeRows,
+    config.date_var,
+    config.target_var,
+    config.group_var,
+    config.horizon,
+    config.frequency,
+    config.models,
+    config.confidence_levels,
+  ]);
+
   useEffect(() => {
     // No historical rows: nothing to compute. The empty-state render below
     // never reads `status`, so no state update is needed here.
-    if (safeRows.length === 0) return;
+    if (requestKey === null) return;
     const controller = new AbortController();
     abortRef.current = controller;
     setStatus("loading");
@@ -112,9 +143,10 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
       });
 
     return () => controller.abort();
-    // retryToken n'est lu nulle part : il ne sert qu'à redéclencher cet
-    // effet quand l'utilisateur clique "Réessayer" après une erreur.
-  }, [safeRows, config, retryToken]);
+    // safeRows/config n'ont pas besoin de figurer ici : requestKey est leur
+    // dérivé stable et couvre déjà tout changement de contenu pertinent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestKey, retryToken]);
 
   const diagnostics = useMemo(
     () =>
@@ -164,7 +196,7 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
     const fieldKey = firstError?.field ? FIELD_LABEL_KEYS[firstError.field] : null;
     const fieldLabel = fieldKey ? t(fieldKey) : firstError?.field;
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
+      <div className="flex flex-col items-center justify-start h-full gap-2 px-4 pt-4 text-center">
         <AlertTriangle size={28} className="text-red-400" aria-hidden="true" />
         <p className="text-sm font-medium th-text">{t("errorTitle")}</p>
         <p className="text-xs text-red-400 break-words max-w-full select-text">{error.message}</p>
