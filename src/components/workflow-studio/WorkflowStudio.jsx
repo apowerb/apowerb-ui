@@ -160,15 +160,28 @@ export default function WorkflowStudio({ workflowId }) {
           const raw = toolsR.value;
           if (raw && typeof raw === "object" && !Array.isArray(raw)) {
             for (const [category, list] of Object.entries(raw)) {
-              for (const name of list || []) {
-                opts.push({ value: name, label: `${toolLeafName(name)} (${category.replace(/^tools_/, "")})` });
+              for (const item of list || []) {
+                // A catalog item is either a plain tool name (older core,
+                // no needs_config yet, treated as needing config by
+                // groupToolOptions) or an object carrying that flag once the
+                // core ships it. Support both so this studio keeps working
+                // against either version of the API.
+                const name = item && typeof item === "object" ? (item.name ?? item.tool) : item;
+                if (!name) continue;
+                const needsConfig = item && typeof item === "object" ? item.needs_config : undefined;
+                opts.push({
+                  value: name,
+                  label: `${toolLeafName(name)} (${category.replace(/^tools_/, "")})`,
+                  source: "catalog",
+                  needsConfig,
+                });
               }
             }
           }
         }
         if (configsR.status === "fulfilled") {
           for (const c of configsR.value || []) {
-            opts.push({ value: `tool_config${c.tool_config_id}`, label: c.tool_config_name });
+            opts.push({ value: `tool_config${c.tool_config_id}`, label: c.tool_config_name, source: "config" });
           }
         }
         setToolOptions(opts);

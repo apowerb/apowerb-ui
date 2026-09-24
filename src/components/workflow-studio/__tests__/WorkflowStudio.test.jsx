@@ -253,7 +253,16 @@ describe("WorkflowStudio", () => {
   });
 
   it("filters the tool picker as you type", async () => {
-    listTools.mockResolvedValue({ tools_erp: ["erp.tool_get_order", "erp.tool_list_clients"], tools_weather: ["weather.get_weather"] });
+    // needs_config: false on every item keeps them in the "ready to use"
+    // group, visible without expanding the collapsed "needs config" one -
+    // this test is about search filtering, not grouping.
+    listTools.mockResolvedValue({
+      tools_erp: [
+        { name: "erp.tool_get_order", needs_config: false },
+        { name: "erp.tool_list_clients", needs_config: false },
+      ],
+      tools_weather: [{ name: "weather.get_weather", needs_config: false }],
+    });
     const user = userEvent.setup();
     render(<WorkflowStudio workflowId="wf1" />);
     await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
@@ -264,6 +273,43 @@ describe("WorkflowStudio", () => {
 
     await user.type(screen.getByRole("searchbox", { name: /Search tools/i }), "weather");
     expect(within(picker).getAllByRole("option").map((o) => o.value)).toEqual(["", "weather.get_weather"]);
+  });
+
+  it("groups catalog tools by needs_config when the core returns rich items", async () => {
+    listTools.mockResolvedValue({
+      tools_erp: [
+        { name: "erp.tool_get_order", needs_config: false },
+        { name: "erp.tool_list_clients", needs_config: true },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByRole("button", { name: /^Tool$/ }));
+    const picker = await screen.findByRole("combobox", { name: /^Tool$/ });
+    const groups = within(picker).getAllByRole("group");
+    expect(groups.map((g) => g.getAttribute("label"))).toEqual(["Ready to use", "Needs configuration"]);
+    expect(within(groups[0]).getAllByRole("option").map((o) => o.value)).toEqual(["erp.tool_get_order"]);
+    // Collapsed by default: the group exists but its option is not rendered yet.
+    expect(within(groups[1]).queryAllByRole("option")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: /Needs configuration \(1\)/ })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("falls back to needs-config when the core still returns plain tool-name strings despite include_status", async () => {
+    listTools.mockResolvedValue({ tools_erp: ["erp.tool_get_order", "erp.tool_list_clients"] });
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByRole("button", { name: /^Tool$/ }));
+    const picker = await screen.findByRole("combobox", { name: /^Tool$/ });
+    // Collapsed by default: no "ready" group at all, and no options besides the placeholder.
+    expect(within(picker).queryAllByRole("group")).toHaveLength(1);
+    expect(within(picker).getAllByRole("option")).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: /Needs configuration \(2\)/ }));
+    expect(within(picker).getAllByRole("option").map((o) => o.value)).toEqual(["", "erp.tool_get_order", "erp.tool_list_clients"]);
   });
 
   it("shows the restored node in the inspector, not the version it replaced", async () => {

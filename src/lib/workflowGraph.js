@@ -941,3 +941,27 @@ export function filterToolOptions(options = [], query = "") {
     return words.every((w) => hay.includes(w));
   });
 }
+
+/**
+ * Splits tool picker options into the three groups the inspector renders,
+ * in this fixed order: the caller's own tool configurations, catalog tools
+ * ready to use as-is, and catalog tools that still need a configuration.
+ *
+ * `option.source === "config"` marks a user tool configuration (always
+ * "configured", never gated on `needsConfig`). Everything else is a
+ * catalog entry, grouped by `option.needsConfig`: only an explicit
+ * `false` counts as ready. An older core that has not shipped the
+ * `needs_config` flag yet leaves it `undefined` on every item — those
+ * must land in "needs config" too, not silently look ready.
+ */
+export function groupToolOptions(options = []) {
+  const configured = [];
+  const ready = [];
+  const needsConfig = [];
+  for (const option of options) {
+    if (option.source === "config") configured.push(option);
+    else if (option.needsConfig === false) ready.push(option);
+    else needsConfig.push(option);
+  }
+  return { configured, ready, needsConfig };
+}
