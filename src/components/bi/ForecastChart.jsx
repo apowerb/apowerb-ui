@@ -240,43 +240,25 @@ export default function ForecastChart({ rows, config, title }) {
               <Tooltip content={<ChartTooltip />} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               {hasBands && (
+                // Recharts "range area": a dataKey returning [low, high]
+                // fills exactly between the two bounds — no stacking trick,
+                // no background-colour mask that would only work on one
+                // theme. See https://recharts.org/en-US/examples/AreaChartFillByValue
                 <Area
-                  dataKey="upper_95"
+                  dataKey={(d) => (d.lower_95 != null ? [d.lower_95, d.upper_95] : null)}
                   stroke="none"
                   fill="#3b82f6"
-                  fillOpacity={0.08}
+                  fillOpacity={0.1}
                   name={t("confidence95")}
                   isAnimationActive={false}
                 />
               )}
               {hasBands && (
                 <Area
-                  dataKey="lower_95"
-                  stroke="none"
-                  fill="#0a0e1a"
-                  fillOpacity={1}
-                  name={t("confidence95")}
-                  legendType="none"
-                  isAnimationActive={false}
-                />
-              )}
-              {hasBands && (
-                <Area
-                  dataKey="upper_80"
+                  dataKey={(d) => (d.lower_80 != null ? [d.lower_80, d.upper_80] : null)}
                   stroke="none"
                   fill="#3b82f6"
-                  fillOpacity={0.18}
-                  name={t("confidence80")}
-                  isAnimationActive={false}
-                />
-              )}
-              {hasBands && (
-                <Area
-                  dataKey="lower_80"
-                  stroke="none"
-                  fill="#0a0e1a"
-                  fillOpacity={1}
-                  legendType="none"
+                  fillOpacity={0.22}
                   name={t("confidence80")}
                   isAnimationActive={false}
                 />
