@@ -123,6 +123,11 @@ test.describe("Forecast widget", () => {
 
     await expect(page.getByText("Reliable").or(page.getByText("Fiable"))).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: /export csv|exporter/i })).toBeVisible();
+    // Légende du graphique : Réel / Prévision / Intervalle 80% / Intervalle 95%.
+    await expect(page.getByText(/^(réel|actual)$/i)).toBeVisible();
+    await expect(page.getByText(/^(prévision|forecast)$/i)).toBeVisible();
+    await expect(page.getByText(/intervalle 80|80% interval/i)).toBeVisible();
+    await expect(page.getByText(/intervalle 95|95% interval/i)).toBeVisible();
 
     await shot(page, "forecast-widget-success-light");
   });
@@ -150,13 +155,22 @@ test.describe("Forecast widget", () => {
 
     await page.goto(`/bi/${DASHBOARD_ID}`);
     await assertNoErrorScreen(page, "sur erreur 400");
-    await expect(page.getByText(/colonne 'dat' absente/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/date_var/)).toBeVisible();
+    await expect(
+      page.getByText(/la prévision n'a pas pu être calculée|the forecast could not be computed/i),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/colonne 'dat' absente/i)).toBeVisible();
+    // Champ traduit en libellé métier — jamais le nom technique brut du contrat.
+    await expect(page.getByText(/colonne date|date column/i)).toBeVisible();
+    await expect(page.getByText(/^date_var$/)).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /modifier la configuration|edit configuration/i }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /réessayer|retry/i })).toBeVisible();
 
     await shot(page, "forecast-widget-error-400");
   });
 
-  test("shows a clear 'service not configured' message on a 503", async ({ page }) => {
+  test("shows a clear 'service not configured' message on a 503, centered with edit/retry actions", async ({ page }) => {
     await signIn(page, "/bi");
     await mockDashboardRoutes(page);
     await page.route("**/api/v1/forecast", (route) =>
@@ -165,7 +179,14 @@ test.describe("Forecast widget", () => {
 
     await page.goto(`/bi/${DASHBOARD_ID}`);
     await assertNoErrorScreen(page, "sur erreur 503");
-    await expect(page.getByText(/service de prévision non configuré/i)).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByText(/la prévision n'a pas pu être calculée|the forecast could not be computed/i),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/service de prévision non configuré/i)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /modifier la configuration|edit configuration/i }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /réessayer|retry/i })).toBeVisible();
 
     await shot(page, "forecast-widget-error-503");
   });
