@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { NODE_FAMILIES, UNRUNNABLE_NODE_TYPES } from "@/lib/workflowGraph";
 import { NODE_ICONS } from "./nodeIcons";
@@ -24,6 +24,31 @@ const PALETTE_ITEMS = Object.entries(NODE_FAMILIES).map(([type, meta]) => ({
 
 const EMPTY_HIDDEN = new Set();
 
+// One JSON blob rather than one key per family: fewer localStorage round
+// trips, and the whole thing is small (5 booleans).
+const COLLAPSE_STORAGE_KEY = "workflow-studio:palette-collapsed-families";
+
+/** localStorage can be unavailable or throw (private browsing, quota,
+ * disabled storage) — every read/write is best-effort, never fatal. */
+function readStoredCollapsed() {
+  try {
+    const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredCollapsed(value) {
+  try {
+    window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // Collapse state just won't survive a reload — not worth surfacing.
+  }
+}
+
 /**
  * Left-hand node palette: drag onto the canvas, or click to add at a
  * default spot (the caller decides where — usually near the viewport
@@ -32,11 +57,19 @@ const EMPTY_HIDDEN = new Set();
  * type from the list entirely — used by the loop/try body editor to drop
  * `loop`/`try`/`approval` so a body can't nest another flow-control
  * container in this pass.
+ *
+ * Families are collapsible: each header is a real <button> that toggles
+ * `aria-expanded` and the family's items, and the collapsed/expanded state
+ * per family is remembered in localStorage across sessions. Typing a
+ * non-empty search always shows every family expanded (so results aren't
+ * hidden behind a collapsed header) without touching the stored
+ * preference — clearing the search restores it.
  */
 export default function StudioPalette({ onAdd, hiddenTypes = EMPTY_HIDDEN }) {
   const t = useTranslations("WorkflowPalette");
   const tHelp = useTranslations("WorkflowNodeHelp");
   const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState(() => readStoredCollapsed());
 
   const items = useMemo(() => {
     const visible = PALETTE_ITEMS.filter((item) => !hiddenTypes.has(item.type));
@@ -44,6 +77,8 @@ export default function StudioPalette({ onAdd, hiddenTypes = EMPTY_HIDDEN }) {
     if (!q) return visible;
     return visible.filter((item) => t(`node${capitalize(item.type)}`).toLowerCase().includes(q));
   }, [query, hiddenTypes, t]);
+
+  const isSearching = query.trim().length > 0;
 
   const groups = FAMILY_ORDER.map((family) => ({
     family,
@@ -53,6 +88,14 @@ export default function StudioPalette({ onAdd, hiddenTypes = EMPTY_HIDDEN }) {
   const onDragStart = (e, type) => {
     e.dataTransfer.setData("application/workflow-node-type", type);
     e.dataTransfer.effectAllowed = "copy";
+  };
+
+  const toggleFamily = (family) => {
+    setCollapsed((prev) => {
+      const next = { ...prev, [family]: !prev[family] };
+      writeStoredCollapsed(next);
+      return next;
+    });
   };
 
   return (
@@ -77,42 +120,67 @@ export default function StudioPalette({ onAdd, hiddenTypes = EMPTY_HIDDEN }) {
         {groups.length === 0 && (
           <p className="text-xs th-text-ghost px-2 py-4 text-center">{t("noResults", { query })}</p>
         )}
-        {groups.map((group) => (
-          <div key={group.family}>
-            <div className="hidden xl:block px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider th-text-ghost">
-              {t(FAMILY_LABEL_KEY[group.family])}
+        {groups.map((group, index) => {
+          const isCollapsed = !isSearching && !!collapsed[group.family];
+          const contentId = `palette-family-items-${group.family}`;
+          return (
+            <div key={group.family}>
+              {index > 0 && (
+                // Icon-only mode (<1280px) hides the family title below —
+                // this line replaces it as the visual family boundary.
+                <hr
+                  data-testid="palette-family-separator"
+                  className="block xl:hidden mb-2 -mt-1 th-border-secondary"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => toggleFamily(group.family)}
+                aria-expanded={!isCollapsed}
+                aria-controls={contentId}
+                data-testid={`palette-family-header-${group.family}`}
+                className="hidden xl:flex items-center justify-between w-full px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider th-text-ghost hover:th-text-secondary transition-colors"
+              >
+                <span>{t(FAMILY_LABEL_KEY[group.family])}</span>
+                <ChevronDown
+                  size={12}
+                  className={`shrink-0 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                />
+              </button>
+              {!isCollapsed && (
+                <div id={contentId} className="flex flex-col gap-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const soon = UNRUNNABLE_NODE_TYPES.has(item.type);
+                    return (
+                      <button
+                        key={item.type}
+                        type="button"
+                        draggable
+                        onDragStart={(e) => onDragStart(e, item.type)}
+                        onClick={() => onAdd?.(item.type)}
+                        title={`${t(`node${capitalize(item.type)}`)} — ${tHelp(`${item.type}_what`)} ${t("dragHint")}`}
+                        className="flex items-center justify-center xl:justify-start gap-2.5 px-0 xl:px-2.5 py-2 rounded-xl th-bg-surface hover:th-bg-surface-hover border th-border-secondary hover:th-border-hover text-left transition-colors cursor-grab active:cursor-grabbing"
+                      >
+                        <span className={`p-1.5 rounded-lg bg-linear-to-br ${colorGradient(item.color)} shadow-sm shrink-0`}>
+                          <Icon size={13} className="text-white" />
+                        </span>
+                        <span className="hidden xl:block flex-1 min-w-0 text-xs font-medium th-text-secondary truncate">
+                          {t(`node${capitalize(item.type)}`)}
+                        </span>
+                        {soon && (
+                          <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-semibold rounded th-bg-elevated th-text-ghost border th-border-secondary shrink-0">
+                            {t("soon")}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <div className="flex flex-col gap-1">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const soon = UNRUNNABLE_NODE_TYPES.has(item.type);
-                return (
-                  <button
-                    key={item.type}
-                    type="button"
-                    draggable
-                    onDragStart={(e) => onDragStart(e, item.type)}
-                    onClick={() => onAdd?.(item.type)}
-                    title={`${t(`node${capitalize(item.type)}`)} — ${tHelp(`${item.type}_what`)} ${t("dragHint")}`}
-                    className="flex items-center justify-center xl:justify-start gap-2.5 px-0 xl:px-2.5 py-2 rounded-xl th-bg-surface hover:th-bg-surface-hover border th-border-secondary hover:th-border-hover text-left transition-colors cursor-grab active:cursor-grabbing"
-                  >
-                    <span className={`p-1.5 rounded-lg bg-linear-to-br ${colorGradient(item.color)} shadow-sm shrink-0`}>
-                      <Icon size={13} className="text-white" />
-                    </span>
-                    <span className="hidden xl:block flex-1 min-w-0 text-xs font-medium th-text-secondary truncate">
-                      {t(`node${capitalize(item.type)}`)}
-                    </span>
-                    {soon && (
-                      <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-semibold rounded th-bg-elevated th-text-ghost border th-border-secondary shrink-0">
-                        {t("soon")}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
