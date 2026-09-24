@@ -23,6 +23,7 @@ import {
   CONDITION_ROUTES,
   nodeIdRenameError,
   filterToolOptions,
+  groupToolOptions,
 } from "@/lib/workflowGraph";
 import TriggerInspector from "./TriggerInspector";
 import NodeUsageHelp from "./NodeUsageHelp";
@@ -278,17 +279,30 @@ function NodeIdField({ nodeId, existingIds, onRename, t }) {
   );
 }
 
-/** Tool select with a search box: the catalogue runs to hundreds of entries. */
+/**
+ * Tool select with a search box: the catalogue runs to hundreds of entries.
+ * Options are grouped into the caller's own configurations, catalog tools
+ * ready to use, and catalog tools that still need a configuration (see
+ * groupToolOptions) - the last group is collapsed by default, since it's
+ * usually the biggest and rarely what someone is looking for, and links to
+ * the Tool Box instead of duplicating its setup flow here.
+ */
 function ToolPicker({ value, options, onChange, t }) {
   const [query, setQuery] = useState("");
+  const [needsConfigOpen, setNeedsConfigOpen] = useState(false);
   const filtered = filterToolOptions(options, query);
   const selected = options.find((o) => o.value === value);
   const shown = selected && !filtered.includes(selected) ? [selected, ...filtered] : filtered;
+  const { configured, ready, needsConfig } = groupToolOptions(shown);
+  const hasQuery = query.trim() !== "";
+  // A live search should surface its own matches even while the group is
+  // collapsed; leaving the query empty restores the default collapsed view.
+  const needsConfigVisible = needsConfigOpen || (hasQuery && needsConfig.length > 0);
+  const needsConfigShown = needsConfigVisible ? needsConfig : needsConfig.filter((tool) => tool === selected);
+
   // Native <option> elements cannot render markup (a logo) in any browser,
   // so the per-tool provider logo (apowerb roadmap #103) is shown next to
-  // the select instead, reflecting whichever tool is currently chosen —
-  // kept deliberately minimal to avoid conflicting with #102, which
-  // restructures this same menu into three groups.
+  // the select instead, reflecting whichever tool is currently chosen.
   // getToolCategoryLogo is a pure lookup into a fixed, module-level table
   // (see integrationLogos.jsx) — it always returns the same stable
   // component reference for a given category, never a freshly created
@@ -317,10 +331,40 @@ function ToolPicker({ value, options, onChange, t }) {
           </span>
           <SelectInput value={value || ""} onChange={(e) => onChange(e.target.value)}>
             <option value="">{t("toolPlaceholder")}</option>
-            {shown.map((tool) => <option key={tool.value} value={tool.value}>{tool.label}</option>)}
+            {configured.length > 0 && (
+              <optgroup label={t("toolGroupConfigured")}>
+                {configured.map((tool) => <option key={tool.value} value={tool.value}>{tool.label}</option>)}
+              </optgroup>
+            )}
+            {ready.length > 0 && (
+              <optgroup label={t("toolGroupReady")}>
+                {ready.map((tool) => <option key={tool.value} value={tool.value}>{tool.label}</option>)}
+              </optgroup>
+            )}
+            {needsConfig.length > 0 && (
+              <optgroup label={t("toolGroupNeedsConfig")}>
+                {needsConfigShown.map((tool) => <option key={tool.value} value={tool.value}>{tool.label}</option>)}
+              </optgroup>
+            )}
           </SelectInput>
         </div>
       </Field>
+      {needsConfig.length > 0 && (
+        <div className="-mt-2 mb-3 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            aria-expanded={needsConfigVisible}
+            onClick={() => setNeedsConfigOpen((o) => !o)}
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded-md th-text-brand hover:th-bg-surface-hover"
+          >
+            {t("toolGroupNeedsConfig")} ({needsConfig.length})
+            <ChevronDown size={10} aria-hidden="true" className={needsConfigVisible ? "rotate-180" : undefined} />
+          </button>
+          <Link href="/tool-box" className="text-[10px] th-text-ghost underline">
+            {t("toolGroupNeedsConfigLink")}
+          </Link>
+        </div>
+      )}
     </>
   );
 }

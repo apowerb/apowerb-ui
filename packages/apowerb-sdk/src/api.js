@@ -230,7 +230,8 @@ export const resyncAgentTemplate = (id) =>
   request(`/api/agents/${id}/resync-template`, { method: "POST" });
 
 // --- Tools ---
-export const listTools = () => request("/api/tools");
+export const listTools = ({ includeStatus = false } = {}) =>
+  request(includeStatus ? "/api/tools?include_status=true" : "/api/tools");
 
 export const listToolConfigs = () => request("/api/tools_config");
 

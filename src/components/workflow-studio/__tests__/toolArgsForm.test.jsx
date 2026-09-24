@@ -17,9 +17,12 @@ const { getToolSchema } = vi.hoisted(() => ({ getToolSchema: vi.fn() }));
 vi.mock("@/lib/api", () => ({ getToolSchema }));
 
 const trigger = { id: "t", type: "trigger", config: {} };
+// needsConfig: false keeps both tools in the visible "ready to use" group so
+// this file, which is about the generated-schema form and not the grouping
+// UI itself, does not have to expand the collapsed "needs config" group.
 const toolOptions = [
-  { value: "demo.tool", label: "Demo tool" },
-  { value: "demo.other", label: "Other tool" },
+  { value: "demo.tool", label: "Demo tool", needsConfig: false },
+  { value: "demo.other", label: "Other tool", needsConfig: false },
 ];
 
 function demoSchema(overrides = {}) {

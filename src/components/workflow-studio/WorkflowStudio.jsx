@@ -146,7 +146,7 @@ export default function WorkflowStudio({ workflowId }) {
 
   // --- load picker data (agents/tools/workflows) ----------------------------
   useEffect(() => {
-    Promise.allSettled([listAgents(), listTools(), listToolConfigs(), listWorkflowDefs()]).then(
+    Promise.allSettled([listAgents(), listTools({ includeStatus: true }), listToolConfigs(), listWorkflowDefs()]).then(
       ([agentsR, toolsR, configsR, workflowsR]) => {
         if (agentsR.status === "fulfilled") {
           setAgentOptions(
@@ -160,15 +160,29 @@ export default function WorkflowStudio({ workflowId }) {
           const raw = toolsR.value;
           if (raw && typeof raw === "object" && !Array.isArray(raw)) {
             for (const [category, list] of Object.entries(raw)) {
-              for (const name of list || []) {
-                opts.push({ value: name, label: `${toolLeafName(name)} (${category.replace(/^tools_/, "")})`, category });
+              for (const item of list || []) {
+                // A catalog item is either a plain tool name (older core,
+                // no needs_config yet, treated as needing config by
+                // groupToolOptions) or an object carrying that flag once the
+                // core ships it. Support both so this studio keeps working
+                // against either version of the API.
+                const name = item && typeof item === "object" ? (item.name ?? item.tool) : item;
+                if (!name) continue;
+                const needsConfig = item && typeof item === "object" ? item.needs_config : undefined;
+                opts.push({
+                  value: name,
+                  label: `${toolLeafName(name)} (${category.replace(/^tools_/, "")})`,
+                  category,
+                  source: "catalog",
+                  needsConfig,
+                });
               }
             }
           }
         }
         if (configsR.status === "fulfilled") {
           for (const c of configsR.value || []) {
-            opts.push({ value: `tool_config${c.tool_config_id}`, label: c.tool_config_name, category: c.tool_category });
+            opts.push({ value: `tool_config${c.tool_config_id}`, label: c.tool_config_name, category: c.tool_category, source: "config" });
           }
         }
         setToolOptions(opts);
