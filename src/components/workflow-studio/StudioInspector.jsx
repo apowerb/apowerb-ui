@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { useTranslations } from "use-intl";
+import { getToolCategoryLogo } from "@/components/icons/integrationLogos";
 import {
   getUpstreamNodeIds,
   templateSuggestionsFor,
@@ -283,6 +284,18 @@ function ToolPicker({ value, options, onChange, t }) {
   const filtered = filterToolOptions(options, query);
   const selected = options.find((o) => o.value === value);
   const shown = selected && !filtered.includes(selected) ? [selected, ...filtered] : filtered;
+  // Native <option> elements cannot render markup (a logo) in any browser,
+  // so the per-tool provider logo (apowerb roadmap #103) is shown next to
+  // the select instead, reflecting whichever tool is currently chosen —
+  // kept deliberately minimal to avoid conflicting with #102, which
+  // restructures this same menu into three groups.
+  // getToolCategoryLogo is a pure lookup into a fixed, module-level table
+  // (see integrationLogos.jsx) — it always returns the same stable
+  // component reference for a given category, never a freshly created
+  // component, so rendering it below doesn't remount on every render
+  // despite the static-components rule's heuristic (it can't verify
+  // that a call expression's result is a stable reference).
+  const SelectedLogo = getToolCategoryLogo(selected?.category);
   return (
     <>
       <input
@@ -294,10 +307,19 @@ function ToolPicker({ value, options, onChange, t }) {
         className="w-full mb-1.5 px-2.5 py-1.5 text-xs rounded-lg th-bg-surface border th-border-secondary th-text placeholder:th-text-ghost focus:outline-none focus:ring-1 focus:ring-brand"
       />
       <Field label={t("toolLabel")} help={filtered.length === 0 ? t("toolSearchEmpty") : undefined}>
-        <SelectInput value={value || ""} onChange={(e) => onChange(e.target.value)}>
-          <option value="">{t("toolPlaceholder")}</option>
-          {shown.map((tool) => <option key={tool.value} value={tool.value}>{tool.label}</option>)}
-        </SelectInput>
+        <div className="flex items-center gap-2">
+          <span
+            data-testid="tool-picker-logo"
+            className="shrink-0 w-6 h-6 rounded-md th-bg-surface border th-border-secondary flex items-center justify-center"
+          >
+            {/* eslint-disable-next-line react-hooks/static-components -- stable lookup, see comment above */}
+            <SelectedLogo size={14} />
+          </span>
+          <SelectInput value={value || ""} onChange={(e) => onChange(e.target.value)}>
+            <option value="">{t("toolPlaceholder")}</option>
+            {shown.map((tool) => <option key={tool.value} value={tool.value}>{tool.label}</option>)}
+          </SelectInput>
+        </div>
       </Field>
     </>
   );
