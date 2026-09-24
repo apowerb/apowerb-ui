@@ -86,6 +86,7 @@ export default function DashboardDetail({ dashboardId }) {
   // Edit chart modal
   const [editingChart, setEditingChart] = useState(null);
   const [loadingChart, setLoadingChart] = useState(null);
+  const [chartRevisions, setChartRevisions] = useState({});
 
   // Filters
   const [filterParams, setFilterParams] = useState(null);
@@ -956,6 +957,7 @@ export default function DashboardDetail({ dashboardId }) {
                         <ChartRenderer
                           chartId={comp.chart?.chart_id}
                           filterParams={filterParams}
+                          revision={chartRevisions[comp.chart?.chart_id] || 0}
                           onEditConfig={() => handleEditChart(comp.chart?.chart_id)}
                           onLoaded={(meta) => {
                             const id = comp.chart?.chart_id;
@@ -1191,6 +1193,8 @@ export default function DashboardDetail({ dashboardId }) {
           chart={editingChart}
           onClose={() => setEditingChart(null)}
           onSaved={() => {
+            const savedId = editingChart.id;
+            setChartRevisions((prev) => ({ ...prev, [savedId]: (prev[savedId] || 0) + 1 }));
             setEditingChart(null);
             fetchDashboard();
           }}

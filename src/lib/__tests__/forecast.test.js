@@ -67,6 +67,14 @@ describe("detectFrequency", () => {
     expect(detectFrequency(rows, "date")).toEqual({ frequency: "day", approx: true });
   });
 
+  it("detects a monthly series when several groups share each date (long format)", () => {
+    const rows = ["2024-01-01", "2024-02-01", "2024-03-01", "2024-04-01"].flatMap((date) => [
+      { date, store: "A" },
+      { date, store: "B" },
+    ]);
+    expect(detectFrequency(rows, "date")).toEqual({ frequency: "month", approx: true });
+  });
+
   it("returns null frequency with too few points", () => {
     const rows = [{ date: "2024-01-01" }];
     expect(detectFrequency(rows, "date")).toEqual({ frequency: null, approx: true });
@@ -230,5 +238,17 @@ describe("forecastToCsv", () => {
   it("returns just the header when there is no forecast", () => {
     const csv = forecastToCsv({ forecast: [] });
     expect(csv.trim()).toBe("date,value");
+  });
+});
+
+describe("buildDiagnostics with several groups", () => {
+  it("counts history points per series, not rows", () => {
+    const rows = Array.from({ length: 12 }, (_, i) => `2024-${String(i + 1).padStart(2, "0")}-01`).flatMap((date) => [
+      { date, sales: 1, store: "A" },
+      { date, sales: 2, store: "B" },
+    ]);
+    const { pointCount, warnings } = buildDiagnostics({ rows, dateColumn: "date", targetColumn: "sales", horizon: 12 });
+    expect(pointCount).toBe(12);
+    expect(warnings.map((w) => w.code)).toContain("short_history");
   });
 });
