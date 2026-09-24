@@ -37,6 +37,7 @@ import { LanguageToggle } from "./LanguageToggle";
 import NotificationBell from "./NotificationBell";
 import DefaultLlmUsageMeter from "./DefaultLlmUsageMeter";
 import SetupBadge from "./SetupBadge";
+import PreviewBadge from "./PreviewBadge";
 import Slot from "@/extensions/Slot";
 import { isNavVisible } from "@/lib/hiddenScreens";
 import { navItemsFor } from "@/extensions/registry";
@@ -177,13 +178,15 @@ function AppContent({ children }) {
             size={20}
             className={`transition-all duration-300 shrink-0 ${isActive ? "text-white scale-110" : "th-text-faint group-hover:th-text group-hover:scale-110"}`}
           />
-          <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? "md:w-0 md:opacity-0" : "w-auto opacity-100"}`}>
+          <div className={`overflow-hidden transition-all duration-300 flex items-center gap-1.5 ${isCollapsed ? "md:w-0 md:opacity-0" : "w-auto opacity-100"}`}>
             <span className={`text-sm font-semibold whitespace-nowrap ${isActive ? "text-white" : "th-text-faint group-hover:th-text"}`}>
               {label}
             </span>
+            {item.path === "/workflows" && <PreviewBadge />}
           </div>
           {/* Ce qui reste a configurer se voit depuis n'importe quel ecran,
               sinon la checklist n'existe que pour qui la cherche deja. */}
+          {item.path === "/workflows" && isCollapsed && <PreviewBadge collapsed className="hidden md:block" />}
           {item.path === "/admin" && <SetupBadge collapsed={isCollapsed} />}
         </div>
       </Link>

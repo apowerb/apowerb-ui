@@ -5,6 +5,7 @@ import { ArrowLeft, AlertTriangle, CheckCircle2, Download, Loader2, History, Pla
 import { useTranslations } from "use-intl";
 import { Link } from "@/lib/navigation";
 import { parseValidationMessage } from "@/lib/workflowGraph";
+import PreviewBadge from "@/components/PreviewBadge";
 
 export default function StudioTopBar({
   name,
@@ -68,6 +69,7 @@ export default function StudioTopBar({
           {isPublished ? t("statusPublished") : t("statusDraft")}
         </span>
         <span className="text-[10px] th-text-ghost shrink-0">{t("version", { version })}</span>
+        <PreviewBadge className="shrink-0" />
 
         <span className="text-[11px] th-text-ghost flex items-center gap-1 shrink-0">
           {saveState === "saving" && <Loader2 size={11} className="animate-spin" />}
