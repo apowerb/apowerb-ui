@@ -128,8 +128,11 @@ describe("buildDiagnostics", () => {
   });
 });
 
+// reliabilityBadge() ne construit plus de texte : les libellés et
+// l'explication passent désormais par next-intl (fr/en) côté ForecastChart,
+// avec {pct} en paramètre ICU. La fonction ne renvoie que les données brutes.
 describe("reliabilityBadge", () => {
-  it("labels a good, baseline-beating series as reliable", () => {
+  it("labels a good, baseline-beating series as reliable and exposes its raw metrics", () => {
     const series = {
       reliability: "good",
       beats_baseline: true,
@@ -137,7 +140,8 @@ describe("reliabilityBadge", () => {
     };
     const badge = reliabilityBadge(series);
     expect(badge.level).toBe("good");
-    expect(badge.explanation).toMatch(/8/);
+    expect(badge.mape).toBe(0.08);
+    expect(badge.beatsBaseline).toBe(true);
   });
 
   it("labels a fair series as 'to use with caution'", () => {
@@ -153,6 +157,8 @@ describe("reliabilityBadge", () => {
   it("falls back to unknown when reliability is missing", () => {
     const badge = reliabilityBadge({ metrics: {} });
     expect(badge.level).toBe("unknown");
+    expect(badge.mape).toBeNull();
+    expect(badge.beatsBaseline).toBeNull();
   });
 });
 
@@ -183,6 +189,28 @@ describe("toChartSeries", () => {
 
   it("returns an empty array when series is missing", () => {
     expect(toChartSeries(null)).toEqual([]);
+  });
+
+  it("gives the confidence bands a zero-width start at the last real point, so there is no gap", () => {
+    const series = {
+      history: [{ date: "2024-01-01", value: 100 }, { date: "2024-02-01", value: 110 }],
+      forecast: [
+        { date: "2024-03-01", value: 120, lower_80: 110, upper_80: 130, lower_95: 100, upper_95: 140 },
+      ],
+    };
+    const points = toChartSeries(series);
+    // The junction point (last history point) must carry the SAME bound
+    // values on both sides (lower === upper === last history value):
+    // a band of width zero, so recharts' range-area tapers in smoothly
+    // from a single point instead of jumping straight to the first
+    // forecast point's already-wide interval.
+    expect(points[1]).toMatchObject({
+      date: "2024-02-01",
+      lower_80: 110,
+      upper_80: 110,
+      lower_95: 110,
+      upper_95: 110,
+    });
   });
 });
 

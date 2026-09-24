@@ -119,22 +119,14 @@ const RELIABILITY_LABELS = {
   unknown: "Fiabilité inconnue",
 };
 
+// Ne construit plus de texte : le libellé et l'explication du badge
+// passent par next-intl (fr/en, avec {pct} en paramètre ICU) côté
+// ForecastChart. Cette fonction ne renvoie que les données brutes.
 export function reliabilityBadge(series) {
   const level = series?.reliability && RELIABILITY_LABELS[series.reliability] ? series.reliability : "unknown";
-  const mape = series?.metrics?.mape;
-  const beats = series?.beats_baseline;
-  const parts = [];
-  if (typeof mape === "number") {
-    parts.push(`erreur moyenne d'environ ${Math.round(mape * 100)} % sur la période de test`);
-  }
-  if (typeof beats === "boolean") {
-    parts.push(beats ? "meilleure que la référence naïve" : "pas meilleure qu'une simple projection naïve");
-  }
-  return {
-    level,
-    label: RELIABILITY_LABELS[level],
-    explanation: parts.length > 0 ? parts.join(" ; ") + "." : "Pas assez d'information pour évaluer la fiabilité.",
-  };
+  const mape = typeof series?.metrics?.mape === "number" ? series.metrics.mape : null;
+  const beatsBaseline = typeof series?.beats_baseline === "boolean" ? series.beats_baseline : null;
+  return { level, mape, beatsBaseline };
 }
 
 export function toChartSeries(series) {
@@ -150,10 +142,23 @@ export function toChartSeries(series) {
 
   // Duplicate the last history point as the first forecast point so the
   // dotted forecast line starts exactly where the solid history line ends —
-  // otherwise recharts draws a visible gap between the two series.
+  // otherwise recharts draws a visible gap between the two series. Do the
+  // same for the confidence bounds, collapsed to a zero-width band (lower
+  // === upper === last real value): the range-area then tapers in from a
+  // single point instead of jumping straight to the first forecast point's
+  // already-wide interval.
   if (points.length > 0 && forecast.length > 0) {
     const last = points[points.length - 1];
     last.forecast = last.history;
+    const firstForecast = forecast[0];
+    if (firstForecast.lower_80 !== undefined) {
+      last.lower_80 = last.history;
+      last.upper_80 = last.history;
+    }
+    if (firstForecast.lower_95 !== undefined) {
+      last.lower_95 = last.history;
+      last.upper_95 = last.history;
+    }
   }
 
   forecast.forEach((f) => {
