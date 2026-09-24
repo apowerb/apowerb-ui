@@ -23,6 +23,7 @@ import {
 } from "@/lib/chart-tokens";
 import StatCard from "./StatCard";
 import DataTable from "./DataTable";
+import ForecastChart from "./ForecastChart";
 import ChartTooltip from "./ChartTooltip";
 import { useOAuthPopup } from "@/hooks/useOAuthPopup";
 
@@ -348,7 +349,22 @@ export default function ChartRenderer({
 
   // Stat / KPI type — render StatCard
   if (chartType === "stat") {
-    const cfg = chartData.config || {};
+    // Forecast widget — delegates the actual POST /api/v1/forecast call and
+  // rendering to ForecastChart; chartData.rows here are the raw historical
+  // rows already resolved by the core (same mechanism as every other
+  // chart_type), chartData.config carries date_var/target_var/horizon/etc.
+  if (chartType === "forecast") {
+    return (
+      <div className="h-full flex flex-col">
+        <AgentBadge />
+        <div className="flex-1 min-h-0">
+          <ForecastChart rows={data} config={chartData.config || {}} title={chartData.title} />
+        </div>
+      </div>
+    );
+  }
+
+  const cfg = chartData.config || {};
     const firstRow = data[0];
     const keys = Object.keys(firstRow);
 

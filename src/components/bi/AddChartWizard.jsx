@@ -18,6 +18,7 @@ import {
   X,
   Server,
   Bot,
+  TrendingUp,
 } from "lucide-react";
 import {
   uploadBiCsv,
@@ -30,6 +31,7 @@ import {
 } from "@/lib/api";
 import AgentSourcePicker from "./AgentSourcePicker";
 import OneDriveFilePicker from "./OneDriveFilePicker";
+import ForecastConfigStep from "./ForecastConfigStep";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "../Toast";
 
@@ -793,6 +795,9 @@ function StepVisualization({
   setChartLabelCol,
   chartValueCols,
   setChartValueCols,
+  forecastConfig,
+  setForecastConfig,
+  previewSampleRows,
   name,
   setName,
   refreshInterval,
@@ -836,9 +841,16 @@ function StepVisualization({
       label: t("vizKpiLabel"),
       subtitle: t("vizKpiSubtitle"),
     },
+    {
+      key: "forecast",
+      icon: TrendingUp,
+      label: t("vizForecastLabel"),
+      subtitle: t("vizForecastSubtitle"),
+    },
   ];
 
   const getPlaceholder = () => {
+    if (vizType === "forecast") return t("placeholderForecast");
     if (vizType === "kpi") return t("placeholderKpi");
     if (vizType === "table") return t("placeholderTable");
     if (chartSubType === "pie") return t("placeholderPie");
@@ -851,7 +863,7 @@ function StepVisualization({
       <h3 className="text-lg font-bold th-text mb-4">{t("createVisualization")}</h3>
 
       {/* Viz type cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {VIZ_OPTIONS.map((opt) => {
           const Icon = opt.icon;
           const isSelected = vizType === opt.key;
@@ -1133,6 +1145,18 @@ function StepVisualization({
         </div>
       )}
 
+      {/* Forecast config */}
+      {vizType === "forecast" && (
+        <div className="mb-6 p-4 rounded-xl border th-border bg-white/[0.02]">
+          <ForecastConfigStep
+            columns={allColumns}
+            sampleRows={previewSampleRows}
+            value={forecastConfig}
+            onChange={setForecastConfig}
+          />
+        </div>
+      )}
+
       {/* Name field */}
       <div className="mb-6">
         <label className="block text-sm font-medium th-text mb-1.5">
@@ -1215,6 +1239,8 @@ export default function AddChartWizard({
 
   // Preview columns (saved from step 2 for step 3 KPI)
   const [previewColumns, setPreviewColumns] = useState([]);
+  const [previewSampleRows, setPreviewSampleRows] = useState([]);
+  const [forecastConfig, setForecastConfig] = useState({});
 
   // Step 3 state
   const [vizType, setVizType] = useState(null); // "chart" | "table" | "kpi"
@@ -1237,8 +1263,9 @@ export default function AddChartWizard({
   };
 
   // On step 2 mount, try to capture columns for KPI dropdown in step 3
-  const handlePreviewLoaded = useCallback((columns) => {
+  const handlePreviewLoaded = useCallback((columns, sampleRows) => {
     setPreviewColumns(columns || []);
+    setPreviewSampleRows(sampleRows || []);
   }, []);
 
   // Step 2 -> capture columns then go to step 3
@@ -1264,6 +1291,7 @@ export default function AddChartWizard({
       if (vizType === "chart") chart_type = chartSubType;
       else if (vizType === "table") chart_type = "table";
       else if (vizType === "kpi") chart_type = "stat";
+      else if (vizType === "forecast") chart_type = "forecast";
 
       // 2. Build source
       let source;
@@ -1343,13 +1371,34 @@ export default function AddChartWizard({
         if (Object.keys(chartConfig).length > 0) chartPayload.config = chartConfig;
       }
 
+      // Forecast config — date_var/target_var are required by the th2forecast
+      // contract; reject here rather than persist a chart the core will
+      // 400 on every render.
+      if (vizType === "forecast") {
+        if (!forecastConfig.dateVar || !forecastConfig.targetVar) {
+          toast.error(t("forecastColumnsRequired"));
+          setCreating(false);
+          return;
+        }
+        chartPayload.config = {
+          date_var: forecastConfig.dateVar,
+          target_var: forecastConfig.targetVar,
+          group_var: forecastConfig.groupVar || null,
+          horizon: forecastConfig.horizon || 12,
+          frequency: forecastConfig.frequency || null,
+          models: forecastConfig.models && forecastConfig.models.length > 0 ? forecastConfig.models : ["prophet"],
+          confidence_levels: [0.8, 0.95],
+        };
+      }
+
       const chart = await createChart(chartPayload);
 
       // 4. Add to dashboard
       const isKpi = chart_type === "stat";
       const isTable = chart_type === "table";
-      const width = isKpi ? 3 : isTable ? 12 : 6;
-      const height = isKpi ? 3 : isTable ? 6 : 4;
+      const isForecast = chart_type === "forecast";
+      const width = isKpi ? 3 : isTable || isForecast ? 12 : 6;
+      const height = isKpi ? 3 : isTable ? 6 : isForecast ? 7 : 4;
 
       await addDashboardComponent(dashboardId, {
         component: {
@@ -1445,6 +1494,9 @@ export default function AddChartWizard({
             setChartLabelCol={setChartLabelCol}
             chartValueCols={chartValueCols}
             setChartValueCols={setChartValueCols}
+            forecastConfig={forecastConfig}
+            setForecastConfig={setForecastConfig}
+            previewSampleRows={previewSampleRows}
             name={name}
             setName={setName}
             refreshInterval={refreshInterval}
@@ -1524,7 +1576,7 @@ function StepPreviewWrapper({ dataSource, onBack, onNext, onColumnsLoaded, toast
         .then((data) => {
           if (!cancelled) {
             setPreview(data);
-            onColumnsLoaded(data?.columns || []);
+            onColumnsLoaded(data?.columns || [], data?.sample_rows || []);
           }
         })
         .catch((err) => {
@@ -1545,7 +1597,7 @@ function StepPreviewWrapper({ dataSource, onBack, onNext, onColumnsLoaded, toast
         .then((data) => {
           if (!cancelled) {
             setPreview(data);
-            onColumnsLoaded(data?.columns || []);
+            onColumnsLoaded(data?.columns || [], data?.sample_rows || []);
           }
         })
         .catch((err) => {
