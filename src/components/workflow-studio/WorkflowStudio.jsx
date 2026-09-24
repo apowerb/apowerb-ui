@@ -146,7 +146,7 @@ export default function WorkflowStudio({ workflowId }) {
 
   // --- load picker data (agents/tools/workflows) ----------------------------
   useEffect(() => {
-    Promise.allSettled([listAgents(), listTools(), listToolConfigs(), listWorkflowDefs()]).then(
+    Promise.allSettled([listAgents(), listTools({ includeStatus: true }), listToolConfigs(), listWorkflowDefs()]).then(
       ([agentsR, toolsR, configsR, workflowsR]) => {
         if (agentsR.status === "fulfilled") {
           setAgentOptions(

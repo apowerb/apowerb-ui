@@ -275,6 +275,11 @@ describe("WorkflowStudio", () => {
     expect(within(picker).getAllByRole("option").map((o) => o.value)).toEqual(["", "weather.get_weather"]);
   });
 
+  it("requests the catalogue with its configuration status", async () => {
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(listTools).toHaveBeenCalledWith({ includeStatus: true }));
+  });
+
   it("groups catalog tools by needs_config when the core returns rich items", async () => {
     listTools.mockResolvedValue({
       tools_erp: [
