@@ -15,6 +15,7 @@ import {
   Cpu,
   Mic,
   Headphones,
+  Scale,
 } from "lucide-react";
 import NodeWrapper from "./NodeWrapper";
 import NodeOutputPreview from "./NodeOutputPreview";
@@ -27,6 +28,7 @@ const SUPERAGENT_ICONS = {
   email_marketing_agent: Mail,
   data_analyst_agent: BarChart3,
   forecasting_agent: TrendingUp,
+  jev_decision_agent: Scale,
   knowledge_assistant: BookOpen,
   audio_transcriber: Mic,
   audio_assistant: Headphones,
