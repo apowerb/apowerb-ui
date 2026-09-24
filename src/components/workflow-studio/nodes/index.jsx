@@ -1,6 +1,6 @@
 "use client";
 
-import { getToolCategoryLogo } from "@/components/icons/integrationLogos";
+import { getToolCategoryLogo, isProviderLogo } from "@/components/icons/integrationLogos";
 import { Zap, Bot, Sparkles, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
@@ -97,12 +97,14 @@ export function ToolNode({ data, selected }) {
   // lookup as data.subtitle), so the node shows the tool's provider logo
   // instead of the generic wrench icon when its category is known
   // (apowerb roadmap #103).
+  const logo = getToolCategoryLogo(data.toolCategory);
   return (
     <NodeShell
       {...common(data, selected)}
       title={data.label || t("nodeTool")}
       color={NODE_FAMILIES.tool.color}
-      icon={getToolCategoryLogo(data.toolCategory)}
+      icon={logo}
+      iconVariant={isProviderLogo(logo) ? "logo" : "accent"}
     >
       <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
     </NodeShell>

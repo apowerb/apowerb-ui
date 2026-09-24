@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { useTranslations } from "use-intl";
-import { getToolCategoryLogo } from "@/components/icons/integrationLogos";
+import { getToolCategoryLogo, isProviderLogo } from "@/components/icons/integrationLogos";
 import {
   getUpstreamNodeIds,
   templateSuggestionsFor,
@@ -310,6 +310,7 @@ function ToolPicker({ value, options, onChange, t }) {
   // despite the static-components rule's heuristic (it can't verify
   // that a call expression's result is a stable reference).
   const SelectedLogo = getToolCategoryLogo(selected?.category);
+  const brandLogo = isProviderLogo(SelectedLogo);
   return (
     <>
       <input
@@ -324,10 +325,11 @@ function ToolPicker({ value, options, onChange, t }) {
         <div className="flex items-center gap-2">
           <span
             data-testid="tool-picker-logo"
-            className="shrink-0 w-6 h-6 rounded-md th-bg-surface border th-border-secondary flex items-center justify-center"
+            data-variant={brandLogo ? "logo" : "plain"}
+            className={`shrink-0 w-7 h-7 rounded-md border th-border-secondary flex items-center justify-center ${brandLogo ? "bg-white" : "th-bg-surface"}`}
           >
             {/* eslint-disable-next-line react-hooks/static-components -- stable lookup, see comment above */}
-            <SelectedLogo size={14} />
+            <SelectedLogo size={brandLogo ? 18 : 14} />
           </span>
           <SelectInput value={value || ""} onChange={(e) => onChange(e.target.value)}>
             <option value="">{t("toolPlaceholder")}</option>
