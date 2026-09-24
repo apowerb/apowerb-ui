@@ -82,8 +82,11 @@ export default function ForecastConfigStep({ columns, sampleRows, value, onChang
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium th-text mb-1.5">{t("dateColumnLabel")}</label>
+        <label htmlFor="forecast-date-column" className="block text-sm font-medium th-text mb-1.5">
+          {t("dateColumnLabel")}
+        </label>
         <select
+          id="forecast-date-column"
           value={value.dateVar || ""}
           onChange={(e) => onChange({ ...value, dateVar: e.target.value })}
           className="glass-input w-full px-4 py-2.5 rounded-lg"
@@ -98,8 +101,11 @@ export default function ForecastConfigStep({ columns, sampleRows, value, onChang
       </div>
 
       <div>
-        <label className="block text-sm font-medium th-text mb-1.5">{t("targetColumnLabel")}</label>
+        <label htmlFor="forecast-target-column" className="block text-sm font-medium th-text mb-1.5">
+          {t("targetColumnLabel")}
+        </label>
         <select
+          id="forecast-target-column"
           value={value.targetVar || ""}
           onChange={(e) => onChange({ ...value, targetVar: e.target.value })}
           className="glass-input w-full px-4 py-2.5 rounded-lg"
@@ -114,9 +120,11 @@ export default function ForecastConfigStep({ columns, sampleRows, value, onChang
       </div>
 
       <div>
-        <label className="block text-sm font-medium th-text mb-1.5">{t("groupColumnLabel")}</label>
+        <label htmlFor="forecast-group-column" className="block text-sm font-medium th-text mb-1.5">
+          {t("groupColumnLabel")}
+        </label>
         <select
-          aria-label={t("groupColumnLabel")}
+          id="forecast-group-column"
           value={value.groupVar || ""}
           onChange={(e) => onChange({ ...value, groupVar: e.target.value })}
           className="glass-input w-full px-4 py-2.5 rounded-lg"
@@ -132,10 +140,11 @@ export default function ForecastConfigStep({ columns, sampleRows, value, onChang
       </div>
 
       <div>
-        <label className="block text-sm font-medium th-text mb-1.5">
+        <label htmlFor="forecast-horizon" className="block text-sm font-medium th-text mb-1.5">
           {t("horizonLabel")} {detectedFrequency && `(${t("detectedFrequency")}: ${detectedFrequency})`}
         </label>
         <input
+          id="forecast-horizon"
           type="number"
           min={1}
           value={value.horizon || ""}
