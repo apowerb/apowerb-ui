@@ -146,6 +146,12 @@ describe("SuperAgentIcon", () => {
     expect(container.querySelector("svg")).toBeInTheDocument();
   });
 
+  it("renders the Scale icon of the Decision Agent (Jev) template", () => {
+    const { container } = render(<SuperAgentIcon iconName="Scale" />);
+    expect(container.querySelector("svg")).toBeInTheDocument();
+    expect(screen.queryByAltText("Agent")).not.toBeInTheDocument();
+  });
+
   it("falls back to an image when the name is unknown", () => {
     render(<SuperAgentIcon iconName="UnknownIcon" />);
     expect(screen.getByAltText("Agent")).toBeInTheDocument();

@@ -10,6 +10,7 @@ import {
   BookOpen,
   Mic,
   Headphones,
+  Scale,
 } from "lucide-react";
 import BrandIcon from "@/components/brand/BrandIcon";
 
@@ -24,6 +25,7 @@ export const SUPERAGENT_ICONS = {
   BookOpen,
   Mic,
   Headphones,
+  Scale,
 };
 
 export default function SuperAgentIcon({ iconName, size = 24, className = "text-blue-400" }) {
