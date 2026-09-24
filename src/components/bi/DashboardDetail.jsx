@@ -190,7 +190,10 @@ export default function DashboardDetail({ dashboardId }) {
     }
   };
 
-  // Measure grid container width for react-grid-layout
+  // Measure grid container width for react-grid-layout. The grid div only
+  // mounts once the dashboard has loaded, so re-run when it appears —
+  // otherwise gridWidth stays at its 1200px default and cards overflow.
+  const hasDashboard = Boolean(dashboard);
   useEffect(() => {
     const el = gridContainerRef.current;
     if (!el) return;
@@ -202,7 +205,7 @@ export default function DashboardDetail({ dashboardId }) {
     observer.observe(el);
     setGridWidth(el.offsetWidth);
     return () => observer.disconnect();
-  }, []);
+  }, [hasDashboard]);
 
   // Initialize publish slug from dashboard data
   useEffect(() => {

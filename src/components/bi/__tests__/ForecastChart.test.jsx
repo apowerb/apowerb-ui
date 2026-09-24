@@ -192,3 +192,42 @@ describe("ForecastChart", () => {
     expect(screen.getByText("Lyon")).toBeInTheDocument();
   });
 });
+
+describe("ForecastChart — dedupe & error layout", () => {
+  it("does not re-POST when rows/config are re-created with the same content on re-render (dedupe)", async () => {
+    postForecast.mockResolvedValue(successResponse);
+
+    function Wrapper({ n }) {
+      // New array/object identity every render, same content — mirrors
+      // ChartRenderer's `chartData.rows || []` / `chartData.config || {}`
+      // which are recomputed (fresh references) on every parent re-render.
+      const freshRows = rows.map((r) => ({ ...r }));
+      const freshConfig = { ...config };
+      return <ForecastChart rows={freshRows} config={freshConfig} title={`Sales ${n}`} />;
+    }
+
+    const { rerender } = render(<Wrapper n={1} />);
+    await screen.findByText("Reliable");
+    expect(postForecast).toHaveBeenCalledTimes(1);
+
+    rerender(<Wrapper n={2} />);
+    rerender(<Wrapper n={3} />);
+    await screen.findByText("Reliable");
+
+    expect(postForecast).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the error state anchored at the top of the widget, not vertically centered", async () => {
+    const err = new Error("Service unavailable");
+    err.status = 503;
+    err.errors = [{ field: null, message: "Service unavailable" }];
+    postForecast.mockRejectedValue(err);
+
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+
+    const title = await screen.findByText("The forecast could not be computed");
+    const errorContainer = title.parentElement;
+    expect(errorContainer.className).not.toMatch(/\bjustify-center\b/);
+    expect(errorContainer.className).toMatch(/\bjustify-start\b/);
+  });
+});
