@@ -15,10 +15,12 @@ import {
   Upload,
   RefreshCw,
   Bot,
+  TrendingUp,
 } from "lucide-react";
 import { updateChart, uploadBiCsv, listBiDatasets, listBiDbConfigs, getChartData } from "@/lib/api";
 import AgentSourcePicker from "./AgentSourcePicker";
 import OneDriveFilePicker from "./OneDriveFilePicker";
+import ForecastConfigStep from "./ForecastConfigStep";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "../Toast";
 
@@ -26,6 +28,7 @@ const VIZ_TYPES = [
   { key: "chart", icon: BarChart3 },
   { key: "table", icon: Table2 },
   { key: "kpi", icon: Hash },
+  { key: "forecast", icon: TrendingUp },
 ];
 
 const CHART_SUB_TYPES = [
@@ -38,6 +41,7 @@ function resolveVizType(chartType) {
   if (["bar", "line", "pie"].includes(chartType)) return { vizType: "chart", subType: chartType };
   if (chartType === "table") return { vizType: "table", subType: "bar" };
   if (chartType === "stat") return { vizType: "kpi", subType: "bar" };
+  if (chartType === "forecast") return { vizType: "forecast", subType: "bar" };
   return { vizType: "chart", subType: "bar" };
 }
 
@@ -53,6 +57,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
     chart: { label: t("vizChartLabel"), description: t("vizChartDescription") },
     table: { label: t("vizTableLabel"), description: t("vizTableDescription") },
     kpi: { label: t("vizKpiLabel"), description: t("vizKpiDescription") },
+    forecast: { label: t("vizForecastLabel"), description: t("vizForecastDescription") },
   };
   const chartSubTypeLabels = {
     bar: t("chartTypeBar"),
@@ -81,8 +86,21 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
   const [chartLabelCol, setChartLabelCol] = useState(existingConfig.labelColumn || "");
   const [chartValueCols, setChartValueCols] = useState(existingConfig.valueColumns || []);
 
-  // Load columns from chart data
+  // Forecast config — existingConfig uses the th2forecast contract's
+  // snake_case keys (date_var/target_var/...); ForecastConfigStep speaks
+  // camelCase, same shape as in AddChartWizard.
+  const [forecastConfig, setForecastConfig] = useState({
+    dateVar: existingConfig.date_var || "",
+    targetVar: existingConfig.target_var || "",
+    groupVar: existingConfig.group_var || "",
+    horizon: existingConfig.horizon || 12,
+    frequency: existingConfig.frequency || null,
+    models: existingConfig.models && existingConfig.models.length > 0 ? existingConfig.models : ["prophet"],
+  });
+
+  // Load columns (+ a data sample for the forecast diagnostics) from chart data
   const [availableColumns, setAvailableColumns] = useState([]);
+  const [sampleRows, setSampleRows] = useState([]);
   const [loadingColumns, setLoadingColumns] = useState(false);
   useEffect(() => {
     if (!chart.id) return;
@@ -97,6 +115,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
             return { name, type: isNumeric ? "number" : "string" };
           });
           setAvailableColumns(cols);
+          setSampleRows(res.rows);
         }
       })
       .catch(() => {})
@@ -146,6 +165,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
       if (vizType === "chart") chart_type = chartSubType;
       else if (vizType === "table") chart_type = "table";
       else if (vizType === "kpi") chart_type = "stat";
+      else if (vizType === "forecast") chart_type = "forecast";
 
       const kpiConfig = {};
       if (vizType === "kpi") {
@@ -170,6 +190,21 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
         if (chartLabelCol) chartConfig.labelColumn = chartLabelCol;
         if (chartValueCols.length > 0) chartConfig.valueColumns = chartValueCols;
         finalConfig = chartConfig;
+      } else if (vizType === "forecast") {
+        if (!forecastConfig.dateVar || !forecastConfig.targetVar) {
+          toast.error(t("forecastColumnsRequired"));
+          setSaving(false);
+          return;
+        }
+        finalConfig = {
+          date_var: forecastConfig.dateVar,
+          target_var: forecastConfig.targetVar,
+          group_var: forecastConfig.groupVar || null,
+          horizon: forecastConfig.horizon || 12,
+          frequency: forecastConfig.frequency || null,
+          models: forecastConfig.models && forecastConfig.models.length > 0 ? forecastConfig.models : ["prophet"],
+          confidence_levels: [0.8, 0.95],
+        };
       } else {
         finalConfig = {};
       }
@@ -549,7 +584,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
           {/* Visualization Type */}
           <div>
             <label className="block text-sm font-medium th-text mb-1.5">{t("visualization")}</label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {VIZ_TYPES.map((vt) => {
                 const Icon = vt.icon;
                 const isSelected = vizType === vt.key;
@@ -898,6 +933,25 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
                   className="glass-input w-full px-3 py-2 text-sm rounded-lg"
                 />
               </div>
+            </div>
+          )}
+
+          {/* Forecast config */}
+          {vizType === "forecast" && (
+            <div className="p-4 rounded-xl border th-border bg-white/[0.02]">
+              {loadingColumns ? (
+                <div className="flex items-center justify-center py-3">
+                  <Loader2 size={16} className="animate-spin text-blue-400 mr-2" />
+                  <span className="text-xs th-text-faint">{t("loadingColumns")}</span>
+                </div>
+              ) : (
+                <ForecastConfigStep
+                  columns={availableColumns}
+                  sampleRows={sampleRows}
+                  value={forecastConfig}
+                  onChange={setForecastConfig}
+                />
+              )}
             </div>
           )}
 
