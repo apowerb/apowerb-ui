@@ -4003,7 +4003,9 @@
     "reliabilityMape": "Average error of about {pct}% over the test period.",
     "reliabilityBeatsBaseline": "Better than the naive baseline.",
     "reliabilityDoesNotBeatBaseline": "Not better than a simple naive projection.",
-    "reliabilityUnknownExplanation": "Not enough information to assess reliability."
+    "reliabilityUnknownExplanation": "Not enough information to assess reliability.",
+    "errorMaxValue": "The value must be at most {limit}.",
+    "errorMinValue": "The value must be at least {limit}."
   },
   "ForecastConfigStep": {
     "dateColumnLabel": "Date column",
@@ -4028,6 +4030,7 @@
     "modelSnaiveExplanation": "Repeats the value from the same period last season — a simple, honest baseline.",
     "modelNaiveExplanation": "Repeats the last observed value — the simplest possible baseline.",
     "pointCount": "{count, plural, =0 {No data points} one {# data point} other {# data points}} in the preview sample.",
-    "noWarnings": "No issues detected on the preview sample."
+    "noWarnings": "No issues detected on the preview sample.",
+    "partialSample": "Preview of {sample} of {total} rows: the history length will be checked on all rows when the forecast is computed."
   }
 }

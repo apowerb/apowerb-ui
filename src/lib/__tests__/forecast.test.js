@@ -252,3 +252,23 @@ describe("buildDiagnostics with several groups", () => {
     expect(warnings.map((w) => w.code)).toContain("short_history");
   });
 });
+
+describe("buildDiagnostics on a partial preview sample", () => {
+  const sample = [
+    { date: "2024-01-01", sales: 100 },
+    { date: "2024-02-01", sales: 110 },
+    { date: "2024-03-01", sales: 120 },
+  ];
+
+  it("does not claim a short history when the sample is only part of the data", () => {
+    const d = buildDiagnostics({ rows: sample, dateColumn: "date", targetColumn: "sales", horizon: 12, totalRows: 72 });
+    expect(d.partial).toBe(true);
+    expect(d.warnings.map((w) => w.code)).not.toContain("short_history");
+  });
+
+  it("still warns about a short history when the sample is the whole data", () => {
+    const d = buildDiagnostics({ rows: sample, dateColumn: "date", targetColumn: "sales", horizon: 12, totalRows: 3 });
+    expect(d.partial).toBe(false);
+    expect(d.warnings.map((w) => w.code)).toContain("short_history");
+  });
+});

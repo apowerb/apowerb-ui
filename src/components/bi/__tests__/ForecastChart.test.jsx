@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import ForecastChart from "../ForecastChart";
+import ForecastChart, { ForecastTooltip } from "../ForecastChart";
 
 vi.mock("@/lib/api", () => ({
   postForecast: vi.fn(),
@@ -229,5 +229,43 @@ describe("ForecastChart — dedupe & error layout", () => {
     const errorContainer = title.parentElement;
     expect(errorContainer.className).not.toMatch(/\bjustify-center\b/);
     expect(errorContainer.className).toMatch(/\bjustify-start\b/);
+  });
+});
+
+describe("ForecastTooltip", () => {
+  it("uses the translated series names and prints an interval as low – high", () => {
+    render(
+      <ForecastTooltip
+        active
+        label="2024-04-01"
+        payload={[
+          { name: "95% interval", dataKey: (d) => [d.lower_95, d.upper_95], value: [110, 150], color: "#3b82f6" },
+          { name: "Actual", dataKey: "history", value: null, color: "#3b82f6" },
+          { name: "Forecast", dataKey: "forecast", value: 130, color: "#a78bfa" },
+        ]}
+      />,
+    );
+    expect(screen.getByText("95% interval")).toBeInTheDocument();
+    expect(screen.getByText(/110\s*–\s*150/)).toBeInTheDocument();
+    expect(screen.getByText("Forecast")).toBeInTheDocument();
+    // No empty "Actual" row on a forecast-only point, no raw dataKey leak.
+    expect(screen.queryByText("Actual")).not.toBeInTheDocument();
+    expect(screen.queryByText(/History|lower_95|=>/)).not.toBeInTheDocument();
+  });
+});
+
+describe("ForecastChart — validation error (422)", () => {
+  it("names the field and its limit instead of the raw validation message", async () => {
+    const err = new Error("Input should be less than or equal to 366");
+    err.status = 422;
+    err.errors = [{ field: "horizon", message: "Input should be less than or equal to 366", type: "less_than_equal", limit: 366 }];
+    postForecast.mockRejectedValue(err);
+
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+
+    expect(await screen.findByText("The forecast could not be computed")).toBeInTheDocument();
+    expect(screen.getByText(/Field: Horizon/)).toBeInTheDocument();
+    expect(screen.getByText(/at most 366/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Input should be/)).not.toBeInTheDocument();
   });
 });

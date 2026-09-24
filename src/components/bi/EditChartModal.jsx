@@ -101,6 +101,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
   // Load columns (+ a data sample for the forecast diagnostics) from chart data
   const [availableColumns, setAvailableColumns] = useState([]);
   const [sampleRows, setSampleRows] = useState([]);
+  const [totalRows, setTotalRows] = useState(null);
   const [loadingColumns, setLoadingColumns] = useState(false);
   useEffect(() => {
     if (!chart.id) return;
@@ -116,6 +117,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
           });
           setAvailableColumns(cols);
           setSampleRows(res.rows);
+          setTotalRows(res.pagination?.total ?? null);
         }
       })
       .catch(() => {})
@@ -948,6 +950,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
                 <ForecastConfigStep
                   columns={availableColumns}
                   sampleRows={sampleRows}
+                  totalRows={totalRows}
                   value={forecastConfig}
                   onChange={setForecastConfig}
                 />

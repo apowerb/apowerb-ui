@@ -74,3 +74,30 @@ describe("postForecast", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("postForecast — request validation (422)", () => {
+  it("maps FastAPI validation details to the field-named errors of the forecast contract", async () => {
+    mockFetchOnce(
+      {
+        detail: [
+          {
+            type: "less_than_equal",
+            loc: ["body", "horizon"],
+            msg: "Input should be less than or equal to 366",
+            input: 500,
+            ctx: { le: 366 },
+          },
+        ],
+      },
+      422,
+    );
+
+    await expect(postForecast({})).rejects.toMatchObject({
+      status: 422,
+      message: "Input should be less than or equal to 366",
+      errors: [
+        { field: "horizon", message: "Input should be less than or equal to 366", type: "less_than_equal", limit: 366 },
+      ],
+    });
+  });
+});

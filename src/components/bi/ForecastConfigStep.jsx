@@ -26,7 +26,7 @@ const MODELS = ["prophet", "auto", "arima", "ets", "snaive", "naive"];
  * approximatifs — le calcul réel se fait après création, sur toutes les
  * lignes, côté ForecastChart.
  */
-export default function ForecastConfigStep({ columns, sampleRows, value, onChange }) {
+export default function ForecastConfigStep({ columns, sampleRows, totalRows, value, onChange }) {
   const t = useTranslations("ForecastConfigStep");
   const safeColumns = useMemo(() => columns || [], [columns]);
   const safeRows = useMemo(() => sampleRows || [], [sampleRows]);
@@ -60,8 +60,9 @@ export default function ForecastConfigStep({ columns, sampleRows, value, onChang
         dateColumn: value.dateVar,
         targetColumn: value.targetVar,
         horizon: value.horizon,
+        totalRows,
       }),
-    [safeRows, value.dateVar, value.targetVar, value.horizon],
+    [safeRows, value.dateVar, value.targetVar, value.horizon, totalRows],
   );
 
   const groupOptions = safeColumns.filter(
@@ -176,7 +177,9 @@ export default function ForecastConfigStep({ columns, sampleRows, value, onChang
 
       <div className="p-3 rounded-lg border th-border bg-white/[0.02]">
         <p className="text-xs th-text-secondary">
-          {t("pointCount", { count: diagnostics.pointCount })}
+          {diagnostics.partial
+            ? t("partialSample", { sample: safeRows.length, total: totalRows })
+            : t("pointCount", { count: diagnostics.pointCount })}
         </p>
         {diagnostics.warnings.length > 0 ? (
           <ul className="mt-1 space-y-1">

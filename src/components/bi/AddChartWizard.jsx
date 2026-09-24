@@ -798,6 +798,7 @@ function StepVisualization({
   forecastConfig,
   setForecastConfig,
   previewSampleRows,
+  previewRowCount,
   name,
   setName,
   refreshInterval,
@@ -1151,6 +1152,7 @@ function StepVisualization({
           <ForecastConfigStep
             columns={allColumns}
             sampleRows={previewSampleRows}
+            totalRows={previewRowCount}
             value={forecastConfig}
             onChange={setForecastConfig}
           />
@@ -1240,6 +1242,7 @@ export default function AddChartWizard({
   // Preview columns (saved from step 2 for step 3 KPI)
   const [previewColumns, setPreviewColumns] = useState([]);
   const [previewSampleRows, setPreviewSampleRows] = useState([]);
+  const [previewRowCount, setPreviewRowCount] = useState(null);
   const [forecastConfig, setForecastConfig] = useState({});
 
   // Step 3 state
@@ -1263,9 +1266,10 @@ export default function AddChartWizard({
   };
 
   // On step 2 mount, try to capture columns for KPI dropdown in step 3
-  const handlePreviewLoaded = useCallback((columns, sampleRows) => {
+  const handlePreviewLoaded = useCallback((columns, sampleRows, rowCount) => {
     setPreviewColumns(columns || []);
     setPreviewSampleRows(sampleRows || []);
+    setPreviewRowCount(rowCount ?? null);
   }, []);
 
   // Step 2 -> capture columns then go to step 3
@@ -1497,6 +1501,7 @@ export default function AddChartWizard({
             forecastConfig={forecastConfig}
             setForecastConfig={setForecastConfig}
             previewSampleRows={previewSampleRows}
+            previewRowCount={previewRowCount}
             name={name}
             setName={setName}
             refreshInterval={refreshInterval}
@@ -1576,7 +1581,7 @@ function StepPreviewWrapper({ dataSource, onBack, onNext, onColumnsLoaded, toast
         .then((data) => {
           if (!cancelled) {
             setPreview(data);
-            onColumnsLoaded(data?.columns || [], data?.sample_rows || []);
+            onColumnsLoaded(data?.columns || [], data?.sample_rows || [], data?.row_count);
           }
         })
         .catch((err) => {
@@ -1597,7 +1602,7 @@ function StepPreviewWrapper({ dataSource, onBack, onNext, onColumnsLoaded, toast
         .then((data) => {
           if (!cancelled) {
             setPreview(data);
-            onColumnsLoaded(data?.columns || [], data?.sample_rows || []);
+            onColumnsLoaded(data?.columns || [], data?.sample_rows || [], data?.row_count);
           }
         })
         .catch((err) => {
