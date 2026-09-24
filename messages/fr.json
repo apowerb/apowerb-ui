@@ -1091,7 +1091,10 @@
     "vizTableLabel": "Tableau",
     "agentInstruction": "Que doit renvoyer l’agent ?",
     "agentInstructionPlaceholder": "ex. Chiffre d’affaires mensuel par région sur 12 mois",
-    "agentInstructionHint": "Sans cette consigne, on demande seulement à l’agent « les dernières données » : il ne peut pas deviner ce que le graphique attend. Sa réponse doit être un tableau JSON de lignes."
+    "agentInstructionHint": "Sans cette consigne, on demande seulement à l’agent « les dernières données » : il ne peut pas deviner ce que le graphique attend. Sa réponse doit être un tableau JSON de lignes.",
+    "vizForecastLabel": "Prévision",
+    "vizForecastDescription": "Projeter les valeurs futures",
+    "forecastColumnsRequired": "Sélectionnez une colonne date et une colonne cible avant d'enregistrer le widget de prévision."
   },
   "Error": {
     "defaultMessage": "Une erreur inattendue s'est produite. Veuillez réessayer.",
@@ -3969,7 +3972,7 @@
     "reliabilityUnknown": "Fiabilité inconnue",
     "errorFieldLabel": "Champ concerné : {field}",
     "retry": "Réessayer",
-    "historyLabel": "Historique",
+    "historyLabel": "Réel",
     "forecastLabel": "Prévision",
     "confidence80": "Intervalle 80 %",
     "confidence95": "Intervalle 95 %",
@@ -3978,7 +3981,21 @@
     "lowerBound": "Borne basse",
     "upperBound": "Borne haute",
     "noGroup": "Toutes",
-    "cancelled": "Prévision annulée."
+    "cancelled": "Prévision annulée.",
+    "errorTitle": "La prévision n'a pas pu être calculée",
+    "editConfig": "Modifier la configuration",
+    "fieldLabelDateVar": "Colonne date",
+    "fieldLabelTargetVar": "Colonne cible",
+    "fieldLabelGroupVar": "Colonne de regroupement",
+    "fieldLabelHorizon": "Horizon",
+    "fieldLabelFrequency": "Fréquence",
+    "fieldLabelConfidenceLevels": "Niveaux de confiance",
+    "fieldLabelModels": "Modèles",
+    "fieldLabelData": "Données",
+    "reliabilityMape": "Erreur moyenne d'environ {pct} % sur la période de test.",
+    "reliabilityBeatsBaseline": "Meilleure que la référence naïve.",
+    "reliabilityDoesNotBeatBaseline": "Pas meilleure qu'une simple projection naïve.",
+    "reliabilityUnknownExplanation": "Pas assez d'information pour évaluer la fiabilité."
   },
   "ForecastConfigStep": {
     "dateColumnLabel": "Colonne date",

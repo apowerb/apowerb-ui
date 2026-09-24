@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { Loader2, Download, Table2, Info } from "lucide-react";
+import { Loader2, Download, Table2, Info, AlertTriangle } from "lucide-react";
 import { postForecast } from "@/lib/api";
 import { buildDiagnostics, forecastToCsv, reliabilityBadge, toChartSeries } from "@/lib/forecast";
 import ChartTooltip from "./ChartTooltip";
@@ -24,6 +24,20 @@ const RELIABILITY_TONE = {
   fair: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   poor: "bg-red-500/10 text-red-400 border-red-500/20",
   unknown: "bg-gray-500/10 th-text-faint border-gray-500/20",
+};
+
+// Traduit le champ technique renvoyé par th2forecast (date_var, target_var…)
+// en libellé métier ; les champs sans correspondance restent affichés tels
+// quels plutôt que de masquer l'information.
+const FIELD_LABEL_KEYS = {
+  date_var: "fieldLabelDateVar",
+  target_var: "fieldLabelTargetVar",
+  group_var: "fieldLabelGroupVar",
+  horizon: "fieldLabelHorizon",
+  frequency: "fieldLabelFrequency",
+  confidence_levels: "fieldLabelConfidenceLevels",
+  models: "fieldLabelModels",
+  data: "fieldLabelData",
 };
 
 function downloadCsv(csv, filename) {
@@ -47,14 +61,17 @@ function downloadCsv(csv, filename) {
  * chart_type — déjà résolues par le cœur via chart_type=forecast).
  * `config` : { date_var, target_var, group_var, horizon, frequency,
  * models, confidence_levels } — construit par l'assistant de création.
+ * `onEditConfig` : optionnel, ouvre l'édition du widget (bouton affiché
+ * uniquement à l'état d'erreur si ce handler est fourni).
  */
-export default function ForecastChart({ rows, config, title }) {
+export default function ForecastChart({ rows, config, title, onEditConfig }) {
   const t = useTranslations("ForecastChart");
   const [status, setStatus] = useState("idle"); // idle|loading|success|error
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(0);
   const [showTable, setShowTable] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
   const abortRef = useRef(null);
 
   const safeRows = useMemo(() => (Array.isArray(rows) ? rows : []), [rows]);
@@ -95,7 +112,9 @@ export default function ForecastChart({ rows, config, title }) {
       });
 
     return () => controller.abort();
-  }, [safeRows, config]);
+    // retryToken n'est lu nulle part : il ne sert qu'à redéclencher cet
+    // effet quand l'utilisateur clique "Réessayer" après une erreur.
+  }, [safeRows, config, retryToken]);
 
   const diagnostics = useMemo(
     () =>
@@ -142,12 +161,34 @@ export default function ForecastChart({ rows, config, title }) {
 
   if (status === "error") {
     const firstError = error?.errors?.[0];
+    const fieldKey = firstError?.field ? FIELD_LABEL_KEYS[firstError.field] : null;
+    const fieldLabel = fieldKey ? t(fieldKey) : firstError?.field;
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-2 px-3 text-center">
+      <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
+        <AlertTriangle size={28} className="text-red-400" aria-hidden="true" />
+        <p className="text-sm font-medium th-text">{t("errorTitle")}</p>
         <p className="text-xs text-red-400 break-words max-w-full select-text">{error.message}</p>
-        {firstError?.field && (
-          <p className="text-[10px] th-text-faint">{t("errorFieldLabel", { field: firstError.field })}</p>
+        {fieldLabel && (
+          <p className="text-[11px] th-text-faint">{t("errorFieldLabel", { field: fieldLabel })}</p>
         )}
+        <div className="flex items-center gap-2 mt-1">
+          {onEditConfig && (
+            <button
+              type="button"
+              onClick={onEditConfig}
+              className="text-[11px] px-2.5 py-1 rounded border th-border th-text-secondary hover:th-text"
+            >
+              {t("editConfig")}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setRetryToken((n) => n + 1)}
+            className="text-[11px] px-2.5 py-1 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20"
+          >
+            {t("retry")}
+          </button>
+        </div>
       </div>
     );
   }
@@ -166,6 +207,20 @@ export default function ForecastChart({ rows, config, title }) {
   const badgeLabel = t(
     `reliability${badge.level.charAt(0).toUpperCase()}${badge.level.slice(1)}`,
   );
+  // L'explication du badge (mesure de fiabilité) passe par next-intl :
+  // reliabilityBadge() ne renvoie plus que des données brutes (mape,
+  // beatsBaseline), le texte fr/en avec son paramètre {pct} vit ici.
+  const explanationParts = [];
+  if (typeof badge.mape === "number") {
+    explanationParts.push(t("reliabilityMape", { pct: Math.round(badge.mape * 100) }));
+  }
+  if (badge.beatsBaseline === true) {
+    explanationParts.push(t("reliabilityBeatsBaseline"));
+  } else if (badge.beatsBaseline === false) {
+    explanationParts.push(t("reliabilityDoesNotBeatBaseline"));
+  }
+  const badgeExplanation =
+    explanationParts.length > 0 ? explanationParts.join(" ") : t("reliabilityUnknownExplanation");
   const chartPoints = toChartSeries(current);
   const historyEndIndex = (current.history || []).length - 1;
   const splitDate = current.history?.[historyEndIndex]?.date;
@@ -178,7 +233,7 @@ export default function ForecastChart({ rows, config, title }) {
         <div className="flex items-center gap-2 flex-wrap">
           <span
             tabIndex={0}
-            title={badge.explanation}
+            title={badgeExplanation}
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${RELIABILITY_TONE[badge.level]}`}
           >
             <Info size={11} />
@@ -238,7 +293,7 @@ export default function ForecastChart({ rows, config, title }) {
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip content={<ChartTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Legend verticalAlign="top" height={24} wrapperStyle={{ fontSize: 10 }} />
               {hasBands && (
                 // Recharts "range area": a dataKey returning [low, high]
                 // fills exactly between the two bounds — no stacking trick,

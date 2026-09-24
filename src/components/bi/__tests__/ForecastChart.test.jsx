@@ -83,7 +83,7 @@ describe("ForecastChart", () => {
     expect(screen.getByRole("button", { name: /table view/i })).toBeInTheDocument();
   });
 
-  it("shows an actionable error with the offending field on 400", async () => {
+  it("shows an actionable error with a business-facing field label on 400", async () => {
     const err = new Error("Colonne 'dat' absente ; colonnes disponibles : date, sales");
     err.status = 400;
     err.errors = [{ field: "date_var", message: "Colonne 'dat' absente ; colonnes disponibles : date, sales" }];
@@ -91,8 +91,55 @@ describe("ForecastChart", () => {
 
     render(<ForecastChart rows={rows} config={config} title="Sales" />);
 
-    expect(await screen.findByText(/colonne 'dat' absente/i)).toBeInTheDocument();
-    expect(screen.getByText(/date_var/)).toBeInTheDocument();
+    expect(await screen.findByText("The forecast could not be computed")).toBeInTheDocument();
+    expect(screen.getByText(/colonne 'dat' absente/i)).toBeInTheDocument();
+    // The raw contract field (date_var) is translated to a business label
+    // ("Date column") — never shown verbatim to the end user.
+    expect(screen.getByText(/Date column/)).toBeInTheDocument();
+    expect(screen.queryByText(/date_var/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("does not show an 'edit configuration' button when onEditConfig is not provided", async () => {
+    const err = new Error("boom");
+    err.status = 400;
+    err.errors = [{ field: "date_var", message: "boom" }];
+    postForecast.mockRejectedValue(err);
+
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+
+    await screen.findByText("The forecast could not be computed");
+    expect(screen.queryByRole("button", { name: /edit configuration/i })).not.toBeInTheDocument();
+  });
+
+  it("calls onEditConfig when the edit-configuration button is clicked", async () => {
+    const err = new Error("boom");
+    err.status = 400;
+    err.errors = [{ field: "target_var", message: "boom" }];
+    postForecast.mockRejectedValue(err);
+    const onEditConfig = vi.fn();
+
+    render(<ForecastChart rows={rows} config={config} title="Sales" onEditConfig={onEditConfig} />);
+
+    const editBtn = await screen.findByRole("button", { name: /edit configuration/i });
+    fireEvent.click(editBtn);
+    expect(onEditConfig).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries the forecast call when 'Retry' is clicked after an error", async () => {
+    const err = new Error("Service unavailable");
+    err.status = 503;
+    err.errors = [{ field: null, message: "Service unavailable" }];
+    postForecast.mockRejectedValueOnce(err).mockResolvedValueOnce(successResponse);
+
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+
+    const retryBtn = await screen.findByRole("button", { name: /retry/i });
+    expect(postForecast).toHaveBeenCalledTimes(1);
+    fireEvent.click(retryBtn);
+
+    expect(await screen.findByText("Reliable")).toBeInTheDocument();
+    expect(postForecast).toHaveBeenCalledTimes(2);
   });
 
   it("shows a specific message when the forecast service is not configured (503)", async () => {
@@ -110,6 +157,22 @@ describe("ForecastChart", () => {
     render(<ForecastChart rows={[]} config={config} title="Sales" />);
     expect(screen.getByText(/no data available/i)).toBeInTheDocument();
     expect(postForecast).not.toHaveBeenCalled();
+  });
+
+  it("builds the reliability badge explanation from next-intl with the mape percentage as a parameter", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+
+    const badge = await screen.findByText("Reliable");
+    // mape: 0.08 → 8%, injected via the {pct} ICU parameter.
+    expect(badge.closest("span")).toHaveAttribute(
+      "title",
+      expect.stringContaining("8%"),
+    );
+    expect(badge.closest("span")).toHaveAttribute(
+      "title",
+      expect.stringContaining("naive baseline"),
+    );
   });
 
   it("offers a series selector when the response has more than one group", async () => {
