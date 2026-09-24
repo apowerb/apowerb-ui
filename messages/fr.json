@@ -3153,6 +3153,10 @@
     "optional": "(facultatif)",
     "placeholder": "https://mon-endpoint.example.com/v1"
   },
+  "PreviewBadge": {
+    "label": "Aperçu",
+    "tooltip": "Fonctionnalité en préversion, retours bienvenus"
+  },
   "WorkflowsPage": {
     "title": "Workflows",
     "subtitle": "Enchaîne agents, outils et routeurs dans des automatisations que tu peux exécuter et publier.",

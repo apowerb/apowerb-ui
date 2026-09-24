@@ -3153,6 +3153,10 @@
     "optional": "(optional)",
     "placeholder": "https://my-endpoint.example.com/v1"
   },
+  "PreviewBadge": {
+    "label": "Preview",
+    "tooltip": "Preview feature — feedback welcome"
+  },
   "WorkflowsPage": {
     "title": "Workflows",
     "subtitle": "Chain agents, tools and routers into automations you can run and publish.",
