@@ -136,6 +136,9 @@ export default function ChartRenderer({
   // error state so "Modifier la configuration" can actually do something —
   // without it, only the retry button is shown.
   onEditConfig,
+  // Bumped by the dashboard after the chart is edited so the widget
+  // refetches its saved configuration instead of keeping the old one.
+  revision = 0,
 }) {
   const t = useTranslations("ChartRenderer");
   const [chartData, setChartData] = useState(null);
@@ -221,7 +224,7 @@ export default function ChartRenderer({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [fetchData]);
+  }, [fetchData, revision]);
 
   if (loading) {
     return (

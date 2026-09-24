@@ -35,14 +35,20 @@ function classifyGapDays(days) {
   return "year";
 }
 
+function distinctTimes(rows, dateColumn) {
+  const times = new Set(
+    rows.map((r) => new Date(r[dateColumn]).getTime()).filter((t) => !Number.isNaN(t)),
+  );
+  return [...times].sort((a, b) => a - b);
+}
+
 export function detectFrequency(rows, dateColumn) {
   if (!Array.isArray(rows) || rows.length < 2 || !dateColumn) {
     return { frequency: null, approx: true };
   }
-  const dates = rows
-    .map((r) => new Date(r[dateColumn]))
-    .filter((d) => !Number.isNaN(d.getTime()))
-    .sort((a, b) => a - b);
+  // Several series in long format share each date: gaps are measured
+  // between distinct dates, otherwise they are 0 and the series looks daily.
+  const dates = distinctTimes(rows, dateColumn);
   if (dates.length < 2) return { frequency: null, approx: true };
 
   const gaps = [];
@@ -79,10 +85,13 @@ export function buildDiagnostics({ rows, dateColumn, targetColumn, horizon }) {
     return { pointCount: 0, warnings };
   }
 
-  if (horizon && safeRows.length < horizon * MIN_POINTS_FOR_HORIZON_FACTOR) {
+  // History length of one series: distinct dates, not rows (grouped data).
+  const pointCount = dateColumn ? distinctTimes(safeRows, dateColumn).length || safeRows.length : safeRows.length;
+
+  if (horizon && pointCount < horizon * MIN_POINTS_FOR_HORIZON_FACTOR) {
     warnings.push({
       code: "short_history",
-      message: `Historique court (${safeRows.length} points) pour un horizon de ${horizon} : la prévision sera peu fiable au-delà des premières périodes.`,
+      message: `Historique court (${pointCount} points) pour un horizon de ${horizon} : la prévision sera peu fiable au-delà des premières périodes.`,
     });
   }
 
@@ -109,7 +118,7 @@ export function buildDiagnostics({ rows, dateColumn, targetColumn, horizon }) {
     }
   }
 
-  return { pointCount: safeRows.length, warnings };
+  return { pointCount, warnings };
 }
 
 const RELIABILITY_LABELS = {
