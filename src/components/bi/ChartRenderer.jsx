@@ -23,6 +23,7 @@ import {
 } from "@/lib/chart-tokens";
 import StatCard from "./StatCard";
 import DataTable from "./DataTable";
+import ForecastChart from "./ForecastChart";
 import ChartTooltip from "./ChartTooltip";
 import { useOAuthPopup } from "@/hooks/useOAuthPopup";
 
@@ -131,6 +132,10 @@ export default function ChartRenderer({
   // this to render the real chart title in its card header instead
   // of the generic "Chart" fallback.
   onLoaded,
+  // Opens the edit modal for this chart. Threaded down to ForecastChart's
+  // error state so "Modifier la configuration" can actually do something —
+  // without it, only the retry button is shown.
+  onEditConfig,
 }) {
   const t = useTranslations("ChartRenderer");
   const [chartData, setChartData] = useState(null);
@@ -454,6 +459,26 @@ export default function ChartRenderer({
             title={chartData.title}
             pageSize={25}
             actionColumn={chartData.config?.actionColumn}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Forecast widget — delegates the actual POST /api/v1/forecast call and
+  // rendering to ForecastChart; chartData.rows here are the raw historical
+  // rows already resolved by the core (same mechanism as every other
+  // chart_type), chartData.config carries date_var/target_var/horizon/etc.
+  if (chartType === "forecast") {
+    return (
+      <div className="h-full flex flex-col">
+        <AgentBadge />
+        <div className="flex-1 min-h-0">
+          <ForecastChart
+            rows={data}
+            config={chartData.config || {}}
+            title={chartData.title}
+            onEditConfig={onEditConfig}
           />
         </div>
       </div>

@@ -1276,3 +1276,43 @@ export async function runWorkflowDef(workflowId, payload, { signal } = {}) {
   }
   return res;
 }
+
+// --- Prévisions (th2forecast, via le cœur) ------------------------------
+//
+// Le contrat th2forecast renvoie ses erreurs sous la forme
+// `{status:"error", errors:[{field, message}]}` (400/401/413/503), pas le
+// `{detail: ...}` du reste de l'API th2agent. `request()` ne sait lire que
+// `detail` : réutiliser tel quel aurait perdu le champ concerné et le
+// message actionnable derrière un générique "API error 400". `postForecast`
+// fait donc son propre parsing, en réutilisant `tracedFetch`/`getAuthHeaders`
+// pour rester tracé comme le reste des appels.
+export async function postForecast(payload, { signal } = {}) {
+  const url = apiUrl("/api/v1/forecast");
+  const headers = {
+    ...getAuthHeaders(),
+    "Content-Type": "application/json",
+  };
+  const res = await tracedFetch(
+    url,
+    { method: "POST", headers, body: JSON.stringify(payload), signal },
+    "POST",
+  );
+  const text = await res.text();
+  let body;
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    const err = new Error(`HTTP ${res.status}: ${(text || "").trim().slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
+  }
+  if (!res.ok) {
+    const errors = Array.isArray(body.errors) ? body.errors : [];
+    const message = errors[0]?.message || body.message || `Erreur prévision (HTTP ${res.status})`;
+    const err = new Error(message);
+    err.status = res.status;
+    err.errors = errors;
+    throw err;
+  }
+  return body;
+}
