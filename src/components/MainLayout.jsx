@@ -186,6 +186,7 @@ function AppContent({ children }) {
           </div>
           {/* Ce qui reste a configurer se voit depuis n'importe quel ecran,
               sinon la checklist n'existe que pour qui la cherche deja. */}
+          {item.path === "/workflows" && isCollapsed && <PreviewBadge collapsed className="hidden md:block" />}
           {item.path === "/admin" && <SetupBadge collapsed={isCollapsed} />}
         </div>
       </Link>

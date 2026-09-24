@@ -51,4 +51,16 @@ describe("Badge Preview — entrée Workflows du menu (roadmap#100)", () => {
     expect(badge).toHaveTextContent("Preview");
     expect(badge).toHaveAttribute("title", "Preview feature — feedback welcome");
   });
+
+  it("garde une pastille visible quand la barre latérale est repliée", async () => {
+    localStorage.setItem("sidebar-collapsed", "true");
+    try {
+      render(<MainLayout><div /></MainLayout>);
+      await waitFor(() => expect(hrefs()).toContain("/workflows"));
+      const workflowsLink = screen.getAllByRole("link").find((a) => a.getAttribute("href") === "/workflows");
+      expect(within(workflowsLink).getByRole("img", { name: /Preview/ })).toBeInTheDocument();
+    } finally {
+      localStorage.removeItem("sidebar-collapsed");
+    }
+  });
 });

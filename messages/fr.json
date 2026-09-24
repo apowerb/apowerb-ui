@@ -3154,7 +3154,7 @@
     "placeholder": "https://mon-endpoint.example.com/v1"
   },
   "PreviewBadge": {
-    "label": "Aperçu",
+    "label": "Préversion",
     "tooltip": "Fonctionnalité en préversion, retours bienvenus"
   },
   "WorkflowsPage": {
