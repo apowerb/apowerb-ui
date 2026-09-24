@@ -24,6 +24,7 @@ const RUN_STATUS_STYLES = {
 export default function NodeShell({
   color = "brand",
   icon: Icon,
+  iconVariant = "accent",
   title,
   subtitle,
   footer,
@@ -105,8 +106,13 @@ export default function NodeShell({
 
       <div className="px-3.5 py-3 min-w-52 max-w-72">
         <div className="flex items-center gap-2.5 mb-1.5">
-          {Icon && (
-            <div className={`p-1.5 rounded-xl bg-linear-to-br ${style.accent} shadow-md shrink-0`}>
+          {Icon && iconVariant === "logo" && (
+            <div data-testid="node-icon-badge" data-variant="logo" className="p-[3px] rounded-xl bg-white ring-1 ring-black/10 shadow-md shrink-0">
+              <Icon size={20} />
+            </div>
+          )}
+          {Icon && iconVariant !== "logo" && (
+            <div data-testid="node-icon-badge" data-variant="accent" className={`p-1.5 rounded-xl bg-linear-to-br ${style.accent} shadow-md shrink-0`}>
               <Icon size={14} className="text-white" />
             </div>
           )}

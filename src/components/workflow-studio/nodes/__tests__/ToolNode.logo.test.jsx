@@ -37,4 +37,23 @@ describe("ToolNode logo", () => {
     const { container } = renderNode({ label: "Get weather", toolCategory: "tools_weather" });
     expect(container.querySelector("svg.lucide-wrench")).not.toBeNull();
   });
+  it("puts a provider logo on a light badge, larger than the family icon", () => {
+    const { getByTestId } = renderNode({ label: "Send email", toolCategory: "tools_google_gmail" });
+    const badge = getByTestId("node-icon-badge");
+    expect(badge.dataset.variant).toBe("logo");
+    expect(badge.className).toContain("bg-white");
+    expect(badge.className).not.toContain("bg-linear-to-br");
+    expect(badge.querySelector("svg").getAttribute("width")).toBe("20");
+  });
+
+  it("keeps the family gradient badge for generic icons", () => {
+    for (const toolCategory of [undefined, "text_to_sql", "tools_weather"]) {
+      const { getByTestId, unmount } = renderNode({ label: "t", toolCategory });
+      const badge = getByTestId("node-icon-badge");
+      expect(badge.dataset.variant).toBe("accent");
+      expect(badge.className).toContain("bg-linear-to-br");
+      expect(badge.querySelector("svg").getAttribute("width")).toBe("14");
+      unmount();
+    }
+  });
 });

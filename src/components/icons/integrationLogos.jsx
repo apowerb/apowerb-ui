@@ -248,6 +248,15 @@ export const DEFAULT_TOOL_LOGO = Wrench;
 export const DATABASE_TOOL_LOGO = DatabaseIcon;
 
 /**
+ * True for a provider brand logo (multicolour SVG), false for the generic
+ * lucide icons above. Brand colours vanish on a coloured badge at 14 px, so
+ * callers put these on a light background and draw them larger.
+ */
+export function isProviderLogo(Icon) {
+  return Boolean(Icon) && Icon !== DEFAULT_TOOL_LOGO && Icon !== DATABASE_TOOL_LOGO;
+}
+
+/**
  * Ordered category → logo rules. Order matters: some provider names are
  * substrings of one another (e.g. "onedrive" contains "drive"), so the more
  * specific match must run first.

@@ -82,4 +82,18 @@ describe("ToolPicker logo", () => {
     const logo = screen.getByTestId("tool-picker-logo");
     expect(logo.querySelector("svg.lucide-wrench")).not.toBeNull();
   });
+  it("shows a provider logo larger, on a light background", () => {
+    render(<Inspector nodeId="gmail.tool_send" />);
+    const logo = screen.getByTestId("tool-picker-logo");
+    expect(logo.dataset.variant).toBe("logo");
+    expect(logo.className).toContain("bg-white");
+    expect(logo.querySelector("svg").getAttribute("width")).toBe("18");
+  });
+
+  it("keeps the themed background for generic icons", () => {
+    render(<Inspector nodeId="db.tool_query" />);
+    const logo = screen.getByTestId("tool-picker-logo");
+    expect(logo.dataset.variant).toBe("plain");
+    expect(logo.className).not.toContain("bg-white");
+  });
 });
