@@ -481,6 +481,10 @@ export default function ChartRenderer({
             rows={data}
             config={chartData.config || {}}
             title={chartData.title}
+            // Jamais en mode public : la boucle de suivi (instantanés,
+            // chart_id relayé au cœur) reste réservée aux tableaux de bord
+            // accédés par leur propriétaire (même garde que onSaveConfig).
+            chartId={!publicMode ? chartId : undefined}
             onEditConfig={onEditConfig}
             // Contexte et scénarios enregistrés dans la config du graphique ;
             // jamais depuis un tableau de bord public (lecture seule).
