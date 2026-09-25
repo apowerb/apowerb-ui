@@ -20,6 +20,7 @@ import {
   latestBreachFacts,
   reconciliationFacts,
   isRareSales,
+  curveType,
   sortByHierarchyLevel,
   isReconciliationEnabled,
 } from "../forecast";
@@ -532,5 +533,28 @@ describe("isReconciliationEnabled", () => {
   it("stays compatible with a legacy boolean value", () => {
     expect(isReconciliationEnabled(true)).toBe(true);
     expect(isReconciliationEnabled(false)).toBe(false);
+  });
+});
+
+describe("latestBreachFacts — série affichée", () => {
+  const total = { group: "Total", date: "2025-12-01", actual: 640, value: 514, lower: 455, upper: 561, level: "95", direction: "above" };
+  const a = { group: "A", date: "2025-12-01", actual: 267, value: 146, lower: 125, upper: 163, level: "95", direction: "above" };
+  const old = { group: "F", date: "2025-10-01", actual: 5, value: 1, lower: 0, upper: 4.8, level: "80", direction: "above" };
+
+  it("prefers the latest-date breach of the displayed series", () => {
+    expect(latestBreachFacts({ latest_breach: true, breaches: [total, a, old] }, "A")).toEqual(a);
+  });
+
+  it("falls back to the first latest-date breach, never to an older breach of the displayed series", () => {
+    expect(latestBreachFacts({ latest_breach: true, breaches: [total, a, old] }, "F")).toEqual(total);
+  });
+});
+
+describe("curveType", () => {
+  it("draws rare-sales series as straight segments, others smoothed", () => {
+    expect(curveType({ demand: { type: "intermittent" } })).toBe("linear");
+    expect(curveType({ demand: { type: "lumpy" } })).toBe("linear");
+    expect(curveType({ demand: { type: "smooth" } })).toBe("monotone");
+    expect(curveType({})).toBe("monotone");
   });
 });

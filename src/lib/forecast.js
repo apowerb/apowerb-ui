@@ -352,10 +352,14 @@ export function trackingFacts(tracking) {
 // Rupture la plus récente (racine `tracking`) : le point réel le plus
 // récent de la réponse est hors bande. `breaches[0]` est la plus récente
 // (le contrat les liste "plus récente d'abord").
-export function latestBreachFacts(tracking) {
+// Parmi les ruptures de cette date la plus récente, celle de la série
+// affichée (`group`) passe en premier, sinon la première de la liste.
+export function latestBreachFacts(tracking, group) {
   if (!tracking?.latest_breach) return null;
   const breaches = Array.isArray(tracking.breaches) ? tracking.breaches : [];
-  return breaches[0] || null;
+  if (!breaches[0]) return null;
+  const latest = breaches.filter((b) => b.date === breaches[0].date);
+  return latest.find((b) => b.group === group) || latest[0];
 }
 
 // Réconciliation MinT (racine `reconciliation`) : erreur base → réconciliée
@@ -374,6 +378,12 @@ export function reconciliationFacts(response) {
 // donne plus une valeur ponctuelle fiable mais une demande moyenne attendue.
 export function isRareSales(series) {
   return series?.demand?.type === "intermittent" || series?.demand?.type === "lumpy";
+}
+
+// Ventes rares : segments droits ; un lissage « monotone » inventerait des
+// vagues entre les zéros et les ventes ponctuelles.
+export function curveType(series) {
+  return isRareSales(series) ? "linear" : "monotone";
 }
 
 const HIERARCHY_LEVEL_ORDER = { total: 0, bottom: 2 };

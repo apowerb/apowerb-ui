@@ -20,6 +20,7 @@ import {
   buildDiagnostics,
   contextWindow,
   forecastToCsv,
+  curveType,
   isRareSales,
   latestBreachFacts,
   proofFacts,
@@ -376,7 +377,7 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
   // au cœur de comparer à un instantané précédent (racine de la réponse,
   // pas par série).
   const tracking = trackingFacts(response?.tracking);
-  const breach = latestBreachFacts(response?.tracking);
+  const breach = latestBreachFacts(response?.tracking, current.group);
   const reconciliation = reconciliationFacts(response);
   const rareSales = isRareSales(current);
   const scenarios = Array.isArray(current.scenarios) ? current.scenarios : [];
@@ -600,7 +601,7 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
                 />
               )}
               <Line
-                type="monotone"
+                type={curveType(current)}
                 dataKey="history"
                 stroke="#3b82f6"
                 strokeWidth={2}
@@ -610,7 +611,7 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
                 isAnimationActive={false}
               />
               <Line
-                type="monotone"
+                type={curveType(current)}
                 dataKey="forecast"
                 stroke="#a78bfa"
                 strokeWidth={2}
@@ -622,7 +623,7 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
               />
               {scenario && (
                 <Line
-                  type="monotone"
+                  type={curveType(current)}
                   dataKey="scenario"
                   stroke="#10b981"
                   strokeWidth={2}
