@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import ToolsManager from "@/components/ToolsManager";
 import { ToastProvider } from "@/components/Toast";
+import { listMcpConfigs, listToolConfigs } from "@/lib/api";
 
 // next/navigation — useSearchParams + useRouter
 vi.mock("@/lib/navigation", () => ({
@@ -44,6 +45,7 @@ vi.mock("@/lib/api", () => ({
   createToolConfig: vi.fn().mockResolvedValue({}),
   deleteToolConfig: vi.fn().mockResolvedValue({}),
   listSkills: vi.fn().mockResolvedValue([]),
+  getToolsDocs: vi.fn().mockResolvedValue({}),
   getSkill: vi.fn().mockResolvedValue({}),
   createSkill: vi.fn().mockResolvedValue({}),
   updateSkill: vi.fn().mockResolvedValue({}),
@@ -81,16 +83,13 @@ describe("ToolsManager smoke", () => {
     });
   });
 
-  it("renders the stats bar with all five metric cards", async () => {
+  it("renders the five tabs as an accessible tab list", async () => {
     renderWithProviders(<ToolsManager />);
-    await waitFor(() => {
-      // StatsBar labels. Some also appear as tab labels; use getAllByText.
-      expect(screen.getAllByText("Available Tools").length).toBeGreaterThan(0);
-      expect(screen.getByText("Tool Categories")).toBeInTheDocument();
-      expect(screen.getAllByText("My Configurations").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("MCP Servers").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("Skills").length).toBeGreaterThan(0);
-    });
+    const tabs = await screen.findAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "Available tools", "My configurations", "MCP servers", "Skills", "Help",
+    ]);
+    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
   });
 
   it("renders the default Available Tools tab content", async () => {
@@ -107,20 +106,38 @@ describe("ToolsManager smoke", () => {
       expect(screen.getByPlaceholderText(/search tools/i)).toBeInTheDocument();
     });
 
-    // Tab buttons contain the TAB label. The MCP Servers tab also has a unique
-    // "Add MCP Server" CTA once active.
-    const mcpTabButton = screen
-      .getAllByRole("button")
-      .find((b) => /mcp servers/i.test(b.textContent || ""));
-    expect(mcpTabButton).toBeDefined();
-    fireEvent.click(mcpTabButton);
+    fireEvent.click(screen.getByRole("tab", { name: /mcp servers/i }));
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/search mcp servers/i)).toBeInTheDocument();
-      // "Add MCP Server" CTA appears at least once in the MCP tab (empty state + toolbar).
+      // Header action + empty-state call to action.
       expect(
         screen.getAllByRole("button", { name: /add mcp server/i }).length,
       ).toBeGreaterThan(0);
     });
+  });
+
+  it("shows header names but never header values of an MCP server", async () => {
+    listMcpConfigs.mockResolvedValueOnce([
+      { mcp_config_id: "m2", name: "Tavily Search", transport: "http", url: "https://mcp.tavily.com/mcp/", headers: { Authorization: "Bearer tvly-secret-123" } },
+    ]);
+    renderWithProviders(<ToolsManager />);
+    fireEvent.click(await screen.findByRole("tab", { name: /mcp servers/i }));
+
+    expect(await screen.findByText("Tavily Search")).toBeInTheDocument();
+    expect(screen.getByText(/Authorization/)).toBeInTheDocument();
+    expect(screen.queryByText(/tvly-secret-123/)).not.toBeInTheDocument();
+  });
+
+  it("does not count MCP servers as tool configurations", async () => {
+    listToolConfigs.mockResolvedValueOnce([
+      { tool_config_id: "tc1", tool_config_name: "Mails", tool_name: "emailing.tool_send_email", tool_category: "emailing", status: "active" },
+      { tool_config_id: "m1", tool_config_name: "Prod DB", tool_name: "mcp", tool_category: "mcp_server", status: "active" },
+    ]);
+    renderWithProviders(<ToolsManager />);
+    const configsTab = await screen.findByRole("tab", { name: /my configurations/i });
+    await waitFor(() => expect(configsTab).toHaveTextContent("My configurations1"));
+    fireEvent.click(configsTab);
+    expect(await screen.findByText("Mails")).toBeInTheDocument();
+    expect(screen.queryByText("Prod DB")).not.toBeInTheDocument();
   });
 });

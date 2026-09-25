@@ -1,170 +1,178 @@
 "use client";
 
-import React from "react";
-import {
-  Plus, Wrench, Search, ChevronRight, ArrowUpDown,
-} from "lucide-react";
+import React, { useState } from "react";
+import { Plus, Wrench, CheckCircle2 } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { toolLeafName } from "./toolsManagerUtils";
+import {
+  Toolbar, SearchField, SelectField, ResultCount, Card, EmptyPanel,
+  SecondaryButton, useCategoryInfo,
+} from "./ui";
+
+const PREVIEW_COUNT = 6;
+
+/** Wraps the part of `text` that matches `query` in a <mark>. */
+function Highlight({ text, query }) {
+  const q = query.trim().toLowerCase();
+  const i = q ? text.toLowerCase().indexOf(q) : -1;
+  if (i < 0) return text;
+  return (
+    <>
+      {text.slice(0, i)}
+      <mark className="bg-amber-500/25 text-inherit rounded-sm">{text.slice(i, i + q.length)}</mark>
+      {text.slice(i + q.length)}
+    </>
+  );
+}
+
+function CategoryCard({ category, tools, configuredCount, searching, search, onConfigure }) {
+  const t = useTranslations("AvailableToolsTab");
+  const info = useCategoryInfo()(category);
+  const [expanded, setExpanded] = useState(false);
+  const showAll = expanded || searching;
+  const visible = showAll ? tools : tools.slice(0, PREVIEW_COUNT);
+  const hidden = tools.length - visible.length;
+  const Icon = info.Icon;
+
+  return (
+    <Card className="p-4 flex flex-col hover:border-blue-500/30 transition-colors">
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+          <Icon size={18} className="text-blue-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold th-text truncate" title={info.label}>
+            <Highlight text={info.label} query={search} />
+          </h3>
+          <p className="flex items-center gap-2 text-xs th-text-muted mt-0.5">
+            <span>{t("toolsCount", { count: tools.length })}</span>
+            {configuredCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-emerald-500 font-medium">
+                <CheckCircle2 size={12} />
+                {t("configuredCount", { count: configuredCount })}
+              </span>
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onConfigure(category)}
+          title={t("configureHint", { category: info.label })}
+          className="shrink-0 inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+        >
+          <Plus size={14} />
+          {t("configure")}
+        </button>
+      </div>
+
+      {info.description && (
+        <p className="text-xs th-text-secondary leading-relaxed mt-3 line-clamp-2" title={info.description}>
+          {info.description}
+        </p>
+      )}
+
+      <ul className="flex flex-wrap gap-1.5 mt-3" aria-label={t("toolsInCategory", { category: info.label })}>
+        {visible.map((tool) => (
+          <li
+            key={tool}
+            title={tool}
+            className="px-2 py-0.5 rounded-md text-[11px] font-mono th-bg-surface border th-border th-text-secondary"
+          >
+            <Highlight text={toolLeafName(tool)} query={search} />
+          </li>
+        ))}
+        {hidden > 0 && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-blue-400 hover:bg-blue-500/10 transition-colors"
+            >
+              {t("showMore", { count: hidden })}
+            </button>
+          </li>
+        )}
+        {expanded && !searching && tools.length > PREVIEW_COUNT && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="px-2 py-0.5 rounded-md text-[11px] font-semibold th-text-muted hover:th-text hover:bg-white/10 transition-colors"
+            >
+              {t("showLess")}
+            </button>
+          </li>
+        )}
+      </ul>
+    </Card>
+  );
+}
 
 /**
- * "Available Tools" tab — category-grouped list of tools discovered from the
- * backend, with search/sort/filter and an "expand" behaviour per category.
+ * "Available Tools" tab — one card per tool category with its tools, a short
+ * description and a shortcut to configure it. Search reaches both category
+ * and tool names; the category select narrows to a single card.
  */
 export default function AvailableToolsTab({
   toolSearch, setToolSearch,
   categoryFilter, setCategoryFilter,
   filterOptions,
   sortedEntries,
-  toolSortKey,
-  expandedCategory, setExpandedCategory,
-  onSort,
+  configCountByCategory,
   onConfigure,
 }) {
   const t = useTranslations("AvailableToolsTab");
+  const categoryInfo = useCategoryInfo();
+  const searching = toolSearch.trim().length > 0;
+  const toolCount = sortedEntries.reduce((n, [, tools]) => n + tools.length, 0);
+  const options = filterOptions
+    .map((o) => ({ key: o.key, label: o.key === "all" ? t("allCategories") : categoryInfo(o.key).label }))
+    .sort((a, b) => (a.key === "all" ? -1 : b.key === "all" ? 1 : a.label.localeCompare(b.label)));
+  const filtersActive = searching || categoryFilter !== "all";
+
   return (
     <div>
-      {/* Search + Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-3">
-        <div className="relative flex-1 min-w-50 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 th-text-faint" />
-          <input
-            type="text"
-            placeholder={t("searchPlaceholder")}
-            value={toolSearch}
-            onChange={(e) => setToolSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 th-bg-surface border th-border rounded-xl text-sm th-text placeholder-[var(--text-faint)] focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
-          />
-        </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {filterOptions.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setCategoryFilter(opt.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border capitalize ${
-                categoryFilter === opt.key
-                  ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                  : "th-bg-surface th-text-muted th-border hover:bg-white/10 hover:th-text-secondary"
-              }`}
-            >
-              {opt.label}
-            </button>
+      <Toolbar>
+        <SearchField
+          value={toolSearch}
+          onChange={setToolSearch}
+          placeholder={t("searchPlaceholder")}
+          clearLabel={t("clearSearch")}
+        />
+        <SelectField
+          label={t("categoryFilterLabel")}
+          value={categoryFilter}
+          onChange={setCategoryFilter}
+          options={options}
+        />
+        <ResultCount>
+          {t("resultSummary", { tools: toolCount, categories: sortedEntries.length })}
+        </ResultCount>
+      </Toolbar>
+
+      {sortedEntries.length === 0 ? (
+        <EmptyPanel icon={Wrench} title={t("noToolsMatch")} description={t("noToolsMatchHint")}>
+          {filtersActive && (
+            <SecondaryButton onClick={() => { setToolSearch(""); setCategoryFilter("all"); }}>
+              {t("resetFilters")}
+            </SecondaryButton>
+          )}
+        </EmptyPanel>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {sortedEntries.map(([category, tools]) => (
+            <CategoryCard
+              key={category}
+              category={category}
+              tools={tools}
+              configuredCount={configCountByCategory[category] || 0}
+              searching={searching}
+              search={toolSearch}
+              onConfigure={onConfigure}
+            />
           ))}
         </div>
-        <span className="text-xs th-text-faint ml-auto">
-          {t("categoriesCount", { count: sortedEntries.length })}
-        </span>
-      </div>
-
-      {/* Tools Table — expandable rows */}
-      <div className="glass-card rounded-xl border th-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b th-border th-bg-surface">
-                <th
-                  className="text-left p-3 th-text-secondary font-semibold cursor-pointer hover:th-text transition-colors select-none"
-                  onClick={() => onSort("name")}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    {t("categoryColumn")}
-                    <ArrowUpDown size={12} className={toolSortKey === "name" ? "text-blue-400" : "th-text-ghost"} />
-                  </span>
-                </th>
-                <th className="text-left p-3 th-text-secondary font-semibold">{t("countColumn")}</th>
-                <th className="text-left p-3 th-text-secondary font-semibold" />
-                <th className="text-left p-3 th-text-secondary font-semibold">{t("actionsColumn")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedEntries.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="p-8 text-center">
-                    <Wrench size={36} className="mx-auto mb-3 th-text-ghost" />
-                    <p className="th-text-faint text-sm">{t("noToolsMatch")}</p>
-                  </td>
-                </tr>
-              ) : (
-                sortedEntries.map(([category, tools]) => {
-                  const isExpanded = expandedCategory === category;
-                  return (
-                    <React.Fragment key={category}>
-                      <tr
-                        className={`border-b th-border transition-colors cursor-pointer ${
-                          isExpanded ? "bg-blue-500/6 border-blue-500/20" : "hover:th-bg-surface"
-                        }`}
-                        onClick={() => setExpandedCategory(isExpanded ? null : category)}
-                      >
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}>
-                              <ChevronRight size={14} className="th-text-faint" />
-                            </div>
-                            <span className="th-text text-sm font-medium capitalize">
-                              {category.replace(/^tools_/, "")}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/25">
-                            {t("toolsCount", { count: tools.length })}
-                          </span>
-                        </td>
-                        <td className="p-3" />
-                        <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => onConfigure(category)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 border border-blue-500/20 transition-all"
-                          >
-                            <Plus size={12} />
-                            {t("configure")}
-                          </button>
-                        </td>
-                      </tr>
-
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan={4} className="p-0">
-                            <div className="bg-linear-to-b from-blue-500/4 to-transparent border-b border-blue-500/10">
-                              <div className="px-5 py-3">
-                                <div className="rounded-lg border th-border overflow-hidden">
-                                  <table className="w-full text-xs">
-                                    <thead>
-                                      <tr className="th-bg-surface th-text-muted">
-                                        <th className="text-left p-2.5 font-semibold">{t("toolNameColumn")}</th>
-                                        <th className="text-left p-2.5 font-semibold">{t("fullPathColumn")}</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {tools.map((tool) => (
-                                        <tr key={tool} className="border-t th-border hover:th-bg-surface/50 transition-colors">
-                                          <td className="p-2.5">
-                                            <div className="flex items-center gap-2">
-                                              <span className="w-1.5 h-1.5 rounded-full bg-blue-400/60 shrink-0" />
-                                              <span className="th-text-secondary font-mono">
-                                                {toolLeafName(tool)}
-                                              </span>
-                                            </div>
-                                          </td>
-                                          <td className="p-2.5 th-text-faint font-mono">{tool}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

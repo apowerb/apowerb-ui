@@ -32,6 +32,8 @@ import {
   parseSkillForEdit,
   buildMcpPayload,
   createEmptyConfig,
+  isToolConfig,
+  templateForMcp,
 } from "./toolsManagerUtils";
 
 /**
@@ -63,9 +65,6 @@ export function useToolsManager() {
   // ── Tools tab local state ──────────────────────────────────────────────
   const [toolSearch, setToolSearch]             = useState("");
   const [categoryFilter, setCategoryFilter]     = useState("all");
-  const [expandedCategory, setExpandedCategory] = useState(null);
-  const [toolSortKey, setToolSortKey]           = useState("name");
-  const [toolSortAsc, setToolSortAsc]           = useState(true);
 
   // ── Configs tab local state ────────────────────────────────────────────
   const [configSearch, setConfigSearch]                 = useState("");
@@ -147,18 +146,28 @@ export function useToolsManager() {
 
   // ── Derived data ───────────────────────────────────────────────────────
   const allTools           = flattenTools(availableTools);
+  // MCP servers are stored as tool configs too; they have their own tab.
+  const ownToolConfigs     = toolConfigs.filter(isToolConfig);
   const filterOptions      = buildFilterOptions(availableTools);
-  const sortedEntries      = filterAndSortTools(availableTools, { toolSearch, categoryFilter, toolSortAsc });
-  const filteredConfigs    = filterConfigs(toolConfigs, allTools, { configSearch, configCategoryFilter });
+  const sortedEntries      = filterAndSortTools(availableTools, { toolSearch, categoryFilter, toolSortAsc: true });
+  const filteredConfigs    = filterConfigs(ownToolConfigs, allTools, { configSearch, configCategoryFilter });
   const filteredMcpConfigs = filterMcp(mcpConfigs, mcpSearch);
   const filteredSkills     = filterSkills(skills, { skillSearch, skillFilter });
 
+  const resolveConfigCategory = (config) =>
+    allTools.find((t) => t.name === config.tool_name)?.category || config.tool_category || "";
+
+  const configCountByCategory = ownToolConfigs.reduce((acc, c) => {
+    const category = resolveConfigCategory(c);
+    if (category) acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
+
   const stats = {
-    totalTools:      allTools.length,
-    totalCategories: Object.keys(availableTools).length,
-    totalConfigs:    toolConfigs.length,
-    totalMcp:        mcpConfigs.length,
-    totalSkills:     skills.length,
+    totalTools:   allTools.length,
+    totalConfigs: ownToolConfigs.length,
+    totalMcp:     mcpConfigs.length,
+    totalSkills:  skills.length,
   };
 
   const tabBadges = {
@@ -268,7 +277,7 @@ export function useToolsManager() {
     if (!mcp) return;
     const isToolboxDb = mcp.mcp_type === "toolbox-db";
     setEditingMcp(mcp.mcp_config_id);
-    setSelectedTemplate(isToolboxDb ? "toolbox-db" : "custom-http");
+    setSelectedTemplate(templateForMcp(mcp));
     setNewMcp({
       ...DEFAULT_MCP,
       name: mcp.name || "",
@@ -435,11 +444,6 @@ export function useToolsManager() {
     e.target.value = "";
   };
 
-  const handleToolSort = (key) => {
-    if (toolSortKey === key) setToolSortAsc((v) => !v);
-    else { setToolSortKey(key); setToolSortAsc(true); }
-  };
-
   return {
     // Active tab
     activeTab, changeTab,
@@ -454,14 +458,13 @@ export function useToolsManager() {
     categoryFilter, setCategoryFilter,
     filterOptions,
     sortedEntries,
-    toolSortKey,
-    expandedCategory, setExpandedCategory,
-    handleToolSort,
+    configCountByCategory,
 
     // Configs tab
     configSearch, setConfigSearch,
     configCategoryFilter, setConfigCategoryFilter,
     filteredConfigs,
+    resolveConfigCategory,
 
     // Tool config modal
     showModal, setShowModal,
