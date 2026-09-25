@@ -2867,6 +2867,7 @@
     "startersTitle": "Essayez ceci",
     "starterSummarize": "Résume le dernier rapport que j'ai envoyé en 5 points",
     "starterChart": "Trace les chiffres du dernier trimestre par mois et commente la tendance",
+    "starterChartArg": "les chiffres du dernier trimestre par mois",
     "starterEmail": "Rédige un court e-mail de relance cordial à un client silencieux",
     "starterCompare": "Compare deux options dans un tableau : avantages, inconvénients, coût, risque",
     "useStarter": "Utiliser",
@@ -2878,7 +2879,7 @@
     "powerMention": "Agents @",
     "powerMentionDesc": "Tapez @ pour confier le prochain message à un autre agent.",
     "powerChart": "Blocs ```chart",
-    "powerChartDesc": "Demandez un graphique : le JSON de l'agent devient un graphique vivant, au thème du studio.",
+    "powerChartDesc": "Tapez /chart : le JSON de l'agent devient un graphique vivant, au thème du studio.",
     "footerHint": "Les conversations restent dans ce navigateur. Partagez un instantané avec le bouton Partager.",
     "threadEyebrow": "Nouvelle conversation avec {agentName}"
   },

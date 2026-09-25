@@ -57,6 +57,17 @@ describe("ChatHome on an empty thread", () => {
     },
   );
 
+  // Roadmap 74: the chart starter went out as a bare sentence and the agent,
+  // which does not know the chat renders ```chart fences, answered it could
+  // not draw. The starter now sends the same prompt as /chart.
+  it("sends the chart starter with the ```chart format the chat renders", () => {
+    render(<ChatHome session={s1} />);
+    fireEvent.click(screen.getByRole("button", { name: /Chart last quarter's numbers/ }));
+    const sent = h.setPendingComposerText.mock.calls[0][0];
+    expect(sent).toMatch(/^Chart last quarter's numbers by month\. /);
+    expect(sent).toContain("```chart");
+  });
+
   it("without a thread, a starter opens the agent picker when several agents were used", () => {
     render(<ChatHome />);
     const starter = screen.getByRole("region", { name: "Try one of these" }).querySelector("button");

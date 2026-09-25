@@ -86,7 +86,7 @@ export default function ChatInput({ editingText, onEditingTextClear, commands, r
   const slashQuery = slashMenuQuery(input);
   const mention = slashQuery === null ? mentionAt(input, caret) : null;
   const slashItems = useMemo(
-    () => (slashQuery === null || !commands?.length ? [] : matchCommands(commands, slashQuery, { mode: "slash", limit: 12 })),
+    () => (slashQuery === null || !commands?.length ? [] : matchCommands(commands, slashQuery, { mode: "slash" })),
     [slashQuery, commands],
   );
   const mentionItems = useMemo(() => {

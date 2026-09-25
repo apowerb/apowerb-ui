@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useChatSessions } from "@/hooks/useChatSessions";
 import { useChatUi } from "@/contexts/ChatUiContext";
+import { fillTemplate } from "@/lib/chatCommands";
 
 function hueOf(seed) {
   let h = 0;
@@ -53,6 +54,10 @@ export function recentFromSessions(sessions, { agents = 5 } = {}) {
 }
 
 const STARTERS = ["starterSummarize", "starterChart", "starterEmail", "starterCompare"];
+// A starter shows a plain sentence but sends the matching / command prompt, so
+// the agent gets the format the chat renders (roadmap 74: a bare "Chart…" was
+// answered "I can't create charts").
+const STARTER_TEMPLATES = { starterChart: { template: "tplChartInsert", arg: "starterChartArg" } };
 
 /**
  * What you see with no conversation open, or on a thread that has no message
@@ -64,6 +69,7 @@ const STARTERS = ["starterSummarize", "starterChart", "starterEmail", "starterCo
  */
 export default function ChatHome({ session = null }) {
   const t = useTranslations("ChatHome");
+  const tc = useTranslations("ChatCommands");
   const { user } = useAuth();
   const { sessions, createSession } = useChatSessions();
   const ui = useChatUi();
@@ -76,6 +82,11 @@ export default function ChatHome({ session = null }) {
       superagentTemplateId: agent.superagentTemplateId,
       tags: agent.tags,
     });
+  };
+
+  const starterPrompt = (key) => {
+    const tpl = STARTER_TEMPLATES[key];
+    return tpl ? fillTemplate(tc.raw(tpl.template), t(tpl.arg)) : t(key);
   };
 
   const startWithPrompt = (text) => {
@@ -148,7 +159,7 @@ export default function ChatHome({ session = null }) {
           <h2 className="text-[10px] font-bold uppercase tracking-[0.18em] th-text-ghost mb-2.5">{t("startersTitle")}</h2>
           <div className="grid gap-2 sm:grid-cols-2">
             {STARTERS.map((key) => (
-              <button key={key} type="button" onClick={() => startWithPrompt(t(key))} className={tile}>
+              <button key={key} type="button" onClick={() => startWithPrompt(starterPrompt(key))} className={tile}>
                 <span className="text-sm th-text-secondary leading-snug">{t(key)}</span>
                 <span className="inline-flex items-center gap-1 text-[11px] text-brand opacity-0 group-hover:opacity-100 transition-opacity">
                   {t("useStarter")} <ArrowRight size={12} />
