@@ -29,10 +29,12 @@ test.describe("configurer un outil, contre le backend simulé", () => {
     await expect(page.getByRole("heading", { name: "Tool Box & MCP" })).toBeVisible();
     await assertNoErrorScreen(page, "au chargement de la Tool Box");
     await expect(page.getByText("3 categories")).toBeVisible();
-    await expect(page.getByRole("cell", { name: "2 tools" })).toBeVisible();
+    await expect(page.getByText("2 tools", { exact: true })).toBeVisible();
     await shot(page, "20-toolbox");
 
-    await page.getByRole("button", { name: "New Tool Config" }).click();
+    // L'action « nouvelle configuration » vit dans l'onglet des configurations.
+    await page.getByRole("tab", { name: /My configurations/ }).click();
+    await page.getByRole("button", { name: "New configuration" }).click();
     const modal = page.getByText("Create Tool Config").locator("xpath=ancestor::*[self::div][1]");
     await expect(page.getByText("Create Tool Config")).toBeVisible();
     await assertNoErrorScreen(page, "à l'ouverture du modal de configuration");
@@ -41,8 +43,8 @@ test.describe("configurer un outil, contre le backend simulé", () => {
       .fill("outils_ventes");
 
     // « 1. Choose a category » : les catégories du modal viennent du même
-    // catalogue que le tableau ci-dessus.
-    const categorySelect = page.locator("select").filter({ hasText: "database" }).first();
+    // catalogue que les cartes ci-dessus.
+    const categorySelect = page.getByRole("dialog", { name: "Create Tool Config" }).locator("select").filter({ hasText: "database" }).first();
     await categorySelect.selectOption("database");
 
     // Choisir une catégorie coche TOUS ses outils, et le bouton le dit :
@@ -59,7 +61,6 @@ test.describe("configurer un outil, contre le backend simulé", () => {
     // présence : il voyage sous `tool_config_name`, et un simulateur lisant
     // une autre clé enregistrait « sans nom » sans que rien ne s'en plaigne.
     await expect(page.getByText("Create Tool Config")).toBeHidden({ timeout: 10_000 });
-    await page.getByRole("button", { name: /My Configurations/ }).first().click();
     await expect(page.getByText("base_ventes")).toBeVisible();
     await expect(page.getByText("outils_ventes").first()).toBeVisible({ timeout: 10_000 });
     await assertNoErrorScreen(page, "après l'enregistrement");
