@@ -4038,7 +4038,14 @@
     "contextIgnoredShort": "non appris",
     "scenarioLabel": "Scénario",
     "scenarioLine": "Scénario : {name}",
-    "scenarioDifference": "Écart sur l'horizon : {total} ({pct} %)"
+    "scenarioDifference": "Écart sur l'horizon : {total} ({pct} %)",
+    "trackingLine": "Suivi réel : {points, plural, one {# point arrivé} other {# points arrivés}} · {inBand}/{total} dans la bande {level} %",
+    "breachAboveWithGroup": "Le réel du {date} ({actual}) est au-dessus de la bande {level} % ({lower}–{upper}) pour {group}.",
+    "breachBelowWithGroup": "Le réel du {date} ({actual}) est en dessous de la bande {level} % ({lower}–{upper}) pour {group}.",
+    "breachAbove": "Le réel du {date} ({actual}) est au-dessus de la bande {level} % ({lower}–{upper}).",
+    "breachBelow": "Le réel du {date} ({actual}) est en dessous de la bande {level} % ({lower}–{upper}).",
+    "reconciledLine": "Réconciliée (MinT) : erreur {before} → {after} sur {points} points testés",
+    "rareSalesNote": "Ventes rares : la courbe donne la demande moyenne attendue par période."
   },
   "ForecastConfigStep": {
     "dateColumnLabel": "Colonne date",

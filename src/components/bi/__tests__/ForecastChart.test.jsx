@@ -450,3 +450,179 @@ describe("ForecastChart — context and scenarios", () => {
     expect(screen.queryByRole("button", { name: /^context$/i })).not.toBeInTheDocument();
   });
 });
+
+describe("ForecastChart — chart_id (tracking loop)", () => {
+  it("sends chart_id in the request when rendered with one (saved dashboard)", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="chart-42" />);
+    await screen.findByText("Reliable");
+    expect(postForecast.mock.calls[0][0]).toMatchObject({ chart_id: "chart-42" });
+  });
+
+  it("never sends chart_id when not provided (assistant preview)", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    expect(postForecast.mock.calls[0][0]).not.toHaveProperty("chart_id");
+  });
+});
+
+describe("ForecastChart — tracking", () => {
+  it("shows the tracking line under the proof badge when points > 0", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      tracking: { points: 9, since: "2026-01-01", coverage: { 80: 0.89, 95: 1.0 }, mase: 0.84, breaches: [], latest_breach: false },
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const line = await screen.findByTestId("forecast-tracking");
+    expect(line).toHaveTextContent("9");
+    expect(line).toHaveTextContent("8/9");
+    expect(line).toHaveTextContent("80");
+  });
+
+  it("shows nothing when points is 0 (first computation)", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      tracking: { points: 0, coverage: {}, breaches: [], latest_breach: false },
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    await screen.findByText("Reliable");
+    expect(screen.queryByTestId("forecast-tracking")).toBeNull();
+  });
+
+  it("shows nothing without a tracking field at all", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    expect(screen.queryByTestId("forecast-tracking")).toBeNull();
+  });
+});
+
+describe("ForecastChart — breach alert", () => {
+  function withBreach(overrides) {
+    return {
+      ...successResponse,
+      tracking: {
+        points: 9,
+        coverage: { 95: 1.0 },
+        breaches: [
+          { group: null, date: "2026-08-01", actual: 1234, value: 950, lower: 800, upper: 1100, level: "95", direction: "above", ...overrides },
+        ],
+        latest_breach: true,
+      },
+    };
+  }
+
+  it("shows the alert without naming a group for a single series", async () => {
+    postForecast.mockResolvedValue(withBreach({}));
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const alert = await screen.findByTestId("forecast-breach-alert");
+    expect(alert).toHaveTextContent("2026-08-01");
+    expect(alert.textContent).toMatch(/above/i);
+    expect(alert).toHaveTextContent("95");
+  });
+
+  it("names the group when the breach carries one", async () => {
+    postForecast.mockResolvedValue(withBreach({ group: "A" }));
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const alert = await screen.findByTestId("forecast-breach-alert");
+    expect(alert).toHaveTextContent("A");
+  });
+
+  it("shows 'below' for a below-band breach at the 80% level", async () => {
+    postForecast.mockResolvedValue(withBreach({ direction: "below", level: "80" }));
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const alert = await screen.findByTestId("forecast-breach-alert");
+    expect(alert.textContent).toMatch(/below/i);
+    expect(alert).toHaveTextContent("80");
+  });
+
+  it("shows nothing when the latest point did not breach", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      tracking: { points: 9, coverage: { 95: 1 }, breaches: [], latest_breach: false },
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    await screen.findByText("Reliable");
+    expect(screen.queryByTestId("forecast-breach-alert")).toBeNull();
+  });
+});
+
+describe("ForecastChart — MinT reconciliation", () => {
+  it("shows the reconciled line under the badge when reconciliation is present", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      reconciliation: { method: "mint_shrink", coherent: true, backtest: { mase_base: 0.91, mase_reconciled: 0.87, points: 36 } },
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    const line = await screen.findByTestId("forecast-reconciliation");
+    expect(line).toHaveTextContent("0,91");
+    expect(line).toHaveTextContent("0,87");
+    expect(line).toHaveTextContent("36");
+  });
+
+  it("shows nothing without a reconciliation block", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    expect(screen.queryByTestId("forecast-reconciliation")).toBeNull();
+  });
+});
+
+describe("ForecastChart — hierarchy config", () => {
+  it("relays hierarchy and reconciliation from the config to the request", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    const withHierarchy = { ...config, group_var: "store", hierarchy: ["region"], reconciliation: "mint" };
+    render(<ForecastChart rows={rows} config={withHierarchy} title="Sales" />);
+    await screen.findByText("Reliable");
+    expect(postForecast.mock.calls[0][0]).toMatchObject({ hierarchy: ["region"], reconciliation: "mint" });
+  });
+
+  it("sends no hierarchy keys without a configured hierarchy", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    const payload = postForecast.mock.calls[0][0];
+    expect(payload).not.toHaveProperty("hierarchy");
+    expect(payload).not.toHaveProperty("reconciliation");
+  });
+
+  it("orders the series selector Total, then intermediate levels, then bottom", async () => {
+    const hierarchical = {
+      ...successResponse,
+      series: [
+        { ...successResponse.series[0], group: "Store A", level: "bottom" },
+        { ...successResponse.series[0], group: "Nord", level: "region" },
+        { ...successResponse.series[0], group: "Total", level: "total" },
+      ],
+    };
+    postForecast.mockResolvedValue(hierarchical);
+    render(<ForecastChart rows={rows} config={{ ...config, group_var: "store" }} title="Sales" />);
+    await screen.findByText("Reliable");
+    const options = screen.getAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual(["Total", "Nord", "Store A"]);
+  });
+});
+
+describe("ForecastChart — rare sales (intermittent/lumpy demand)", () => {
+  it("shows the rare-sales note when the series is intermittent", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      series: [
+        { ...successResponse.series[0], demand: { type: "intermittent", adi: 2.4, cv2: 0.31, zero_share: 0.58 } },
+      ],
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    expect(await screen.findByTestId("forecast-rare-sales-note")).toHaveTextContent(/average demand/i);
+  });
+
+  it("shows nothing for a smooth series", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      series: [{ ...successResponse.series[0], demand: { type: "smooth", adi: 1, cv2: 0.1, zero_share: 0 } }],
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    expect(screen.queryByTestId("forecast-rare-sales-note")).toBeNull();
+  });
+});

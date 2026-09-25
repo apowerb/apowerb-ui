@@ -20,9 +20,14 @@ import {
   buildDiagnostics,
   contextWindow,
   forecastToCsv,
+  isRareSales,
+  latestBreachFacts,
   proofFacts,
+  reconciliationFacts,
   reliabilityBadge,
+  sortByHierarchyLevel,
   toChartSeries,
+  trackingFacts,
   withScenario,
 } from "@/lib/forecast";
 import ForecastContextPanel from "./ForecastContextPanel";
@@ -122,7 +127,7 @@ function downloadCsv(csv, filename) {
  * `onSaveConfig(config)` : optionnel, enregistre la config (contexte et
  * scénarios appliqués depuis le panneau) ; sans lui, ils restent locaux.
  */
-export default function ForecastChart({ rows, config, title, onEditConfig, onSaveConfig }) {
+export default function ForecastChart({ rows, config, title, chartId, onEditConfig, onSaveConfig }) {
   const t = useTranslations("ForecastChart");
   const [status, setStatus] = useState("idle"); // idle|loading|success|error
   const [response, setResponse] = useState(null);
@@ -174,6 +179,9 @@ export default function ForecastChart({ rows, config, title, onEditConfig, onSav
       frequency: config.frequency || null,
       models: config.models || ["prophet"],
       confidence_levels: config.confidence_levels || [0.8, 0.95],
+      hierarchy: config.hierarchy || null,
+      reconciliation: config.reconciliation || null,
+      chart_id: chartId || null,
       events: context.events,
       scenarios: context.scenarios,
     });
@@ -186,6 +194,9 @@ export default function ForecastChart({ rows, config, title, onEditConfig, onSav
     config.frequency,
     config.models,
     config.confidence_levels,
+    config.hierarchy,
+    config.reconciliation,
+    chartId,
     context,
   ]);
 
@@ -208,9 +219,16 @@ export default function ForecastChart({ rows, config, title, onEditConfig, onSav
         frequency: config.frequency || null,
         models: config.models || ["prophet"],
         confidence_levels: config.confidence_levels || [0.8, 0.95],
-        // Absents plutôt que vides : sans contexte, la requête reste celle d'avant.
+        // Absents plutôt que vides : sans contexte/hiérarchie/chart_id, la
+        // requête reste celle d'avant (additif, comme le contrat l'exige).
         ...(context.events.length > 0 ? { events: context.events } : {}),
         ...(context.scenarios.length > 0 ? { scenarios: context.scenarios } : {}),
+        ...(config.hierarchy?.length > 0 ? { hierarchy: config.hierarchy } : {}),
+        ...(config.reconciliation ? { reconciliation: config.reconciliation } : {}),
+        // Jamais dans l'aperçu de l'assistant (widget pas encore enregistré,
+        // chartId absent) : seul un graphique d'un tableau de bord fournit
+        // chartId (voir ChartRenderer).
+        ...(chartId ? { chart_id: chartId } : {}),
       },
       { signal: controller.signal },
     )
@@ -312,7 +330,7 @@ export default function ForecastChart({ rows, config, title, onEditConfig, onSav
     );
   }
 
-  const series = response?.series || [];
+  const series = sortByHierarchyLevel(response?.series || []);
   const current = series[selectedGroup] || series[0];
   if (!current) {
     return (
@@ -354,6 +372,13 @@ export default function ForecastChart({ rows, config, title, onEditConfig, onSav
       }),
     );
   }
+  // Suivi réel (boucle fermée, cœur) : uniquement quand chart_id a permis
+  // au cœur de comparer à un instantané précédent (racine de la réponse,
+  // pas par série).
+  const tracking = trackingFacts(response?.tracking);
+  const breach = latestBreachFacts(response?.tracking);
+  const reconciliation = reconciliationFacts(response);
+  const rareSales = isRareSales(current);
   const scenarios = Array.isArray(current.scenarios) ? current.scenarios : [];
   const scenario = scenarios[scenarioIndex] || null;
   const chartPoints = withScenario(toChartSeries(current), scenario);
@@ -441,6 +466,53 @@ export default function ForecastChart({ rows, config, title, onEditConfig, onSav
       {proofParts.length > 0 && (
         <p data-testid="forecast-proof" title={t("proofTitle")} className="text-[11px] th-text-faint">
           {proofParts.join(" · ")}
+        </p>
+      )}
+
+      {reconciliation && (
+        <p data-testid="forecast-reconciliation" className="text-[11px] th-text-faint">
+          {t("reconciledLine", {
+            before: formatChartValue(reconciliation.maseBase),
+            after: formatChartValue(reconciliation.maseReconciled),
+            points: reconciliation.points,
+          })}
+        </p>
+      )}
+
+      {tracking && tracking.coverage && (
+        <p data-testid="forecast-tracking" className="text-[11px] th-text-faint">
+          {t("trackingLine", {
+            points: tracking.points,
+            inBand: tracking.coverage.inBand,
+            total: tracking.coverage.total,
+            level: tracking.coverage.level,
+          })}
+        </p>
+      )}
+
+      {breach && (
+        <p
+          data-testid="forecast-breach-alert"
+          role="alert"
+          className="text-[11px] text-red-400 rounded-lg border border-red-500/20 bg-red-500/5 px-2 py-1"
+        >
+          {t(
+            breach.group != null
+              ? breach.direction === "below"
+                ? "breachBelowWithGroup"
+                : "breachAboveWithGroup"
+              : breach.direction === "below"
+                ? "breachBelow"
+                : "breachAbove",
+            {
+              date: breach.date,
+              actual: formatChartValue(breach.actual),
+              level: breach.level,
+              lower: formatChartValue(breach.lower),
+              upper: formatChartValue(breach.upper),
+              group: breach.group,
+            },
+          )}
         </p>
       )}
 
@@ -603,6 +675,12 @@ export default function ForecastChart({ rows, config, title, onEditConfig, onSav
             </tbody>
           </table>
         </div>
+      )}
+
+      {rareSales && view !== "context" && (
+        <p data-testid="forecast-rare-sales-note" className="text-[10px] th-text-faint">
+          {t("rareSalesNote")}
+        </p>
       )}
     </div>
   );
