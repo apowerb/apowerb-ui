@@ -175,6 +175,65 @@ describe("ForecastChart", () => {
     );
   });
 
+  it("shows the backtest proof: tested points, gain over the naive method and calibrated band coverage", async () => {
+    const withProof = {
+      ...successResponse,
+      series: [
+        {
+          ...successResponse.series[0],
+          metrics: { mape: 0.08, mase: 0.6, holdout_points: 14 },
+          baseline: { model: "snaive", metrics: { mape: 0.12, mase: 0.8 } },
+          calibration: {
+            method: "split-conformal",
+            points: 14,
+            levels: {
+              80: { calibrated: true, pooled: false, factor: 1.2, raw_coverage: 0.71, calibrated_coverage: 0.79 },
+              95: { calibrated: true, pooled: true, factor: 1.1, raw_coverage: 0.9, calibrated_coverage: 0.93 },
+            },
+          },
+        },
+      ],
+    };
+    postForecast.mockResolvedValue(withProof);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+
+    const proof = await screen.findByTestId("forecast-proof");
+    expect(proof).toHaveTextContent(
+      "Tested on 14 past points · 25% less error than the naive method · 80% band (calibrated): 79% of actual values inside",
+    );
+  });
+
+  it("keeps a partial proof without the calibration field (R engine)", async () => {
+    const rEngine = {
+      ...successResponse,
+      series: [
+        {
+          ...successResponse.series[0],
+          metrics: { mape: 0.08, mase: 1.1, holdout_points: 6 },
+          baseline: { model: "snaive", metrics: { mape: 0.12, mase: 1.0 } },
+          beats_baseline: false,
+        },
+      ],
+    };
+    postForecast.mockResolvedValue(rEngine);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+
+    const proof = await screen.findByTestId("forecast-proof");
+    expect(proof).toHaveTextContent("Tested on 6 past points · no better than the naive method");
+    expect(proof).not.toHaveTextContent("band");
+  });
+
+  it("shows no proof line when the response carries no backtest facts", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      series: [{ ...successResponse.series[0], metrics: {}, baseline: { metrics: {} } }],
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+
+    await screen.findByText("Reliable");
+    expect(screen.queryByTestId("forecast-proof")).toBeNull();
+  });
+
   it("offers a series selector when the response has more than one group", async () => {
     const multi = {
       ...successResponse,

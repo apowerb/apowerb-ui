@@ -16,7 +16,7 @@ import {
 } from "recharts";
 import { Loader2, Download, Table2, Info, AlertTriangle } from "lucide-react";
 import { postForecast } from "@/lib/api";
-import { buildDiagnostics, forecastToCsv, reliabilityBadge, toChartSeries } from "@/lib/forecast";
+import { buildDiagnostics, forecastToCsv, proofFacts, reliabilityBadge, toChartSeries } from "@/lib/forecast";
 import { formatChartLabel, formatChartValue } from "@/lib/chart-tokens";
 
 const RELIABILITY_TONE = {
@@ -302,6 +302,20 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
   }
   const badgeExplanation =
     explanationParts.length > 0 ? explanationParts.join(" ") : t("reliabilityUnknownExplanation");
+  const proof = proofFacts(current);
+  const proofParts = [];
+  if (proof.points !== null) proofParts.push(t("proofTested", { count: proof.points }));
+  if (proof.gainPct !== null) {
+    proofParts.push(proof.gainPct > 0 ? t("proofGain", { pct: proof.gainPct }) : t("proofNoGain"));
+  }
+  if (proof.coverage) {
+    proofParts.push(
+      t(proof.coverage.calibrated ? "proofCoverageCalibrated" : "proofCoverage", {
+        level: proof.coverage.level,
+        pct: proof.coverage.pct,
+      }),
+    );
+  }
   const chartPoints = toChartSeries(current);
   const historyEndIndex = (current.history || []).length - 1;
   const splitDate = current.history?.[historyEndIndex]?.date;
@@ -357,6 +371,12 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
           </button>
         </div>
       </div>
+
+      {proofParts.length > 0 && (
+        <p data-testid="forecast-proof" title={t("proofTitle")} className="text-[11px] th-text-faint">
+          {proofParts.join(" · ")}
+        </p>
+      )}
 
       {diagnostics.warnings.length > 0 && (
         <ul className="text-[10px] text-amber-400 space-y-0.5">

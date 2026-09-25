@@ -4006,7 +4006,13 @@
     "reliabilityDoesNotBeatBaseline": "Not better than a simple naive projection.",
     "reliabilityUnknownExplanation": "Not enough information to assess reliability.",
     "errorMaxValue": "The value must be at most {limit}.",
-    "errorMinValue": "The value must be at least {limit}."
+    "errorMinValue": "The value must be at least {limit}.",
+    "proofTested": "Tested on {count} past points",
+    "proofGain": "{pct}% less error than the naive method",
+    "proofNoGain": "no better than the naive method",
+    "proofCoverage": "{level}% band: {pct}% of actual values inside",
+    "proofCoverageCalibrated": "{level}% band (calibrated): {pct}% of actual values inside",
+    "proofTitle": "Measured by forecasting the end of the history as if it were unknown, then comparing with the actual values."
   },
   "ForecastConfigStep": {
     "dateColumnLabel": "Date column",
