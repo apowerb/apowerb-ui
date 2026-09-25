@@ -388,3 +388,13 @@ export function sortByHierarchyLevel(series) {
     (a, b) => (HIERARCHY_LEVEL_ORDER[a.level] ?? 1) - (HIERARCHY_LEVEL_ORDER[b.level] ?? 1),
   );
 }
+
+// Réconciliation MinT (§2 du contrat) : "mint" par défaut dès qu'une
+// hiérarchie est choisie, sauf case décochée explicitement ("none").
+// Compatible avec l'ancienne valeur booléenne stockée avant ce correctif.
+export function isReconciliationEnabled(reconciliation) {
+  if (reconciliation === "none") return false;
+  if (reconciliation === "mint") return true;
+  if (typeof reconciliation === "boolean") return reconciliation;
+  return true;
+}

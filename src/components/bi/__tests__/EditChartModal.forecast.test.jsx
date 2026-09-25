@@ -143,3 +143,29 @@ describe("EditChartModal — forecast hierarchy relay", () => {
     expect(payload.config).toMatchObject({ hierarchy: ["region"], reconciliation: "mint" });
   });
 });
+
+describe("EditChartModal — reconciliation off despite a hierarchy (contract §2 default)", () => {
+  it("saves reconciliation: 'none' when the MinT box is unchecked, not just omitted", async () => {
+    getChartData.mockResolvedValueOnce({
+      rows: [
+        { date: "2024-01-01", sales: 100, store: "Paris", region: "North" },
+        { date: "2024-02-01", sales: 110, store: "Paris", region: "North" },
+      ],
+    });
+    const chart = {
+      ...forecastChart,
+      config: { ...forecastChart.config, group_var: "store", hierarchy: ["region"] },
+    };
+    renderModal(chart);
+    await waitFor(() => expect(screen.getByText(/date column/i)).toBeInTheDocument());
+    const mintBox = await screen.findByRole("checkbox", { name: /MinT/i });
+    expect(mintBox).toBeChecked();
+    fireEvent.click(mintBox);
+
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(updateChart).toHaveBeenCalled());
+    const [, payload] = updateChart.mock.calls[0];
+    expect(payload.config).toMatchObject({ hierarchy: ["region"], reconciliation: "none" });
+  });
+});

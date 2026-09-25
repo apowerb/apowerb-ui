@@ -21,6 +21,7 @@ import {
   reconciliationFacts,
   isRareSales,
   sortByHierarchyLevel,
+  isReconciliationEnabled,
 } from "../forecast";
 
 describe("detectDateColumn", () => {
@@ -515,5 +516,21 @@ describe("sortByHierarchyLevel", () => {
   it("leaves a flat (non-hierarchical) response untouched", () => {
     const series = [{ group: "B" }, { group: "A" }];
     expect(sortByHierarchyLevel(series)).toEqual(series);
+  });
+});
+
+describe("isReconciliationEnabled", () => {
+  it("is enabled by default (undefined) — mint applies as soon as a hierarchy is chosen", () => {
+    expect(isReconciliationEnabled(undefined)).toBe(true);
+  });
+
+  it("reads the explicit 'mint'/'none' string", () => {
+    expect(isReconciliationEnabled("mint")).toBe(true);
+    expect(isReconciliationEnabled("none")).toBe(false);
+  });
+
+  it("stays compatible with a legacy boolean value", () => {
+    expect(isReconciliationEnabled(true)).toBe(true);
+    expect(isReconciliationEnabled(false)).toBe(false);
   });
 });

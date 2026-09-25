@@ -8,6 +8,7 @@ import {
   detectTargetColumn,
   defaultHorizon,
   buildDiagnostics,
+  isReconciliationEnabled,
 } from "@/lib/forecast";
 
 const MODELS = ["prophet", "auto", "arima", "ets", "snaive", "naive"];
@@ -179,8 +180,8 @@ export default function ForecastConfigStep({ columns, sampleRows, totalRows, val
           <label className="inline-flex items-center gap-1.5 text-xs th-text-secondary">
             <input
               type="checkbox"
-              checked={Boolean(value.reconciliation)}
-              onChange={(e) => onChange({ ...value, reconciliation: e.target.checked })}
+              checked={isReconciliationEnabled(value.reconciliation)}
+              onChange={(e) => onChange({ ...value, reconciliation: e.target.checked ? "mint" : "none" })}
               aria-label={t("hierarchyReconciliation")}
             />
             {t("hierarchyReconciliation")}

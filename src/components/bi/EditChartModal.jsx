@@ -21,6 +21,7 @@ import { updateChart, uploadBiCsv, listBiDatasets, listBiDbConfigs, getChartData
 import AgentSourcePicker from "./AgentSourcePicker";
 import OneDriveFilePicker from "./OneDriveFilePicker";
 import ForecastConfigStep from "./ForecastConfigStep";
+import { isReconciliationEnabled } from "@/lib/forecast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "../Toast";
 
@@ -100,9 +101,12 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
     events: existingConfig.events,
     scenarios: existingConfig.scenarios,
     // Hiérarchie et réconciliation MinT (étape 5) : mêmes clés que la
-    // requête th2forecast, conservées telles quelles.
+    // requête th2forecast, conservées telles quelles (valeur brute :
+    // "mint"/"none", l'ancien booléen d'une config antérieure, ou absente —
+    // isReconciliationEnabled() en fait la lecture, jamais Boolean() ici qui
+    // ferait passer "absente" pour "décochée").
     hierarchy: existingConfig.hierarchy,
-    reconciliation: Boolean(existingConfig.reconciliation),
+    reconciliation: existingConfig.reconciliation,
   });
 
   // Load columns (+ a data sample for the forecast diagnostics) from chart data
@@ -215,8 +219,15 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
           confidence_levels: [0.8, 0.95],
           ...(forecastConfig.events?.length ? { events: forecastConfig.events } : {}),
           ...(forecastConfig.scenarios?.length ? { scenarios: forecastConfig.scenarios } : {}),
-          ...(forecastConfig.hierarchy?.length ? { hierarchy: forecastConfig.hierarchy } : {}),
-          ...(forecastConfig.reconciliation ? { reconciliation: "mint" } : {}),
+          // Le contrat (§2) met "mint" par défaut dès qu'une hiérarchie est
+          // choisie : la case décochée doit donc écrire "none" explicitement,
+          // jamais rien omettre (sinon le moteur réconcilierait quand même).
+          ...(forecastConfig.hierarchy?.length
+            ? {
+                hierarchy: forecastConfig.hierarchy,
+                reconciliation: isReconciliationEnabled(forecastConfig.reconciliation) ? "mint" : "none",
+              }
+            : {}),
         };
       } else {
         finalConfig = {};

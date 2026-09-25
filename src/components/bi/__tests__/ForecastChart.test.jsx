@@ -578,6 +578,14 @@ describe("ForecastChart — hierarchy config", () => {
     expect(postForecast.mock.calls[0][0]).toMatchObject({ hierarchy: ["region"], reconciliation: "mint" });
   });
 
+  it("relays an explicit reconciliation: 'none' (box unchecked despite a hierarchy)", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    const withHierarchyOff = { ...config, group_var: "store", hierarchy: ["region"], reconciliation: "none" };
+    render(<ForecastChart rows={rows} config={withHierarchyOff} title="Sales" />);
+    await screen.findByText("Reliable");
+    expect(postForecast.mock.calls[0][0]).toMatchObject({ hierarchy: ["region"], reconciliation: "none" });
+  });
+
   it("sends no hierarchy keys without a configured hierarchy", async () => {
     postForecast.mockResolvedValue(successResponse);
     render(<ForecastChart rows={rows} config={config} title="Sales" />);

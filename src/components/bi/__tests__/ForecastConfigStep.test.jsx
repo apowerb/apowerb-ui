@@ -175,10 +175,77 @@ describe("ForecastConfigStep — hierarchy", () => {
     expect(screen.queryByRole("checkbox", { name: /MinT/i })).not.toBeInTheDocument();
   });
 
-  it("toggles reconciliation and reports it via onChange", () => {
+  it("unticking the default-on reconciliation reports 'none' via onChange", () => {
     const onChange = vi.fn();
     render(<ForecastConfigStep columns={hierColumns} sampleRows={sampleRows} value={withGroup} onChange={onChange} />);
     fireEvent.click(screen.getByRole("checkbox", { name: /MinT/i }));
-    expect(onChange.mock.calls.at(-1)[0].reconciliation).toBe(true);
+    expect(onChange.mock.calls.at(-1)[0].reconciliation).toBe("none");
+  });
+});
+
+describe("ForecastConfigStep — reconciliation default and legacy compat", () => {
+  const hierColumns = [
+    { name: "region", type: "string" },
+    { name: "store", type: "string" },
+    { name: "date", type: "date" },
+    { name: "sales", type: "float" },
+  ];
+  const withGroup = { dateVar: "date", targetVar: "sales", groupVar: "store" };
+
+  it("is checked by default once a group is chosen, even without an explicit value", () => {
+    render(<ForecastConfigStep columns={hierColumns} sampleRows={sampleRows} value={withGroup} onChange={() => {}} />);
+    expect(screen.getByRole("checkbox", { name: /MinT/i })).toBeChecked();
+  });
+
+  it("unchecking it reports 'none' (not just absent) via onChange", () => {
+    const onChange = vi.fn();
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ ...withGroup, hierarchy: ["region"] }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /MinT/i }));
+    expect(onChange.mock.calls.at(-1)[0].reconciliation).toBe("none");
+  });
+
+  it("checking it back reports 'mint'", () => {
+    const onChange = vi.fn();
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ ...withGroup, hierarchy: ["region"], reconciliation: "none" }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /MinT/i }));
+    expect(onChange.mock.calls.at(-1)[0].reconciliation).toBe("mint");
+  });
+
+  it("reads an existing config saved as 'none' as unchecked", () => {
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ ...withGroup, hierarchy: ["region"], reconciliation: "none" }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByRole("checkbox", { name: /MinT/i })).not.toBeChecked();
+  });
+
+  it("reads a legacy boolean reconciliation value (pre-fix config)", () => {
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ ...withGroup, hierarchy: ["region"], reconciliation: false }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByRole("checkbox", { name: /MinT/i })).not.toBeChecked();
   });
 });
