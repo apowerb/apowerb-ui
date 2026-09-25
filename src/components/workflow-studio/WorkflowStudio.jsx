@@ -15,6 +15,7 @@ import {
   cancelWorkflowRun,
   getPublicConfig,
   suggestNextWorkflowNode,
+  sendWorkflowSuggestEvent,
 } from "@/lib/api";
 import { toolLeafName } from "@/components/tools-manager/toolsManagerUtils";
 import {
@@ -34,6 +35,7 @@ import { consumeWorkflowRun } from "@/lib/workflowSse";
 import { useUndoRedo } from "./hooks/useUndoRedo";
 import { useRunReplay } from "./hooks/useRunReplay";
 import { useToolSchemas } from "./hooks/useToolSchemas";
+import { useSuggestionAdoption } from "./hooks/useSuggestionAdoption";
 import StudioTopBar from "./StudioTopBar";
 import { suggestNextNodes, applySuggestion, aiSuggestionsFrom, mergeAiSuggestions } from "@/lib/nextNodeSuggestions";
 import StudioPalette from "./StudioPalette";
@@ -604,6 +606,7 @@ export default function WorkflowStudio({ workflowId }) {
     () => (ai.status === "done" ? mergeAiSuggestions(ruleSuggestions, ai.items) : ruleSuggestions),
     [ai, ruleSuggestions],
   );
+  const markSuggestionTaken = useSuggestionAdoption(suggestionSlot, suggestions, sendWorkflowSuggestEvent);
   const aiSuggest = aiEnabled
     ? { enabled: true, status: ai.status, count: ai.items.length, onRequest: requestAiSuggestions }
     : null;
@@ -612,6 +615,7 @@ export default function WorkflowStudio({ workflowId }) {
     (suggestion) => {
       const source = liveSelection?.node;
       if (!source) return;
+      markSuggestionTaken(suggestion);
       const { nodes: nextNodes, edges: nextEdges, node } = applySuggestion(nodes, edges, source, suggestion);
       setNodes(nextNodes);
       setEdges(nextEdges);
@@ -620,7 +624,7 @@ export default function WorkflowStudio({ workflowId }) {
       // Bring the new node into view: its own suggestions then have room.
       setFocusRequest({ ...node.position, seq: Date.now() });
     },
-    [liveSelection, nodes, edges, setNodes, setEdges, pushHistory],
+    [liveSelection, nodes, edges, setNodes, setEdges, pushHistory, markSuggestionTaken],
   );
 
   const onConnect = useCallback(

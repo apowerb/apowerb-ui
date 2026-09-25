@@ -34,6 +34,7 @@ const api = vi.hoisted(() => ({
   getWorkflowTriggerState: vi.fn(),
   rotateWorkflowTrigger: vi.fn(),
   getPublicConfig: vi.fn(() => Promise.resolve({})),
+  sendWorkflowSuggestEvent: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("@/lib/api", () => api);
