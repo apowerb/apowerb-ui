@@ -11,7 +11,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { Bot, Loader2 } from "lucide-react";
-import { getChartData, getPublicChartData } from "@/lib/api";
+import { getChartData, getPublicChartData, updateChart } from "@/lib/api";
 import {
   AXIS_PROPS,
   CATEGORICAL_PALETTE,
@@ -482,6 +482,9 @@ export default function ChartRenderer({
             config={chartData.config || {}}
             title={chartData.title}
             onEditConfig={onEditConfig}
+            // Contexte et scénarios enregistrés dans la config du graphique ;
+            // jamais depuis un tableau de bord public (lecture seule).
+            onSaveConfig={chartId && !publicMode ? (cfg) => updateChart(chartId, { config: cfg }) : undefined}
           />
         </div>
       </div>

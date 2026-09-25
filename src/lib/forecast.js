@@ -231,3 +231,100 @@ export function forecastToCsv(series) {
   );
   return [header, ...lines].join("\n") + "\n";
 }
+
+// --- Contexte (événements datés) et scénarios « et si » -------------------
+
+const PERIOD_MONTHS = { month: 1, quarter: 3, year: 12 };
+
+// Dernier jour de la période qui commence à `iso` (th2forecast date chaque
+// période par son premier jour) : un mois daté 2025-12-01 va jusqu'au 31.
+export function periodEnd(iso, frequency) {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (frequency === "week") return new Date(Date.UTC(y, m - 1, d + 6)).toISOString().slice(0, 10);
+  const months = PERIOD_MONTHS[frequency];
+  if (!months) return iso;
+  return new Date(Date.UTC(y, m - 1 + months, 0)).toISOString().slice(0, 10);
+}
+
+// Fenêtre envoyée à l'interprétation du contexte : du premier jour d'historique
+// au dernier jour de la dernière période prévue, toutes séries confondues. Sans
+// fréquence ni dates (réponse vide), pas d'interprétation possible.
+export function contextWindow(response) {
+  const series = Array.isArray(response?.series) ? response.series : [];
+  const history = series.flatMap((s) => (s.history || []).map((h) => h.date)).sort();
+  const forecast = series.flatMap((s) => (s.forecast || []).map((f) => f.date)).sort();
+  if (!response?.frequency || history.length === 0 || forecast.length === 0) return null;
+  const freq = response.frequency;
+  return {
+    history_start: history[0],
+    history_end: periodEnd(history[history.length - 1], freq),
+    horizon_end: periodEnd(forecast[forecast.length - 1], freq),
+    frequency: freq,
+    groups: series.map((s) => s.group).filter((g) => g != null).map(String),
+  };
+}
+
+const EMPTY_CONTEXT = { events: [], scenarios: [] };
+
+function byStart(a, b) {
+  return a.start.localeCompare(b.start) || a.end.localeCompare(b.end);
+}
+
+// Ajoute la proposition relue au contexte appliqué. Un événement déjà connu
+// reçoit les plages en plus ; un scénario du même nom est remplacé. Un
+// scénario qui fixe ses événements futurs (`events`) reçoit aussi les
+// nouveaux faits : il ne retirait que ce qu'il nommait.
+export function mergeContext(current, proposal) {
+  const base = current || EMPTY_CONTEXT;
+  const events = new Map(base.events.map((e) => [e.name, e]));
+  const added = [];
+  for (const e of proposal?.events || []) {
+    const prev = events.get(e.name);
+    const ranges = new Map([...(prev?.ranges || []), ...e.ranges].map((r) => [`${r.start}/${r.end}`, r]));
+    const merged = { ...prev, ...e, ranges: [...ranges.values()].sort(byStart) };
+    events.set(e.name, merged);
+    added.push(merged);
+  }
+  const scenarios = new Map(
+    base.scenarios.map((s) => {
+      if (!Array.isArray(s.events)) return [s.name, s];
+      const kept = new Map(s.events.map((e) => [e.name, e]));
+      for (const e of added) kept.set(e.name, e);
+      return [s.name, { ...s, events: [...kept.values()] }];
+    }),
+  );
+  for (const s of proposal?.scenarios || []) scenarios.set(s.name, s);
+  return { events: [...events.values()], scenarios: [...scenarios.values()] };
+}
+
+export function removeEvent(context, name) {
+  const base = context || EMPTY_CONTEXT;
+  return {
+    events: base.events.filter((e) => e.name !== name),
+    scenarios: base.scenarios.map((s) =>
+      Array.isArray(s.events) ? { ...s, events: s.events.filter((e) => e.name !== name) } : s,
+    ),
+  };
+}
+
+export function removeScenario(context, name) {
+  const base = context || EMPTY_CONTEXT;
+  return { events: base.events, scenarios: base.scenarios.filter((s) => s.name !== name) };
+}
+
+// Plages lisibles : « 2025-08-01 → 2025-08-15 », au plus `max` puis « +N ».
+export function describeRanges(ranges, max = 3) {
+  const list = Array.isArray(ranges) ? ranges : [];
+  const shown = list.slice(0, max).map((r) => (r.start === r.end ? r.start : `${r.start} → ${r.end}`));
+  return list.length > max ? `${shown.join(", ")} +${list.length - max}` : shown.join(", ");
+}
+
+// Ajoute aux points du graphique la courbe d'un scénario (`scenario`), partant
+// du dernier point réel comme la prévision de base.
+export function withScenario(points, scenario) {
+  if (!scenario || !Array.isArray(scenario.forecast)) return points;
+  const byDate = new Map(scenario.forecast.map((f) => [f.date, f.value]));
+  return points.map((p) =>
+    p.forecast == null ? p : { ...p, scenario: p.history != null ? p.history : (byDate.get(p.date) ?? null) },
+  );
+}

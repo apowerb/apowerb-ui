@@ -96,6 +96,9 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
     horizon: existingConfig.horizon || 12,
     frequency: existingConfig.frequency || null,
     models: existingConfig.models && existingConfig.models.length > 0 ? existingConfig.models : ["prophet"],
+    // Posés depuis le widget (panneau Contexte) : conservés tels quels.
+    events: existingConfig.events,
+    scenarios: existingConfig.scenarios,
   });
 
   // Load columns (+ a data sample for the forecast diagnostics) from chart data
@@ -206,6 +209,8 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
           frequency: forecastConfig.frequency || null,
           models: forecastConfig.models && forecastConfig.models.length > 0 ? forecastConfig.models : ["prophet"],
           confidence_levels: [0.8, 0.95],
+          ...(forecastConfig.events?.length ? { events: forecastConfig.events } : {}),
+          ...(forecastConfig.scenarios?.length ? { scenarios: forecastConfig.scenarios } : {}),
         };
       } else {
         finalConfig = {};
