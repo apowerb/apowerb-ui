@@ -4,8 +4,8 @@ import { useTranslations } from "use-intl";
 import { BookOpen, Search, ChevronDown, ChevronRight, Wrench, Key, Code, FileText, Loader2 } from "lucide-react";
 import { getToolsDocs } from "@/lib/api";
 
-// Map category names to friendly display names and icons
-function getCategoryMeta(t) {
+// Map category names to friendly display names (also used by the Tool Box tabs)
+export function getCategoryMeta(t) {
   return {
     api_call: { label: t("categoryApiCallLabel"), description: t("categoryApiCallDescription") },
     audio: { label: t("categoryAudioLabel"), description: t("categoryAudioDescription") },

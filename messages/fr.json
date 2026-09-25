@@ -417,16 +417,21 @@
     "termsOfUse": "conditions d'utilisation"
   },
   "AvailableToolsTab": {
-    "actionsColumn": "Actions",
-    "categoriesCount": "{count, plural, one {# catégorie} other {# catégories}}",
-    "categoryColumn": "Catégorie",
     "configure": "Configurer",
-    "countColumn": "Nombre",
-    "fullPathColumn": "Chemin complet",
     "noToolsMatch": "Aucun outil ne correspond aux filtres actuels",
     "searchPlaceholder": "Rechercher des outils...",
-    "toolNameColumn": "Nom de l'outil",
-    "toolsCount": "{count, plural, one {# outil} other {# outils}}"
+    "toolsCount": "{count, plural, one {# outil} other {# outils}}",
+    "configuredCount": "{count, plural, one {# configurée} other {# configurées}}",
+    "toolsInCategory": "Outils de {category}",
+    "showMore": "+{count} de plus",
+    "showLess": "Voir moins",
+    "allCategories": "Toutes les catégories",
+    "clearSearch": "Effacer la recherche",
+    "categoryFilterLabel": "Filtrer par catégorie",
+    "resultSummary": "{tools, plural, one {# outil} other {# outils}} · {categories, plural, one {# catégorie} other {# catégories}}",
+    "noToolsMatchHint": "Essayez un autre mot ou affichez toutes les catégories.",
+    "resetFilters": "Réinitialiser les filtres",
+    "configureHint": "Configurer {category} pour vos agents"
   },
   "BIReportingPage": {
     "agentBadge": "Agent",
@@ -760,18 +765,23 @@
     "hintPlatform": "artefacts, tableaux de bord, skills"
   },
   "ConfigsTab": {
-    "actionsColumn": "Actions",
     "configurationsCount": "{count, plural, one {# configuration} other {# configurations}}",
     "createFirstConfigHint": "Créez votre première configuration d'outil pour commencer",
-    "createToolConfig": "Créer une configuration d'outil",
+    "createToolConfig": "Nouvelle configuration",
     "delete": "Supprimer",
-    "nameColumn": "Nom",
     "noConfigsYet": "Aucune configuration d'outil pour le moment",
     "noneMatchFilters": "Aucune configuration ne correspond à vos filtres",
     "searchPlaceholder": "Rechercher des configurations…",
-    "statusColumn": "Statut",
-    "toolColumn": "Outil",
-    "view": "Voir"
+    "allCategories": "Toutes les catégories",
+    "clearSearch": "Effacer la recherche",
+    "categoryFilterLabel": "Filtrer par catégorie",
+    "resetFilters": "Réinitialiser les filtres",
+    "browseTools": "Parcourir les outils",
+    "untitled": "Sans titre",
+    "moreTools": "+{count}",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "edit": "Modifier"
   },
   "ConfigurableToolsList": {
     "cancel": "Annuler",
@@ -1769,7 +1779,6 @@
     "portLabel": "Port",
     "portPlaceholder": "5432",
     "prompt": "Que souhaitez-vous connecter ?",
-    "save": "Enregistrer",
     "sslDisable": "Désactiver",
     "sslModeLabel": "Mode SSL",
     "sslRequire": "Exiger",
@@ -1778,7 +1787,32 @@
     "urlLabel": "URL",
     "urlPlaceholder": "http://localhost:8080",
     "usernameLabel": "Nom d'utilisateur",
-    "usernamePlaceholder": "postgres"
+    "usernamePlaceholder": "postgres",
+    "addTitle": "Ajouter un serveur MCP",
+    "editTitle": "Modifier « {name} »",
+    "subtitle": "Les outils du serveur deviennent disponibles pour les agents que vous y connectez.",
+    "detailsTitle": "Détails de connexion",
+    "commandHint": "La commande suivie de ses arguments, séparés par des espaces.",
+    "saveChanges": "Enregistrer les modifications",
+    "addServer": "Ajouter le serveur",
+    "templates": {
+      "toolbox-db": {
+        "label": "Base de données",
+        "desc": "PostgreSQL, MySQL, SQL Server… via MCP Toolbox"
+      },
+      "tavily": {
+        "label": "Recherche web Tavily",
+        "desc": "Permettez à vos agents de chercher sur le web"
+      },
+      "custom-http": {
+        "label": "Serveur HTTP personnalisé",
+        "desc": "Tout serveur MCP accessible par URL"
+      },
+      "custom-stdio": {
+        "label": "Processus local",
+        "desc": "Lancer un serveur MCP comme commande locale"
+      }
+    }
   },
   "McpServersSection": {
     "addEnvVar": "Ajouter une variable d'environnement",
@@ -1816,10 +1850,16 @@
     "emptyTitle": "Aucun serveur MCP configuré",
     "environmentLabel": "Environnement",
     "headersLabel": "En-têtes",
-    "infoBanner": "connectez vos agents à des sources de données externes (bases de données, API, systèmes de fichiers). Ajoutez un serveur, testez la connexion, puis choisissez quel<toolset>toolset</toolset>votre agent doit utiliser. Les agents ne verront que les outils du toolset sélectionné.",
     "open": "Ouvrir",
     "searchPlaceholder": "Rechercher des serveurs MCP…",
-    "serversCount": "{count, plural, one {# serveur} other {# serveurs}}"
+    "serversCount": "{count, plural, one {# serveur} other {# serveurs}}",
+    "kindDatabase": "Base de données",
+    "kindStdio": "Processus local",
+    "kindHttp": "HTTP",
+    "toolsetLabel": "Toolset",
+    "valueHidden": "Valeur masquée",
+    "clearSearch": "Effacer la recherche",
+    "noneMatch": "Aucun serveur MCP ne correspond à votre recherche"
   },
   "MfaSetupFlow": {
     "backToQrCode": "Retour au QR code",
@@ -2322,15 +2362,17 @@
     "exportAsJson": "Exporter en JSON",
     "exportLabel": "Exporter",
     "importSkill": "Importer une compétence",
-    "infoBanner": "Les <skills>compétences</skills> sont des ensembles d'instructions réutilisables qui dotent vos agents de capacités spécialisées. Les compétences intégrées proviennent du portfolio, tandis que les compétences personnalisées sont créées par vous.",
     "instructionsLabel": "Instructions",
-    "newSkill": "Nouvelle compétence",
     "noneMatchFilters": "Aucune compétence ne correspond à vos filtres",
     "noSkillsAvailable": "Aucune compétence disponible",
     "publicBadge": "Publique",
     "referencesLabel": "Références",
     "searchPlaceholder": "Rechercher des compétences...",
-    "skillsCount": "{count, plural, one {# compétence} other {# compétences}}"
+    "skillsCount": "{count, plural, one {# compétence} other {# compétences}}",
+    "filterAll": "Toutes",
+    "clearSearch": "Effacer la recherche",
+    "sourceFilterLabel": "Filtrer par source",
+    "resetFilters": "Réinitialiser les filtres"
   },
   "StreamingAudioPlayer": {
     "speaking": "Lecture en cours...",
@@ -2441,9 +2483,22 @@
     "uncheckAll": "Tout décocher"
   },
   "ToolsManager": {
-    "newToolConfig": "Nouvelle configuration d'outil",
-    "subtitle": "Configurez et gérez les outils de vos agents IA",
-    "title": "Boîte à outils & MCP"
+    "newToolConfig": "Nouvelle configuration",
+    "subtitle": "Les outils, connexions et compétences de vos agents",
+    "title": "Boîte à outils & MCP",
+    "newMcpServer": "Ajouter un serveur MCP",
+    "newSkill": "Nouvelle compétence",
+    "importSkill": "Importer",
+    "tabTools": "Outils disponibles",
+    "tabConfigs": "Mes configurations",
+    "tabMcp": "Serveurs MCP",
+    "tabSkills": "Compétences",
+    "tabHelp": "Aide",
+    "hintTools": "Tous les outils que vos agents peuvent appeler, regroupés par catégorie. Configurez une catégorie pour lui fournir ses identifiants ou réglages.",
+    "hintConfigs": "Vos configurations d’outils enregistrées. Rattachez-les à un agent depuis l’éditeur d’agent.",
+    "hintMcp": "Connectez vos agents à des bases de données, API et services externes. Choisissez un toolset pour limiter les outils visibles par un agent.",
+    "hintSkills": "Des ensembles d’instructions réutilisables qui donnent des capacités spécialisées à vos agents. Les compétences intégrées viennent du portfolio ; les personnalisées sont les vôtres.",
+    "hintHelp": "La documentation de référence de chaque outil : paramètres, clés requises et exemples."
   },
   "UsagePage": {
     "agentColumnLabel": "Agent",
