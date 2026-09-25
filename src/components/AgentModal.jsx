@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import ChooseTemplateStep from "./agent-modal/ChooseTemplateStep";
 import AgentFormStep from "./agent-modal/AgentFormStep";
+import { templateNativeToolPaths } from "./agent-modal/NativeToolsBlock";
 import {
   useAgentModalState,
   getAvailableSubAgents,
@@ -154,7 +155,6 @@ export default function AgentModal({
   };
 
   const handleSelectTemplate = (template) => {
-    const recommended = template.recommended_tools || [];
     setNewAgent((prev) => ({
       ...prev,
       name: template.name || "",
@@ -181,7 +181,7 @@ export default function AgentModal({
         template.email_column_placeholder || "<EMAIL_COLUMN>",
       onedrive_file: null,
     }));
-    setTemplateNativeTools(recommended);
+    setTemplateNativeTools(templateNativeToolPaths(template));
     setReadme(template.readme || "");
     setReadmeExpanded(false);
     setStep("form");

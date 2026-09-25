@@ -207,6 +207,40 @@ describe("AgentModal smoke", () => {
     expect(next.agent_tools).toEqual([]);
   });
 
+  it("lists a template's own agent_tools under Native Tools when creating", async () => {
+    const { listSuperAgents } = await import("@/lib/api");
+    listSuperAgents.mockResolvedValueOnce([
+      {
+        template_id: "database_assistant",
+        name: "database_assistant",
+        display_name: "Database Assistant",
+        category: "data",
+        agent_tools: ["basic.notify_user"],
+        recommended_tools: ["database.tool_run_sql"],
+      },
+    ]);
+    renderModal();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Database Assistant/i }));
+
+    expect(await screen.findByText("basic.notify_user")).toBeInTheDocument();
+    expect(screen.getByText("database.tool_run_sql")).toBeInTheDocument();
+  });
+
+  it("lists a template's own agent_tools under Native Tools when editing", async () => {
+    const { getSuperAgent } = await import("@/lib/api");
+    getSuperAgent.mockResolvedValueOnce({
+      template_id: "database_assistant",
+      agent_tools: ["basic.notify_user"],
+    });
+    renderModal({
+      editingAgent: "agent-1",
+      newAgent: { ...baseAgent, superagent_template_id: "database_assistant" },
+    });
+
+    expect(await screen.findByText("basic.notify_user")).toBeInTheDocument();
+  });
+
   it("returns null when show=false", () => {
     const { container } = renderModal({ show: false });
     expect(container.firstChild).toBeNull();
