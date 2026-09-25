@@ -65,6 +65,7 @@ const {
   restoreWorkflowRevision,
   getPublicConfig,
   suggestNextWorkflowNode,
+  sendWorkflowSuggestEvent,
 } = vi.hoisted(() => ({
   getWorkflowDef: vi.fn(),
   updateWorkflowDef: vi.fn(),
@@ -80,6 +81,7 @@ const {
   restoreWorkflowRevision: vi.fn(),
   getPublicConfig: vi.fn(),
   suggestNextWorkflowNode: vi.fn(),
+  sendWorkflowSuggestEvent: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -97,6 +99,7 @@ vi.mock("@/lib/api", () => ({
   rotateWorkflowTrigger,
   getPublicConfig,
   suggestNextWorkflowNode,
+  sendWorkflowSuggestEvent,
 }));
 
 function baseGraph() {
@@ -139,6 +142,7 @@ beforeEach(() => {
   listWorkflowDefs.mockResolvedValue([]);
   getWorkflowTriggerState.mockResolvedValue({ kind: "manual", active: false, reason: "unpublished", webhook_url: null, form_url: null, hmac_enabled: false, next_run_at: null, last_fired_at: null, last_status: null });
   getPublicConfig.mockResolvedValue({ workflow_suggest_enabled: false });
+  sendWorkflowSuggestEvent.mockResolvedValue(undefined);
   rotateWorkflowTrigger.mockResolvedValue({ webhook_url: "https://example.test/api/hooks/workflows/tok", hmac_secret: null });
 });
 
@@ -541,5 +545,97 @@ describe("model suggestions", () => {
     await user.click(screen.getByTestId("node-agentA"));
     expect(screen.getByTestId("suggest-output").textContent).toBe("output");
     expect(screen.getByTestId("ai-suggest").textContent).toBe("idle");
+  });
+});
+
+describe("suggestion adoption (roadmap#88)", () => {
+  const answer = {
+    route: null,
+    suggestions: [
+      { type: "output", label: "Réponse", config: { value: "{{agentA.text}}" }, reason: "" },
+      { type: "notification", label: "", config: { channel: "app", body: "{{agentA}}" }, reason: "" },
+    ],
+  };
+
+  async function openAgent(user) {
+    const view = render(<WorkflowStudio workflowId="wf1" />);
+    await screen.findByTestId("canvas-mock");
+    await user.click(screen.getByTestId("node-agentA"));
+    return view;
+  }
+
+  it("sends one event per step, when the step ends, and nothing for a node without chips", async () => {
+    const user = userEvent.setup();
+    await openAgent(user);
+    const shown = screen.getAllByTestId(/^suggest-/).length;
+    expect(sendWorkflowSuggestEvent).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId("node-trigger1"));
+    await user.click(screen.getByTestId("node-router1"));
+    await user.click(screen.getByTestId("node-trigger1"));
+
+    expect(sendWorkflowSuggestEvent).toHaveBeenCalledTimes(2);
+    expect(sendWorkflowSuggestEvent.mock.calls[0]).toEqual([
+      { rules_shown: shown, ai_shown: 0, accepted: null },
+      { keepalive: false },
+    ]);
+  });
+
+  it("counts a picked rule chip once, with its source and type", async () => {
+    const user = userEvent.setup();
+    await openAgent(user);
+    await user.click(screen.getByTestId("suggest-output"));
+
+    expect(sendWorkflowSuggestEvent).toHaveBeenCalledTimes(1);
+    const [body] = sendWorkflowSuggestEvent.mock.calls[0];
+    expect(body.accepted).toEqual({ source: "rules", type: "output" });
+    expect(body.ai_shown).toBe(0);
+  });
+
+  it("counts every chip each source showed during the step and credits the model's pick", async () => {
+    getPublicConfig.mockResolvedValue({ workflow_suggest_enabled: true });
+    suggestNextWorkflowNode.mockResolvedValue(answer);
+    const user = userEvent.setup();
+    await openAgent(user);
+    await user.click(await screen.findByTestId("ai-suggest"));
+    await waitFor(() => expect(screen.getByTestId("suggest-output").textContent).toBe("output (ai)"));
+    await user.click(screen.getByTestId("suggest-output"));
+
+    // Three rule chips before the model answered, even if two then gave way
+    // to the model's chips of the same type.
+    expect(sendWorkflowSuggestEvent).toHaveBeenCalledTimes(1);
+    expect(sendWorkflowSuggestEvent.mock.calls[0][0]).toEqual({
+      rules_shown: 3,
+      ai_shown: 2,
+      accepted: { source: "ai", type: "output" },
+    });
+  });
+
+  it("sends the step still open when the studio is left, and only once", async () => {
+    const user = userEvent.setup();
+    const { unmount } = await openAgent(user);
+
+    window.dispatchEvent(new Event("pagehide"));
+    unmount();
+
+    expect(sendWorkflowSuggestEvent).toHaveBeenCalledTimes(1);
+    expect(sendWorkflowSuggestEvent.mock.calls[0][1]).toEqual({ keepalive: true });
+  });
+
+  it("sends the open step when the studio unmounts without a pagehide", async () => {
+    const user = userEvent.setup();
+    const { unmount } = await openAgent(user);
+    unmount();
+    expect(sendWorkflowSuggestEvent).toHaveBeenCalledTimes(1);
+    expect(sendWorkflowSuggestEvent.mock.calls[0][1]).toEqual({ keepalive: true });
+  });
+
+  it("does not end the step when the tab is only hidden", async () => {
+    const user = userEvent.setup();
+    await openAgent(user);
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    expect(sendWorkflowSuggestEvent).not.toHaveBeenCalled();
   });
 });

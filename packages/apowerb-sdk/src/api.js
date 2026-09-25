@@ -1192,6 +1192,15 @@ export const suggestNextWorkflowNode = (body, { signal } = {}) =>
     signal,
   });
 
+// Une étape « suivante » vue dans l'éditeur : pastilles montrées par source et
+// celle qui a été prise (roadmap#88). Le serveur n'en garde que des totaux.
+export const sendWorkflowSuggestEvent = (body, { keepalive = false } = {}) =>
+  request("/api/workflows/defs/suggest-events", {
+    method: "POST",
+    body: JSON.stringify(body),
+    ...(keepalive ? { keepalive: true } : {}),
+  });
+
 export const validateWorkflowGraph = (graph) =>
   request("/api/workflows/defs/validate", {
     method: "POST",
