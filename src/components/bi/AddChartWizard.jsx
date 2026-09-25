@@ -1392,6 +1392,8 @@ export default function AddChartWizard({
           frequency: forecastConfig.frequency || null,
           models: forecastConfig.models && forecastConfig.models.length > 0 ? forecastConfig.models : ["prophet"],
           confidence_levels: [0.8, 0.95],
+          ...(forecastConfig.hierarchy?.length ? { hierarchy: forecastConfig.hierarchy } : {}),
+          ...(forecastConfig.reconciliation ? { reconciliation: "mint" } : {}),
         };
       }
 

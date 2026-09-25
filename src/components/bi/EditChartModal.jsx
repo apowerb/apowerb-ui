@@ -99,6 +99,10 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
     // Posés depuis le widget (panneau Contexte) : conservés tels quels.
     events: existingConfig.events,
     scenarios: existingConfig.scenarios,
+    // Hiérarchie et réconciliation MinT (étape 5) : mêmes clés que la
+    // requête th2forecast, conservées telles quelles.
+    hierarchy: existingConfig.hierarchy,
+    reconciliation: Boolean(existingConfig.reconciliation),
   });
 
   // Load columns (+ a data sample for the forecast diagnostics) from chart data
@@ -211,6 +215,8 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
           confidence_levels: [0.8, 0.95],
           ...(forecastConfig.events?.length ? { events: forecastConfig.events } : {}),
           ...(forecastConfig.scenarios?.length ? { scenarios: forecastConfig.scenarios } : {}),
+          ...(forecastConfig.hierarchy?.length ? { hierarchy: forecastConfig.hierarchy } : {}),
+          ...(forecastConfig.reconciliation ? { reconciliation: "mint" } : {}),
         };
       } else {
         finalConfig = {};
