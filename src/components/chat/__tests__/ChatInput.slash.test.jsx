@@ -99,6 +99,17 @@ describe("ChatInput — slash commands and @mentions", () => {
     expect(ta.value).toBe("");
   });
 
+  // Roadmap 74: a bare "/" listed the first 12 commands only, so /chart and
+  // /translate, announced on the chat home, looked missing.
+  it("lists every command on a bare /", () => {
+    const many = Array.from({ length: 13 }, (_, i) => ({ id: `c${i}`, slash: `cmd${i}`, label: `Command ${i}`, keywords: [], run: vi.fn() }));
+    const { container } = render(<ChatInput commands={[...many, ...commands]} runCommand={vi.fn()} />);
+    type(container.querySelector("textarea"), "/");
+    const listbox = screen.getByRole("listbox", { name: "Commands" });
+    expect(listbox).toHaveTextContent("/cmd0");
+    expect(listbox).toHaveTextContent("/translate");
+  });
+
   it("inserts a template instead of sending, selecting the placeholder", () => {
     const { container } = render(<ChatInput commands={commands} runCommand={vi.fn()} />);
     const ta = container.querySelector("textarea");
