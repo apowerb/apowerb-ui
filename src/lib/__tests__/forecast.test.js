@@ -16,6 +16,11 @@ import {
   removeScenario,
   describeRanges,
   withScenario,
+  trackingFacts,
+  latestBreachFacts,
+  reconciliationFacts,
+  isRareSales,
+  sortByHierarchyLevel,
 } from "../forecast";
 
 describe("detectDateColumn", () => {
@@ -415,5 +420,100 @@ describe("withScenario", () => {
     const out = withScenario(points, { forecast: [{ date: "2025-01-02", value: 8 }, { date: "2025-01-03", value: 9 }] });
     expect(out.map((p) => p.scenario)).toEqual([10, 8, 9]);
     expect(withScenario(points, null)).toBe(points);
+  });
+});
+
+describe("trackingFacts", () => {
+  it("returns null when there are no comparable points yet", () => {
+    expect(trackingFacts({ points: 0, coverage: {} })).toBeNull();
+    expect(trackingFacts(null)).toBeNull();
+    expect(trackingFacts(undefined)).toBeNull();
+  });
+
+  it("computes the in-band count from the narrowest coverage level", () => {
+    const facts = trackingFacts({ points: 9, coverage: { 80: 0.89, 95: 1.0 } });
+    expect(facts).toEqual({ points: 9, coverage: { level: 80, inBand: 8, total: 9 } });
+  });
+
+  it("keeps the points without a coverage block when none is present", () => {
+    expect(trackingFacts({ points: 3, coverage: {} })).toEqual({ points: 3, coverage: null });
+  });
+});
+
+describe("latestBreachFacts", () => {
+  const breach = { group: "A", date: "2026-08-01", actual: 1234, value: 950, lower: 800, upper: 1100, level: "95", direction: "above" };
+
+  it("returns null when the latest point is not a breach", () => {
+    expect(latestBreachFacts({ latest_breach: false, breaches: [breach] })).toBeNull();
+    expect(latestBreachFacts(null)).toBeNull();
+  });
+
+  it("returns the most recent breach (first in the list) when the latest point breached", () => {
+    expect(latestBreachFacts({ latest_breach: true, breaches: [breach] })).toEqual(breach);
+  });
+
+  it("returns null when flagged but the breach list is empty", () => {
+    expect(latestBreachFacts({ latest_breach: true, breaches: [] })).toBeNull();
+  });
+});
+
+describe("reconciliationFacts", () => {
+  it("returns null without a reconciliation block or an incomplete backtest", () => {
+    expect(reconciliationFacts({})).toBeNull();
+    expect(reconciliationFacts({ reconciliation: { method: "mint_shrink" } })).toBeNull();
+    expect(
+      reconciliationFacts({ reconciliation: { method: "bottom_up", backtest: { mase_base: 1, points: 10 } } }),
+    ).toBeNull();
+  });
+
+  it("extracts the base/reconciled MASE and the tested points", () => {
+    const response = {
+      reconciliation: {
+        method: "mint_shrink",
+        coherent: true,
+        backtest: { mase_base: 0.91, mase_reconciled: 0.87, points: 36 },
+      },
+    };
+    expect(reconciliationFacts(response)).toEqual({
+      method: "mint_shrink",
+      maseBase: 0.91,
+      maseReconciled: 0.87,
+      points: 36,
+    });
+  });
+});
+
+describe("isRareSales", () => {
+  it("flags intermittent and lumpy series, not smooth or erratic ones", () => {
+    expect(isRareSales({ demand: { type: "intermittent" } })).toBe(true);
+    expect(isRareSales({ demand: { type: "lumpy" } })).toBe(true);
+    expect(isRareSales({ demand: { type: "smooth" } })).toBe(false);
+    expect(isRareSales({ demand: { type: "erratic" } })).toBe(false);
+    expect(isRareSales({})).toBe(false);
+    expect(isRareSales(null)).toBe(false);
+  });
+});
+
+describe("sortByHierarchyLevel", () => {
+  it("orders total, then intermediate levels, then bottom, keeping stable order within a level", () => {
+    const series = [
+      { group: "Store A", level: "bottom" },
+      { group: "Nord", level: "region" },
+      { group: "Store B", level: "bottom" },
+      { group: "Total", level: "total" },
+      { group: "Sud", level: "region" },
+    ];
+    expect(sortByHierarchyLevel(series).map((s) => s.group)).toEqual([
+      "Total",
+      "Nord",
+      "Sud",
+      "Store A",
+      "Store B",
+    ]);
+  });
+
+  it("leaves a flat (non-hierarchical) response untouched", () => {
+    const series = [{ group: "B" }, { group: "A" }];
+    expect(sortByHierarchyLevel(series)).toEqual(series);
   });
 });
