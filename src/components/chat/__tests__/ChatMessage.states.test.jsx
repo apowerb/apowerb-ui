@@ -87,6 +87,22 @@ describe("ChatMessage — response states", () => {
     expect(screen.getByTestId("inline-chart")).toHaveTextContent('{"data":{"a":1}}');
   });
 
+  // Roadmap 74: asked for a ```chart fence, thaink2/default answers the same
+  // spec in a ```json fence — measured twice on agent-dev (2026-09-25).
+  it("renders a ```json fence holding an explicit chart spec as a chart", () => {
+    const spec = '{"type": "bar", "title": "Ventes", "data": [{"label": "Juillet", "value": 120}]}';
+    render(<ChatMessage message={{ ...base, content: "```json\n" + spec + "\n```\nEn hausse." }} />);
+    expect(screen.getByTestId("inline-chart")).toHaveTextContent('"Juillet"');
+  });
+
+  it.each([
+    ["an unknown type", '{"type": "user", "data": [{"label": "a", "value": 1}]}'],
+    ["no type at all", '{"data": [{"label": "a", "value": 1}]}'],
+  ])("keeps a ```json fence with %s as JSON", (_label, json) => {
+    render(<ChatMessage message={{ ...base, content: "```json\n" + json + "\n```" }} />);
+    expect(screen.queryByTestId("inline-chart")).toBeNull();
+  });
+
   it("shows the branch navigator and reports navigation by message id", () => {
     const onNavigateBranch = vi.fn();
     const message = { ...base, _branches: [{ content: "v1" }, { content: "v2" }], _activeBranch: 1 };

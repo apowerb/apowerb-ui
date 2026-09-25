@@ -44,6 +44,18 @@ function pickType(raw) {
   return CHART_TYPES.includes(t) ? t : null;
 }
 
+/**
+ * True when a parsed JSON value is a chart spec that names its chart type
+ * (`type` or `chart_type`). Stricter than parseChartSpec, which defaults to a
+ * bar chart: a plain ```json answer only becomes a chart when it says so.
+ */
+export function isExplicitChartSpec(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const declared = value.type ?? value.chart_type;
+  if (typeof declared !== "string" || !CHART_TYPES.includes(declared.toLowerCase())) return false;
+  return parseChartSpec(value).ok;
+}
+
 export function parseChartSpec(source) {
   let raw = source;
   if (typeof source === "string") {

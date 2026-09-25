@@ -32,6 +32,7 @@ import { JsonBlock } from "./StructuredOutput";
 import { ExternalLink } from "lucide-react";
 import ReasoningTrail from "./ReasoningTrail";
 import InlineChart from "./InlineChart";
+import { isExplicitChartSpec } from "@/lib/chartSpec";
 import { deriveMessageStatus } from "@/lib/reasoningSteps";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -624,7 +625,9 @@ export default memo(function ChatMessage({
           // Detect JSON blocks and render as structured output
           if (lang === "json") {
             try {
-              JSON.parse(raw);
+              // Asked for a ```chart fence, some models answer the same spec
+              // as ```json (roadmap 74): a declared chart type makes it a chart.
+              if (isExplicitChartSpec(JSON.parse(raw))) return <InlineChart source={raw} />;
               return <JsonBlock content={raw} />;
             } catch {}
           }
