@@ -4,6 +4,17 @@ import { Mail, Lock, Loader2, CheckCircle } from "lucide-react";
 
 const EMAIL_CATEGORIES = ["outlook_mail", "emailing"];
 
+// Tools a template brings: recommended_tools (resolved by the core at
+// runtime) and the native tools it declares in its own agent_tools.
+export function templateNativeToolPaths(template) {
+  return [
+    ...new Set([
+      ...(template.recommended_tools || []),
+      ...(template.agent_tools || []),
+    ]),
+  ];
+}
+
 export function splitNativeTools(templateNativeTools) {
   const emailTools = templateNativeTools.filter((tp) =>
     EMAIL_CATEGORIES.some((cat) => tp.startsWith(cat + "."))

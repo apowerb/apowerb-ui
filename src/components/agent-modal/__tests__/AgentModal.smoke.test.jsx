@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import AgentModal from "@/components/AgentModal";
 import { ToastProvider } from "@/components/Toast";
 
@@ -113,6 +113,16 @@ function renderModal(props = {}) {
   );
 }
 
+// Rebuilds the agent state from every setNewAgent call, in order, the way
+// React would: form-step effects also update it after the template pick.
+function replayUpdates(setNewAgent) {
+  return setNewAgent.mock.calls.reduce(
+    (state, [update]) =>
+      typeof update === "function" ? update(state) : update,
+    baseAgent,
+  );
+}
+
 describe("AgentModal smoke", () => {
   beforeEach(() => {
     if (typeof window !== "undefined") {
@@ -147,6 +157,88 @@ describe("AgentModal smoke", () => {
       expect(screen.getByRole("button", { name: /Save Changes/i })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /^Cancel$/i })).toBeInTheDocument();
     });
+  });
+
+  it("keeps the template's own agent_tools when creating from it", async () => {
+    // database_assistant declares its native tools in agent_tools (no
+    // recommended_tools): dropping them left the new agent without those
+    // tools and the core flagged agent_tools as diverging right away.
+    const { listSuperAgents } = await import("@/lib/api");
+    listSuperAgents.mockResolvedValueOnce([
+      {
+        template_id: "database_assistant",
+        name: "database_assistant",
+        display_name: "Database Assistant",
+        category: "data",
+        agent_tools: ["basic.confirm_destructive", "basic.notify_user"],
+        tags: ["database"],
+      },
+    ]);
+    const setNewAgent = vi.fn();
+    renderModal({ setNewAgent });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Database Assistant/i }));
+
+    const next = replayUpdates(setNewAgent);
+    expect(next.agent_tools).toEqual([
+      "basic.confirm_destructive",
+      "basic.notify_user",
+    ]);
+    expect(next.superagent_template_id).toBe("database_assistant");
+  });
+
+  it("starts with no agent_tools for a template that only recommends tools", async () => {
+    const { listSuperAgents } = await import("@/lib/api");
+    listSuperAgents.mockResolvedValueOnce([
+      {
+        template_id: "jev_decision_agent",
+        name: "jev_decision_agent",
+        display_name: "Decision Agent (Jev)",
+        category: "data",
+        recommended_tools: ["jev.tool_jev_classify"],
+      },
+    ]);
+    const setNewAgent = vi.fn();
+    renderModal({ setNewAgent });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Decision Agent \(Jev\)/i }));
+
+    const next = replayUpdates(setNewAgent);
+    expect(next.agent_tools).toEqual([]);
+  });
+
+  it("lists a template's own agent_tools under Native Tools when creating", async () => {
+    const { listSuperAgents } = await import("@/lib/api");
+    listSuperAgents.mockResolvedValueOnce([
+      {
+        template_id: "database_assistant",
+        name: "database_assistant",
+        display_name: "Database Assistant",
+        category: "data",
+        agent_tools: ["basic.notify_user"],
+        recommended_tools: ["database.tool_run_sql"],
+      },
+    ]);
+    renderModal();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Database Assistant/i }));
+
+    expect(await screen.findByText("basic.notify_user")).toBeInTheDocument();
+    expect(screen.getByText("database.tool_run_sql")).toBeInTheDocument();
+  });
+
+  it("lists a template's own agent_tools under Native Tools when editing", async () => {
+    const { getSuperAgent } = await import("@/lib/api");
+    getSuperAgent.mockResolvedValueOnce({
+      template_id: "database_assistant",
+      agent_tools: ["basic.notify_user"],
+    });
+    renderModal({
+      editingAgent: "agent-1",
+      newAgent: { ...baseAgent, superagent_template_id: "database_assistant" },
+    });
+
+    expect(await screen.findByText("basic.notify_user")).toBeInTheDocument();
   });
 
   it("returns null when show=false", () => {

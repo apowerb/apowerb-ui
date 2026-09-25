@@ -7,6 +7,7 @@ import {
   getOutlookStatus,
   listSkills,
 } from "@/lib/api";
+import { templateNativeToolPaths } from "./NativeToolsBlock";
 
 /**
  * Encapsulates all the side-effect hooks + derived state used by AgentModal.
@@ -132,7 +133,7 @@ export function useAgentModalState({
     getSuperAgent(templateId)
       .then((t) => {
         if (cancelled) return;
-        setTemplateNativeTools(t.recommended_tools || []);
+        setTemplateNativeTools(templateNativeToolPaths(t));
         setReadme(t.readme || "");
         // Hydrate template-driven flags + raw instruction so sections that
         // depend on them (OneDrive picker) render in edit the same way they

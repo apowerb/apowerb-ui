@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import ChooseTemplateStep from "./agent-modal/ChooseTemplateStep";
 import AgentFormStep from "./agent-modal/AgentFormStep";
+import { templateNativeToolPaths } from "./agent-modal/NativeToolsBlock";
 import {
   useAgentModalState,
   getAvailableSubAgents,
@@ -154,7 +155,6 @@ export default function AgentModal({
   };
 
   const handleSelectTemplate = (template) => {
-    const recommended = template.recommended_tools || [];
     setNewAgent((prev) => ({
       ...prev,
       name: template.name || "",
@@ -162,7 +162,9 @@ export default function AgentModal({
       agent_model: template.agent_model || "",
       agent_description: template.agent_description || template.description || "",
       agent_instruction: template.agent_instruction || "",
-      agent_tools: [],
+      // Native tools a template declares itself (e.g. database_assistant).
+      // recommended_tools stay out: the core resolves them at runtime.
+      agent_tools: [...(template.agent_tools || [])],
       memory_enabled: template.memory_enabled || false,
       artifacts_enabled: template.artifacts_enabled || false,
       guardrails_config: template.guardrails_config || null,
@@ -179,7 +181,7 @@ export default function AgentModal({
         template.email_column_placeholder || "<EMAIL_COLUMN>",
       onedrive_file: null,
     }));
-    setTemplateNativeTools(recommended);
+    setTemplateNativeTools(templateNativeToolPaths(template));
     setReadme(template.readme || "");
     setReadmeExpanded(false);
     setStep("form");
