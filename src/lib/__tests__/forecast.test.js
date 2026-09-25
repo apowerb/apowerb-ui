@@ -9,6 +9,13 @@ import {
   proofFacts,
   toChartSeries,
   forecastToCsv,
+  contextWindow,
+  periodEnd,
+  mergeContext,
+  removeEvent,
+  removeScenario,
+  describeRanges,
+  withScenario,
 } from "../forecast";
 
 describe("detectDateColumn", () => {
@@ -314,5 +321,99 @@ describe("buildDiagnostics on a partial preview sample", () => {
     const d = buildDiagnostics({ rows: sample, dateColumn: "date", targetColumn: "sales", horizon: 12, totalRows: 3 });
     expect(d.partial).toBe(false);
     expect(d.warnings.map((w) => w.code)).toContain("short_history");
+  });
+});
+
+describe("contextWindow", () => {
+  it("spans every series from the first history date to the last forecast date", () => {
+    const response = {
+      frequency: "day",
+      series: [
+        { group: "Lyon", history: [{ date: "2025-01-02" }, { date: "2025-03-01" }], forecast: [{ date: "2025-03-10" }] },
+        { group: "Paris", history: [{ date: "2025-01-01" }, { date: "2025-03-01" }], forecast: [{ date: "2025-03-31" }] },
+      ],
+    };
+    expect(contextWindow(response)).toEqual({
+      history_start: "2025-01-01",
+      history_end: "2025-03-01",
+      horizon_end: "2025-03-31",
+      frequency: "day",
+      groups: ["Lyon", "Paris"],
+    });
+  });
+
+  it("ends history and horizon on the last day of their period", () => {
+    const response = {
+      frequency: "month",
+      series: [{ group: null, history: [{ date: "2023-01-01" }, { date: "2025-12-01" }], forecast: [{ date: "2026-12-01" }] }],
+    };
+    expect(contextWindow(response)).toMatchObject({
+      history_start: "2023-01-01",
+      history_end: "2025-12-31",
+      horizon_end: "2026-12-31",
+      groups: [],
+    });
+    expect(periodEnd("2024-02-01", "month")).toBe("2024-02-29");
+    expect(periodEnd("2025-10-01", "quarter")).toBe("2025-12-31");
+    expect(periodEnd("2025-12-29", "week")).toBe("2026-01-04");
+    expect(periodEnd("2025-01-01", "year")).toBe("2025-12-31");
+    expect(periodEnd("2025-03-05", "day")).toBe("2025-03-05");
+  });
+
+  it("is null without dates or frequency", () => {
+    expect(contextWindow({ frequency: "day", series: [] })).toBeNull();
+    expect(contextWindow({ series: [{ history: [{ date: "2025-01-01" }], forecast: [{ date: "2025-01-02" }] }] })).toBeNull();
+  });
+});
+
+describe("mergeContext / removeEvent / removeScenario", () => {
+  const promo = { name: "promo", ranges: [{ start: "2025-02-01", end: "2025-02-01" }] };
+  const closed = { name: "fermeture", ranges: [{ start: "2025-08-01", end: "2025-08-15" }] };
+
+  it("adds new ranges to a known event and replaces a scenario of the same name", () => {
+    const current = { events: [promo], scenarios: [{ name: "Sans promo", events: [] }] };
+    const more = { name: "promo", ranges: [{ start: "2025-01-04", end: "2025-01-04" }, promo.ranges[0]] };
+    const next = mergeContext(current, { events: [more], scenarios: [{ name: "Sans promo", events: [], adjustments: [] }] });
+    expect(next.events).toEqual([{ name: "promo", ranges: [{ start: "2025-01-04", end: "2025-01-04" }, promo.ranges[0]] }]);
+    expect(next.scenarios).toEqual([{ name: "Sans promo", events: [], adjustments: [] }]);
+  });
+
+  it("keeps a new fact in a scenario that fixed its future events", () => {
+    const current = { events: [promo], scenarios: [{ name: "Sans promo", events: [] }] };
+    const next = mergeContext(current, { events: [closed], scenarios: [] });
+    expect(next.scenarios).toEqual([{ name: "Sans promo", events: [closed] }]);
+  });
+
+  it("removes an event everywhere, and a scenario alone", () => {
+    const ctx = { events: [promo, closed], scenarios: [{ name: "Sans promo", events: [closed] }, { name: "Noël", adjustments: [] }] };
+    expect(removeEvent(ctx, "fermeture")).toEqual({
+      events: [promo],
+      scenarios: [{ name: "Sans promo", events: [] }, { name: "Noël", adjustments: [] }],
+    });
+    expect(removeScenario(ctx, "Noël").scenarios).toEqual([{ name: "Sans promo", events: [closed] }]);
+  });
+});
+
+describe("describeRanges", () => {
+  it("shows single days, spans and the remainder", () => {
+    const ranges = [
+      { start: "2025-01-04", end: "2025-01-04" },
+      { start: "2025-08-01", end: "2025-08-15" },
+      { start: "2025-09-06", end: "2025-09-06" },
+      { start: "2025-10-04", end: "2025-10-04" },
+    ];
+    expect(describeRanges(ranges)).toBe("2025-01-04, 2025-08-01 → 2025-08-15, 2025-09-06 +1");
+  });
+});
+
+describe("withScenario", () => {
+  it("starts the scenario line at the last real point and follows the scenario values", () => {
+    const points = toChartSeries({
+      history: [{ date: "2025-01-01", value: 10 }],
+      forecast: [{ date: "2025-01-02", value: 12 }, { date: "2025-01-03", value: 13 }],
+    });
+    const out = withScenario(points, { forecast: [{ date: "2025-01-02", value: 8 }, { date: "2025-01-03", value: 9 }] });
+    expect(out.map((p) => p.scenario)).toEqual([10, 8, 9]);
+    expect(withScenario(points, null)).toBe(points);
   });
 });

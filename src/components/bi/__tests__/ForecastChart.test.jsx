@@ -4,9 +4,11 @@ import ForecastChart, { ForecastTooltip } from "../ForecastChart";
 
 vi.mock("@/lib/api", () => ({
   postForecast: vi.fn(),
+  getPublicConfig: vi.fn(),
+  interpretForecastContext: vi.fn(),
 }));
 
-import { postForecast } from "@/lib/api";
+import { getPublicConfig, interpretForecastContext, postForecast } from "@/lib/api";
 
 const config = {
   date_var: "date",
@@ -52,6 +54,9 @@ const successResponse = {
 
 beforeEach(() => {
   postForecast.mockReset();
+  interpretForecastContext.mockReset();
+  getPublicConfig.mockReset();
+  getPublicConfig.mockResolvedValue({});
 });
 
 describe("ForecastChart", () => {
@@ -326,5 +331,122 @@ describe("ForecastChart — validation error (422)", () => {
     expect(screen.getByText(/Field: Horizon/)).toBeInTheDocument();
     expect(screen.getByText(/at most 366/i)).toBeInTheDocument();
     expect(screen.queryByText(/Input should be/)).not.toBeInTheDocument();
+  });
+});
+
+describe("ForecastChart — context and scenarios", () => {
+  const promo = { name: "promo", ranges: [{ start: "2024-02-01", end: "2024-02-01" }] };
+  const withScenarios = {
+    ...successResponse,
+    series: [
+      {
+        ...successResponse.series[0],
+        events: [{ name: "promo", history_share: 0.33, used: true }],
+        scenarios: [
+          {
+            name: "No promo",
+            forecast: [{ date: "2024-04-01", value: 118, lower_80: 110, upper_80: 126, lower_95: 104, upper_95: 132 }],
+            difference: { total: -12, percent: -9.23 },
+          },
+        ],
+        warnings: ["The chosen model (ets) does not use the declared events."],
+      },
+    ],
+  };
+
+  it("sends no context keys when the chart has none", async () => {
+    postForecast.mockResolvedValue({ ...successResponse, warnings: ["Fréquence détectée automatiquement : month."] });
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    const payload = postForecast.mock.calls[0][0];
+    expect(payload).not.toHaveProperty("events");
+    expect(payload).not.toHaveProperty("scenarios");
+    // Server notes stay hidden without context: the usual display is unchanged.
+    expect(screen.queryByText(/Fréquence détectée/)).not.toBeInTheDocument();
+    // Feature off and nothing saved: no context button at all.
+    expect(screen.queryByRole("button", { name: /^context$/i })).not.toBeInTheDocument();
+  });
+
+  it("sends the saved events and scenarios and shows the scenario and its difference", async () => {
+    postForecast.mockResolvedValue(withScenarios);
+    const saved = { ...config, events: [promo], scenarios: [{ name: "No promo", events: [] }] };
+    render(<ForecastChart rows={rows} config={saved} title="Sales" />);
+
+    expect(await screen.findByRole("combobox", { name: "Scenario" })).toHaveValue("0");
+    expect(screen.getByTestId("forecast-scenario-difference")).toHaveTextContent("-12");
+    expect(screen.getByTestId("forecast-scenario-difference")).toHaveTextContent("-9,23 %");
+    expect(screen.getByText(/does not use the declared events/)).toBeInTheDocument();
+    const payload = postForecast.mock.calls[0][0];
+    expect(payload.events).toEqual([promo]);
+    expect(payload.scenarios).toEqual([{ name: "No promo", events: [] }]);
+  });
+
+  it("interprets the text, lets the user drop an item, then applies, saves and recomputes", async () => {
+    getPublicConfig.mockResolvedValue({ forecast_interpret_enabled: true });
+    postForecast.mockResolvedValueOnce(successResponse).mockResolvedValueOnce(withScenarios);
+    interpretForecastContext.mockResolvedValue({
+      events: [promo, { name: "closure", ranges: [{ start: "2024-03-01", end: "2024-03-01" }] }],
+      scenarios: [{ name: "No promo", events: [] }],
+      rejected: [{ item: "event 3 « fair »", reason: "2023-03-01 → 2023-03-01 out of range" }],
+      notes: [],
+      off_topic: false,
+    });
+    const onSaveConfig = vi.fn().mockResolvedValue({});
+
+    render(<ForecastChart rows={rows} config={config} title="Sales" onSaveConfig={onSaveConfig} />);
+    fireEvent.click(await screen.findByRole("button", { name: /^context$/i }));
+    fireEvent.change(screen.getByLabelText("Describe the context"), {
+      target: { value: "promo on 1 Feb, closed on 1 March. What if no promo?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Interpret" }));
+
+    const proposal = await screen.findByTestId("forecast-context-proposal");
+    expect(interpretForecastContext.mock.calls[0][0]).toMatchObject({
+      history_start: "2024-01-01",
+      // Monthly periods: the window ends on the last day of each month.
+      history_end: "2024-03-31",
+      horizon_end: "2024-04-30",
+      frequency: "month",
+      events: [],
+    });
+    expect(screen.getByText(/Dropped — event 3 « fair »: 2023-03-01/)).toBeInTheDocument();
+    expect(proposal).toHaveTextContent("closure");
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove “closure”" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply and recompute" }));
+
+    await waitFor(() => expect(postForecast).toHaveBeenCalledTimes(2));
+    const expected = { events: [promo], scenarios: [{ name: "No promo", events: [] }] };
+    expect(onSaveConfig).toHaveBeenCalledWith({ ...config, ...expected });
+    expect(postForecast.mock.calls[1][0]).toMatchObject(expected);
+    // Back on the chart with the scenario selectable.
+    expect(await screen.findByRole("combobox", { name: "Scenario" })).toBeInTheDocument();
+  });
+
+  it("explains an off-topic text instead of applying anything", async () => {
+    getPublicConfig.mockResolvedValue({ forecast_interpret_enabled: true });
+    postForecast.mockResolvedValue(successResponse);
+    const err = new Error("API error 422");
+    err.status = 422;
+    err.detail = { code: "CONTEXT_OFF_TOPIC", rejected: [], notes: [] };
+    interpretForecastContext.mockRejectedValue(err);
+
+    render(<ForecastChart rows={rows} config={config} title="Sales" onSaveConfig={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: /^context$/i }));
+    fireEvent.change(screen.getByLabelText("Describe the context"), { target: { value: "a crêpe recipe" } });
+    fireEvent.click(screen.getByRole("button", { name: "Interpret" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/does not describe a forecasting context/);
+    expect(screen.queryByTestId("forecast-context-proposal")).not.toBeInTheDocument();
+    expect(postForecast).toHaveBeenCalledTimes(1);
+  });
+
+  it("never offers interpretation without a way to save (public dashboard)", async () => {
+    getPublicConfig.mockResolvedValue({ forecast_interpret_enabled: true });
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    await waitFor(() => expect(getPublicConfig).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /^context$/i })).not.toBeInTheDocument();
   });
 });

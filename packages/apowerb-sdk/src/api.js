@@ -1340,3 +1340,14 @@ export async function postForecast(payload, { signal } = {}) {
   }
   return body;
 }
+
+// Contexte d'une prévision écrit en français → événements datés et scénarios,
+// relus par le cœur. 404 : fonction éteinte ; 402 : plafond de jetons ;
+// 422 : rien d'exploitable (`err.detail = {code, rejected, notes}`) ;
+// 503 : modèle indisponible.
+export const interpretForecastContext = (body, { signal } = {}) =>
+  request("/api/v1/forecast/interpret", {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal,
+  });
