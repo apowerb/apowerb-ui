@@ -162,7 +162,9 @@ export default function AgentModal({
       agent_model: template.agent_model || "",
       agent_description: template.agent_description || template.description || "",
       agent_instruction: template.agent_instruction || "",
-      agent_tools: [],
+      // Native tools a template declares itself (e.g. database_assistant).
+      // recommended_tools stay out: the core resolves them at runtime.
+      agent_tools: [...(template.agent_tools || [])],
       memory_enabled: template.memory_enabled || false,
       artifacts_enabled: template.artifacts_enabled || false,
       guardrails_config: template.guardrails_config || null,
