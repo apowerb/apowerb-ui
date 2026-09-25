@@ -144,6 +144,32 @@ export function reliabilityBadge(series) {
   return { level, mape, beatsBaseline };
 }
 
+const isNumber = (x) => typeof x === "number" && Number.isFinite(x);
+
+// Preuve mesurée au backtest : points testés, gain d'erreur (MASE) sur la
+// référence naïve, et couverture de la bande la plus étroite. Le champ
+// `calibration` n'existe qu'avec le moteur Python : sans lui, pas de couverture.
+export function proofFacts(series) {
+  const points = isNumber(series?.metrics?.holdout_points) ? series.metrics.holdout_points : null;
+  const mase = series?.metrics?.mase;
+  const baseMase = series?.baseline?.metrics?.mase;
+  const gainPct = isNumber(mase) && isNumber(baseMase) && baseMase > 0 ? Math.round((1 - mase / baseMase) * 100) : null;
+
+  const levels = series?.calibration?.levels || {};
+  const narrowest = Object.keys(levels)
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)[0];
+  const band = narrowest === undefined ? null : levels[narrowest];
+  let coverage = null;
+  if (band && band.calibrated && isNumber(band.calibrated_coverage)) {
+    coverage = { level: narrowest, pct: Math.round(band.calibrated_coverage * 100), calibrated: true };
+  } else if (band && isNumber(band.raw_coverage)) {
+    coverage = { level: narrowest, pct: Math.round(band.raw_coverage * 100), calibrated: false };
+  }
+  return { points, gainPct, coverage };
+}
+
 export function toChartSeries(series) {
   if (!series || (!series.history && !series.forecast)) return [];
   const history = Array.isArray(series.history) ? series.history : [];

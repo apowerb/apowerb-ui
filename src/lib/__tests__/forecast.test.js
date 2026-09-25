@@ -6,6 +6,7 @@ import {
   defaultHorizon,
   buildDiagnostics,
   reliabilityBadge,
+  proofFacts,
   toChartSeries,
   forecastToCsv,
 } from "../forecast";
@@ -167,6 +168,49 @@ describe("reliabilityBadge", () => {
     expect(badge.level).toBe("unknown");
     expect(badge.mape).toBeNull();
     expect(badge.beatsBaseline).toBeNull();
+  });
+});
+
+describe("proofFacts", () => {
+  const calibrated = {
+    metrics: { mase: 0.6, holdout_points: 14 },
+    baseline: { model: "snaive", metrics: { mase: 0.8 } },
+    calibration: {
+      method: "split-conformal",
+      points: 14,
+      levels: {
+        95: { calibrated: true, pooled: true, factor: 1.1, raw_coverage: 0.9, calibrated_coverage: 0.93 },
+        80: { calibrated: true, pooled: false, factor: 1.2, raw_coverage: 0.71, calibrated_coverage: 0.79 },
+      },
+    },
+  };
+
+  it("reports tested points, error reduction versus the naive baseline and the narrowest band coverage", () => {
+    expect(proofFacts(calibrated)).toEqual({
+      points: 14,
+      gainPct: 25,
+      coverage: { level: 80, pct: 79, calibrated: true },
+    });
+  });
+
+  it("uses the raw coverage when the band could not be calibrated", () => {
+    const levels = { 80: { calibrated: false, pooled: false, factor: null, raw_coverage: 0.64, calibrated_coverage: null } };
+    expect(proofFacts({ ...calibrated, calibration: { ...calibrated.calibration, levels } }).coverage).toEqual({
+      level: 80,
+      pct: 64,
+      calibrated: false,
+    });
+  });
+
+  it("reports a negative gain when the model does worse than the baseline", () => {
+    expect(proofFacts({ ...calibrated, metrics: { mase: 1.2, holdout_points: 6 } }).gainPct).toBe(-50);
+  });
+
+  it("degrades to what the R engine returns: no calibration, no coverage", () => {
+    const r = { metrics: { mape: 0.1, mase: 0.9, holdout_points: 6 }, baseline: { metrics: { mase: 1.0 } } };
+    expect(proofFacts(r)).toEqual({ points: 6, gainPct: 10, coverage: null });
+    expect(proofFacts({ metrics: {}, baseline: { metrics: {} } })).toEqual({ points: null, gainPct: null, coverage: null });
+    expect(proofFacts(undefined)).toEqual({ points: null, gainPct: null, coverage: null });
   });
 });
 
