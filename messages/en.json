@@ -4100,6 +4100,12 @@
     "breachAbove": "The actual value on {date} ({actual}) is above the {level}% band ({lower}–{upper}).",
     "breachBelow": "The actual value on {date} ({actual}) is below the {level}% band ({lower}–{upper}).",
     "reconciledLine": "Reconciled (MinT): error {before} → {after} over {points} tested points",
+    "breachExplanationLevelShift": "Level shift: {consecutive, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} consecutive period {direction, select, below {below} other {above}} the band",
+    "breachExplanationSpike": "Isolated spike ({magnitude} half-band beyond)",
+    "breachExplanationCommonShock": "Shock common to several series",
+    "breachExplanationEvent": "Period covered by the \"{event}\" event",
+    "adaptiveBandsLine": "Bands readjusted: the {level}% band only contained {observedInBand} actuals out of {points}, it is now computed at the {levelUsed}% level",
+    "adjustmentLine": "Scenario \"{name}\": error {maeBase} → {maeScenario} over {points} points",
     "rareSalesNote": "Rare sales: the curve shows the expected average demand per period."
   },
   "ForecastConfigStep": {
