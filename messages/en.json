@@ -4093,7 +4093,14 @@
     "contextIgnoredShort": "not learned",
     "scenarioLabel": "Scenario",
     "scenarioLine": "Scenario: {name}",
-    "scenarioDifference": "Difference over the horizon: {total} ({pct} %)"
+    "scenarioDifference": "Difference over the horizon: {total} ({pct} %)",
+    "trackingLine": "Actual tracking: {points, plural, one {# point in} other {# points in}} · {inBand}/{total} inside the {level}% band",
+    "breachAboveWithGroup": "The actual value on {date} ({actual}) is above the {level}% band ({lower}–{upper}) for {group}.",
+    "breachBelowWithGroup": "The actual value on {date} ({actual}) is below the {level}% band ({lower}–{upper}) for {group}.",
+    "breachAbove": "The actual value on {date} ({actual}) is above the {level}% band ({lower}–{upper}).",
+    "breachBelow": "The actual value on {date} ({actual}) is below the {level}% band ({lower}–{upper}).",
+    "reconciledLine": "Reconciled (MinT): error {before} → {after} over {points} tested points",
+    "rareSalesNote": "Rare sales: the curve shows the expected average demand per period."
   },
   "ForecastConfigStep": {
     "dateColumnLabel": "Date column",
@@ -4101,6 +4108,9 @@
     "groupColumnLabel": "Group by (optional)",
     "groupNone": "No grouping",
     "groupHint": "One forecast per distinct value of this column (e.g. one per store).",
+    "hierarchyTitle": "Higher-level columns (optional)",
+    "hierarchyHint": "One column per level, from highest to lowest, above the group. A \"Total\" level is always added.",
+    "hierarchyReconciliation": "Make the total coherent (MinT)",
     "selectPlaceholder": "Select…",
     "horizonLabel": "Horizon (number of future periods)",
     "detectedFrequency": "detected frequency",

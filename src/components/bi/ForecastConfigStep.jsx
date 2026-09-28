@@ -8,6 +8,7 @@ import {
   detectTargetColumn,
   defaultHorizon,
   buildDiagnostics,
+  isReconciliationEnabled,
 } from "@/lib/forecast";
 
 const MODELS = ["prophet", "auto", "arima", "ets", "snaive", "naive"];
@@ -69,6 +70,19 @@ export default function ForecastConfigStep({ columns, sampleRows, totalRows, val
   const groupOptions = safeColumns.filter(
     (c) => c.name !== value.dateVar && c.name !== value.targetVar,
   );
+
+  // Hiérarchie MinT (§2 du contrat) : colonnes candidates aux niveaux
+  // supérieurs, au-dessus de group_var — exige donc un regroupement choisi.
+  // Le total ajouté par le moteur n'est pas une colonne à choisir ici.
+  const hierarchyColumns = safeColumns.filter(
+    (c) => c.name !== value.dateVar && c.name !== value.targetVar && c.name !== value.groupVar,
+  );
+  const hierarchy = value.hierarchy || [];
+
+  const toggleHierarchyColumn = (name) => {
+    const next = hierarchy.includes(name) ? hierarchy.filter((h) => h !== name) : [...hierarchy, name];
+    onChange({ ...value, hierarchy: next });
+  };
 
   const modelExplanations = {
     prophet: t("modelProphetExplanation"),
@@ -140,6 +154,40 @@ export default function ForecastConfigStep({ columns, sampleRows, totalRows, val
         </select>
         <p className="text-xs th-text-faint mt-1">{t("groupHint")}</p>
       </div>
+
+      {value.groupVar && (
+        <div>
+          <p className="block text-sm font-medium th-text mb-1.5">{t("hierarchyTitle")}</p>
+          <p className="text-xs th-text-faint mb-1.5">{t("hierarchyHint")}</p>
+          {hierarchyColumns.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {hierarchyColumns.map((c) => (
+                <label
+                  key={c.name}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border th-border th-bg-surface text-xs th-text-secondary"
+                >
+                  <input
+                    type="checkbox"
+                    checked={hierarchy.includes(c.name)}
+                    onChange={() => toggleHierarchyColumn(c.name)}
+                    aria-label={c.name}
+                  />
+                  {c.name}
+                </label>
+              ))}
+            </div>
+          )}
+          <label className="inline-flex items-center gap-1.5 text-xs th-text-secondary">
+            <input
+              type="checkbox"
+              checked={isReconciliationEnabled(value.reconciliation)}
+              onChange={(e) => onChange({ ...value, reconciliation: e.target.checked ? "mint" : "none" })}
+              aria-label={t("hierarchyReconciliation")}
+            />
+            {t("hierarchyReconciliation")}
+          </label>
+        </div>
+      )}
 
       <div>
         <label htmlFor="forecast-horizon" className="block text-sm font-medium th-text mb-1.5">

@@ -113,3 +113,139 @@ describe("ForecastConfigStep on a partial preview", () => {
     expect(screen.getByText(/3 of 72 rows/i)).toBeInTheDocument();
   });
 });
+
+describe("ForecastConfigStep — hierarchy", () => {
+  const hierColumns = [
+    { name: "region", type: "string" },
+    { name: "store", type: "string" },
+    { name: "date", type: "date" },
+    { name: "sales", type: "float" },
+  ];
+  const withGroup = { dateVar: "date", targetVar: "sales", groupVar: "store" };
+
+  it("does not show hierarchy options without a group column selected", () => {
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ dateVar: "date", targetVar: "sales" }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.queryByText(/higher-level/i)).not.toBeInTheDocument();
+  });
+
+  it("offers the remaining columns (not date/target/group) as hierarchy levels once a group is chosen", () => {
+    render(<ForecastConfigStep columns={hierColumns} sampleRows={sampleRows} value={withGroup} onChange={() => {}} />);
+    expect(screen.getByRole("checkbox", { name: "region" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "store" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "date" })).not.toBeInTheDocument();
+  });
+
+  it("adds a column to the hierarchy in click order and reports it via onChange", () => {
+    const onChange = vi.fn();
+    render(<ForecastConfigStep columns={hierColumns} sampleRows={sampleRows} value={withGroup} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "region" }));
+    expect(onChange.mock.calls.at(-1)[0].hierarchy).toEqual(["region"]);
+  });
+
+  it("removes a column from the hierarchy when unchecked", () => {
+    const onChange = vi.fn();
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ ...withGroup, hierarchy: ["region"] }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "region" }));
+    expect(onChange.mock.calls.at(-1)[0].hierarchy).toEqual([]);
+  });
+
+  it("offers the MinT reconciliation checkbox only alongside a group column", () => {
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ dateVar: "date", targetVar: "sales" }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.queryByRole("checkbox", { name: /MinT/i })).not.toBeInTheDocument();
+  });
+
+  it("unticking the default-on reconciliation reports 'none' via onChange", () => {
+    const onChange = vi.fn();
+    render(<ForecastConfigStep columns={hierColumns} sampleRows={sampleRows} value={withGroup} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: /MinT/i }));
+    expect(onChange.mock.calls.at(-1)[0].reconciliation).toBe("none");
+  });
+});
+
+describe("ForecastConfigStep — reconciliation default and legacy compat", () => {
+  const hierColumns = [
+    { name: "region", type: "string" },
+    { name: "store", type: "string" },
+    { name: "date", type: "date" },
+    { name: "sales", type: "float" },
+  ];
+  const withGroup = { dateVar: "date", targetVar: "sales", groupVar: "store" };
+
+  it("is checked by default once a group is chosen, even without an explicit value", () => {
+    render(<ForecastConfigStep columns={hierColumns} sampleRows={sampleRows} value={withGroup} onChange={() => {}} />);
+    expect(screen.getByRole("checkbox", { name: /MinT/i })).toBeChecked();
+  });
+
+  it("unchecking it reports 'none' (not just absent) via onChange", () => {
+    const onChange = vi.fn();
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ ...withGroup, hierarchy: ["region"] }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /MinT/i }));
+    expect(onChange.mock.calls.at(-1)[0].reconciliation).toBe("none");
+  });
+
+  it("checking it back reports 'mint'", () => {
+    const onChange = vi.fn();
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ ...withGroup, hierarchy: ["region"], reconciliation: "none" }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /MinT/i }));
+    expect(onChange.mock.calls.at(-1)[0].reconciliation).toBe("mint");
+  });
+
+  it("reads an existing config saved as 'none' as unchecked", () => {
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ ...withGroup, hierarchy: ["region"], reconciliation: "none" }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByRole("checkbox", { name: /MinT/i })).not.toBeChecked();
+  });
+
+  it("reads a legacy boolean reconciliation value (pre-fix config)", () => {
+    render(
+      <ForecastConfigStep
+        columns={hierColumns}
+        sampleRows={sampleRows}
+        value={{ ...withGroup, hierarchy: ["region"], reconciliation: false }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByRole("checkbox", { name: /MinT/i })).not.toBeChecked();
+  });
+});

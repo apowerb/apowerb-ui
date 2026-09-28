@@ -57,3 +57,38 @@ describe("ChartRenderer — forecast dispatch", () => {
     expect(screen.queryByTestId("forecast-chart-mock")).not.toBeInTheDocument();
   });
 });
+
+describe("ChartRenderer — forecast chart_id relay", () => {
+  it("passes chartId to ForecastChart on a saved (non-public) dashboard", async () => {
+    getChartData.mockResolvedValue({
+      title: "Ventes",
+      chart_type: "forecast",
+      rows: [{ date: "2024-01-01", sales: 100 }],
+      config: { date_var: "date", target_var: "sales", horizon: 3 },
+      source: {},
+    });
+
+    render(<ChartRenderer chartId="chart-99" />);
+
+    await waitFor(() => expect(screen.getByTestId("forecast-chart-mock")).toBeInTheDocument());
+    const props = ForecastChart.mock.calls.at(-1)[0];
+    expect(props.chartId).toBe("chart-99");
+  });
+
+  it("never passes chartId on a public dashboard", async () => {
+    const { getPublicChartData } = await import("@/lib/api");
+    getPublicChartData.mockResolvedValue({
+      title: "Ventes",
+      chart_type: "forecast",
+      rows: [{ date: "2024-01-01", sales: 100 }],
+      config: { date_var: "date", target_var: "sales", horizon: 3 },
+      source: {},
+    });
+
+    render(<ChartRenderer chartId="chart-99" publicMode />);
+
+    await waitFor(() => expect(screen.getByTestId("forecast-chart-mock")).toBeInTheDocument());
+    const props = ForecastChart.mock.calls.at(-1)[0];
+    expect(props.chartId).toBeUndefined();
+  });
+});

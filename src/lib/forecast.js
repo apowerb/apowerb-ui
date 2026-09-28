@@ -328,3 +328,83 @@ export function withScenario(points, scenario) {
     p.forecast == null ? p : { ...p, scenario: p.history != null ? p.history : (byDate.get(p.date) ?? null) },
   );
 }
+
+// --- Suivi réel, hiérarchie et réconciliation MinT (étape 5) --------------
+
+const isFiniteNumber = (x) => typeof x === "number" && Number.isFinite(x);
+
+// Faits du suivi réel (racine de la réponse, `tracking`) : nombre de points
+// déjà comparés à un instantané précédent, et couverture de la bande la
+// plus étroite. `points` à 0 (premier calcul, rien à comparer) → null,
+// pas de ligne affichée.
+export function trackingFacts(tracking) {
+  if (!tracking || !isFiniteNumber(tracking.points) || tracking.points <= 0) return null;
+  const levels = tracking.coverage || {};
+  const narrowest = Object.keys(levels)
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)[0];
+  if (narrowest === undefined) return { points: tracking.points, coverage: null };
+  const inBand = Math.round(levels[narrowest] * tracking.points);
+  return { points: tracking.points, coverage: { level: narrowest, inBand, total: tracking.points } };
+}
+
+// Rupture la plus récente (racine `tracking`) : le point réel le plus
+// récent de la réponse est hors bande. `breaches[0]` est la plus récente
+// (le contrat les liste "plus récente d'abord").
+// Parmi les ruptures de cette date la plus récente, celle de la série
+// affichée (`group`) passe en premier, sinon la première de la liste.
+export function latestBreachFacts(tracking, group) {
+  if (!tracking?.latest_breach) return null;
+  const breaches = Array.isArray(tracking.breaches) ? tracking.breaches : [];
+  if (!breaches[0]) return null;
+  const latest = breaches.filter((b) => b.date === breaches[0].date);
+  return latest.find((b) => b.group === group) || latest[0];
+}
+
+// Réconciliation MinT (racine `reconciliation`) : erreur base → réconciliée
+// sur le backtest leave-one-window-out. null sans bloc complet (bottom_up
+// et none n'ont pas de gain à annoncer).
+export function reconciliationFacts(response) {
+  const rec = response?.reconciliation;
+  const bt = rec?.backtest;
+  if (!rec || !bt || !isFiniteNumber(bt.mase_base) || !isFiniteNumber(bt.mase_reconciled) || !isFiniteNumber(bt.points)) {
+    return null;
+  }
+  return { method: rec.method, maseBase: bt.mase_base, maseReconciled: bt.mase_reconciled, points: bt.points };
+}
+
+// Ventes rares (classification Syntetos-Boylan côté moteur) : la courbe ne
+// donne plus une valeur ponctuelle fiable mais une demande moyenne attendue.
+export function isRareSales(series) {
+  return series?.demand?.type === "intermittent" || series?.demand?.type === "lumpy";
+}
+
+// Ventes rares : segments droits ; un lissage « monotone » inventerait des
+// vagues entre les zéros et les ventes ponctuelles.
+export function curveType(series) {
+  return isRareSales(series) ? "linear" : "monotone";
+}
+
+const HIERARCHY_LEVEL_ORDER = { total: 0, bottom: 2 };
+
+// Ordre du sélecteur de série d'une réponse hiérarchique : Total, puis
+// niveaux intermédiaires, puis bas — tri stable (l'ordre relatif des
+// niveaux intermédiaires entre eux est conservé). Une réponse sans `level`
+// (pas de hiérarchie demandée) n'est pas triée.
+export function sortByHierarchyLevel(series) {
+  if (!Array.isArray(series) || !series.some((s) => s?.level)) return series;
+  return [...series].sort(
+    (a, b) => (HIERARCHY_LEVEL_ORDER[a.level] ?? 1) - (HIERARCHY_LEVEL_ORDER[b.level] ?? 1),
+  );
+}
+
+// Réconciliation MinT (§2 du contrat) : "mint" par défaut dès qu'une
+// hiérarchie est choisie, sauf case décochée explicitement ("none").
+// Compatible avec l'ancienne valeur booléenne stockée avant ce correctif.
+export function isReconciliationEnabled(reconciliation) {
+  if (reconciliation === "none") return false;
+  if (reconciliation === "mint") return true;
+  if (typeof reconciliation === "boolean") return reconciliation;
+  return true;
+}
