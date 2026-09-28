@@ -408,3 +408,45 @@ export function isReconciliationEnabled(reconciliation) {
   if (typeof reconciliation === "boolean") return reconciliation;
   return true;
 }
+
+// --- Fiabilité avancée (étape 7) : bandes adaptatives, ajustements ---------
+
+// Bandes réajustées par le feedback en boucle fermée (ACI, §1 du contrat) :
+// niveau demandé le plus étroit avec une calibration adaptative pour la
+// série affichée. `adaptive` est absent tant qu'aucun feedback n'a pu
+// s'appliquer.
+export function adaptiveCalibrationFacts(series) {
+  const adaptive = series?.calibration?.adaptive;
+  if (!adaptive || typeof adaptive !== "object") return null;
+  const narrowest = Object.keys(adaptive)
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)[0];
+  if (narrowest === undefined) return null;
+  const entry = adaptive[narrowest] ?? adaptive[String(narrowest)];
+  if (!entry || !isFiniteNumber(entry.points) || !isFiniteNumber(entry.observed) || !isFiniteNumber(entry.level_used)) {
+    return null;
+  }
+  return {
+    level: narrowest,
+    points: entry.points,
+    observedInBand: Math.round(entry.observed * entry.points),
+    levelUsed: Math.round(entry.level_used * 100),
+  };
+}
+
+// Valeur des scénarios comparés au réel (§2d) : erreur MAE base → scénario
+// sur les points comparables. Un scénario sans point comparable est absent
+// de `tracking.adjustments` ; une entrée incomplète est ignorée ici aussi.
+export function adjustmentsFacts(tracking) {
+  const list = Array.isArray(tracking?.adjustments) ? tracking.adjustments : [];
+  return list
+    .filter((a) => isFiniteNumber(a?.points) && isFiniteNumber(a?.mae_base) && isFiniteNumber(a?.mae_scenario))
+    .map((a) => ({
+      name: a.name,
+      points: a.points,
+      maeBase: a.mae_base,
+      maeScenario: a.mae_scenario,
+      better: a.mae_scenario < a.mae_base,
+    }));
+}

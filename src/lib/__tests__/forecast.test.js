@@ -23,6 +23,8 @@ import {
   curveType,
   sortByHierarchyLevel,
   isReconciliationEnabled,
+  adaptiveCalibrationFacts,
+  adjustmentsFacts,
 } from "../forecast";
 
 describe("detectDateColumn", () => {
@@ -556,5 +558,54 @@ describe("curveType", () => {
     expect(curveType({ demand: { type: "lumpy" } })).toBe("linear");
     expect(curveType({ demand: { type: "smooth" } })).toBe("monotone");
     expect(curveType({})).toBe("monotone");
+  });
+});
+
+describe("adaptiveCalibrationFacts", () => {
+  it("reads the narrowest adaptive level for the displayed series", () => {
+    const series = { calibration: { adaptive: { 80: { target: 0.8, points: 9, observed: 0.667, level_used: 0.9 } } } };
+    expect(adaptiveCalibrationFacts(series)).toEqual({ level: 80, points: 9, observedInBand: 6, levelUsed: 90 });
+  });
+
+  it("picks the narrowest level when several are present", () => {
+    const series = {
+      calibration: {
+        adaptive: {
+          95: { target: 0.95, points: 9, observed: 0.95, level_used: 0.95 },
+          80: { target: 0.8, points: 9, observed: 0.667, level_used: 0.9 },
+        },
+      },
+    };
+    expect(adaptiveCalibrationFacts(series).level).toBe(80);
+  });
+
+  it("returns null without an adaptive block", () => {
+    expect(adaptiveCalibrationFacts({ calibration: { levels: {} } })).toBeNull();
+    expect(adaptiveCalibrationFacts({})).toBeNull();
+    expect(adaptiveCalibrationFacts(undefined)).toBeNull();
+  });
+});
+
+describe("adjustmentsFacts", () => {
+  it("maps tracking.adjustments to facts with a better/worse flag", () => {
+    const tracking = { adjustments: [{ name: "Promo +15 %", points: 6, mae_base: 12.3, mae_scenario: 9.1 }] };
+    expect(adjustmentsFacts(tracking)).toEqual([
+      { name: "Promo +15 %", points: 6, maeBase: 12.3, maeScenario: 9.1, better: true },
+    ]);
+  });
+
+  it("flags a scenario that performs worse than the base forecast", () => {
+    const tracking = { adjustments: [{ name: "Stock-out", points: 4, mae_base: 5, mae_scenario: 8 }] };
+    expect(adjustmentsFacts(tracking)[0].better).toBe(false);
+  });
+
+  it("returns an empty array without adjustments", () => {
+    expect(adjustmentsFacts({})).toEqual([]);
+    expect(adjustmentsFacts(undefined)).toEqual([]);
+    expect(adjustmentsFacts({ adjustments: [] })).toEqual([]);
+  });
+
+  it("skips an incomplete adjustment entry", () => {
+    expect(adjustmentsFacts({ adjustments: [{ name: "X" }] })).toEqual([]);
   });
 });
