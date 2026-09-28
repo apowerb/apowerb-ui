@@ -4100,6 +4100,12 @@
     "breachAbove": "Le réel du {date} ({actual}) est au-dessus de la bande {level} % ({lower}–{upper}).",
     "breachBelow": "Le réel du {date} ({actual}) est en dessous de la bande {level} % ({lower}–{upper}).",
     "reconciledLine": "Réconciliée (MinT) : erreur {before} → {after} sur {points} points testés",
+    "breachExplanationLevelShift": "Rupture de niveau : {consecutive, selectordinal, one {1ʳᵉ} other {#ᵉ}} période de suite {direction, select, below {en dessous} other {au-dessus}} de la bande",
+    "breachExplanationSpike": "Pic isolé ({magnitude} demi-bande au-delà)",
+    "breachExplanationCommonShock": "Choc commun à plusieurs séries",
+    "breachExplanationEvent": "Période couverte par l'événement « {event} »",
+    "adaptiveBandsLine": "Bandes réajustées : la bande {level} % n'a contenu que {observedInBand} réels sur {points}, elle est calculée au niveau {levelUsed} %",
+    "adjustmentLine": "Scénario « {name} » : erreur {maeBase} → {maeScenario} sur {points} points",
     "rareSalesNote": "Ventes rares : la courbe donne la demande moyenne attendue par période."
   },
   "ForecastConfigStep": {

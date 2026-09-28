@@ -634,3 +634,125 @@ describe("ForecastChart — rare sales (intermittent/lumpy demand)", () => {
     expect(screen.queryByTestId("forecast-rare-sales-note")).toBeNull();
   });
 });
+
+describe("ForecastChart — breach explanation", () => {
+  function withBreach(explanation) {
+    return {
+      ...successResponse,
+      tracking: {
+        points: 9,
+        coverage: { 95: 1.0 },
+        breaches: [
+          { group: null, date: "2026-08-01", actual: 1234, value: 950, lower: 800, upper: 1100, level: "95", direction: "above", explanation },
+        ],
+        latest_breach: true,
+      },
+    };
+  }
+
+  it("explains an event-covered breach", async () => {
+    postForecast.mockResolvedValue(withBreach({ kind: "event", event: "Promo de décembre" }));
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const explanation = await screen.findByTestId("forecast-breach-explanation");
+    expect(explanation).toHaveTextContent("Promo de décembre");
+  });
+
+  it("explains a common shock across series", async () => {
+    postForecast.mockResolvedValue(withBreach({ kind: "common_shock" }));
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const explanation = await screen.findByTestId("forecast-breach-explanation");
+    expect(explanation.textContent).toMatch(/shock/i);
+  });
+
+  it("explains a level shift with its consecutive rank", async () => {
+    postForecast.mockResolvedValue(withBreach({ kind: "level_shift", consecutive: 3 }));
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const explanation = await screen.findByTestId("forecast-breach-explanation");
+    expect(explanation).toHaveTextContent("3rd");
+  });
+
+  it("explains a spike with its formatted magnitude", async () => {
+    postForecast.mockResolvedValue(withBreach({ kind: "spike", magnitude: 1.8 }));
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const explanation = await screen.findByTestId("forecast-breach-explanation");
+    expect(explanation).toHaveTextContent("1,8");
+  });
+
+  it("shows nothing when the breach carries no explanation", async () => {
+    postForecast.mockResolvedValue(withBreach(undefined));
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    await screen.findByTestId("forecast-breach-alert");
+    expect(screen.queryByTestId("forecast-breach-explanation")).toBeNull();
+  });
+});
+
+describe("ForecastChart — adaptive bands", () => {
+  it("shows the readjusted-bands line when calibration.adaptive is present", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      series: [
+        {
+          ...successResponse.series[0],
+          calibration: { adaptive: { 80: { target: 0.8, points: 9, observed: 0.667, level_used: 0.9 } } },
+        },
+      ],
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    const line = await screen.findByTestId("forecast-adaptive-bands");
+    expect(line).toHaveTextContent("80");
+    expect(line).toHaveTextContent("6");
+    expect(line).toHaveTextContent("9");
+    expect(line).toHaveTextContent("90");
+  });
+
+  it("shows nothing without an adaptive block", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    expect(screen.queryByTestId("forecast-adaptive-bands")).toBeNull();
+  });
+});
+
+describe("ForecastChart — scenario adjustments value", () => {
+  it("shows the adjustment line for a scenario that improves accuracy", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      tracking: {
+        points: 6,
+        coverage: {},
+        breaches: [],
+        latest_breach: false,
+        adjustments: [{ name: "Promo +15 %", points: 6, mae_base: 12.3, mae_scenario: 9.1 }],
+      },
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const line = await screen.findByTestId("forecast-adjustment-Promo +15 %");
+    expect(line).toHaveTextContent("12,3");
+    expect(line).toHaveTextContent("9,1");
+    expect(line).toHaveTextContent("6");
+    expect(line.className).toMatch(/emerald|green/);
+  });
+
+  it("uses a neutral tone when the scenario does not improve accuracy", async () => {
+    postForecast.mockResolvedValue({
+      ...successResponse,
+      tracking: {
+        points: 4,
+        coverage: {},
+        breaches: [],
+        latest_breach: false,
+        adjustments: [{ name: "Stock-out", points: 4, mae_base: 5, mae_scenario: 8 }],
+      },
+    });
+    render(<ForecastChart rows={rows} config={config} title="Sales" chartId="c1" />);
+    const line = await screen.findByTestId("forecast-adjustment-Stock-out");
+    expect(line.className).not.toMatch(/emerald|green/);
+  });
+
+  it("shows nothing without tracking.adjustments", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    expect(screen.queryByTestId(/forecast-adjustment-/)).toBeNull();
+  });
+});

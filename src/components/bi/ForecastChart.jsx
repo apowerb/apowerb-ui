@@ -17,6 +17,8 @@ import {
 import { Loader2, Download, Table2, Info, AlertTriangle, Sparkles } from "lucide-react";
 import { getPublicConfig, postForecast } from "@/lib/api";
 import {
+  adaptiveCalibrationFacts,
+  adjustmentsFacts,
   buildDiagnostics,
   contextWindow,
   forecastToCsv,
@@ -33,6 +35,13 @@ import {
 } from "@/lib/forecast";
 import ForecastContextPanel from "./ForecastContextPanel";
 import { formatChartLabel, formatChartValue } from "@/lib/chart-tokens";
+
+const BREACH_EXPLANATION_KEYS = {
+  event: "breachExplanationEvent",
+  common_shock: "breachExplanationCommonShock",
+  level_shift: "breachExplanationLevelShift",
+  spike: "breachExplanationSpike",
+};
 
 const RELIABILITY_TONE = {
   good: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
@@ -379,6 +388,8 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
   const tracking = trackingFacts(response?.tracking);
   const breach = latestBreachFacts(response?.tracking, current.group);
   const reconciliation = reconciliationFacts(response);
+  const adaptiveBands = adaptiveCalibrationFacts(current);
+  const adjustments = adjustmentsFacts(response?.tracking);
   const rareSales = isRareSales(current);
   const scenarios = Array.isArray(current.scenarios) ? current.scenarios : [];
   const scenario = scenarios[scenarioIndex] || null;
@@ -480,6 +491,32 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
         </p>
       )}
 
+      {adaptiveBands && (
+        <p data-testid="forecast-adaptive-bands" className="text-[11px] th-text-faint">
+          {t("adaptiveBandsLine", {
+            level: adaptiveBands.level,
+            observedInBand: adaptiveBands.observedInBand,
+            points: adaptiveBands.points,
+            levelUsed: adaptiveBands.levelUsed,
+          })}
+        </p>
+      )}
+
+      {adjustments.map((adjustment) => (
+        <p
+          key={adjustment.name}
+          data-testid={`forecast-adjustment-${adjustment.name}`}
+          className={`text-[11px] ${adjustment.better ? "text-emerald-400" : "th-text-faint"}`}
+        >
+          {t("adjustmentLine", {
+            name: adjustment.name,
+            maeBase: formatChartValue(adjustment.maeBase),
+            maeScenario: formatChartValue(adjustment.maeScenario),
+            points: adjustment.points,
+          })}
+        </p>
+      ))}
+
       {tracking && tracking.coverage && (
         <p data-testid="forecast-tracking" className="text-[11px] th-text-faint">
           {t("trackingLine", {
@@ -513,6 +550,16 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
               upper: formatChartValue(breach.upper),
               group: breach.group,
             },
+          )}
+          {breach.explanation && BREACH_EXPLANATION_KEYS[breach.explanation.kind] && (
+            <span data-testid="forecast-breach-explanation" className="block th-text-faint">
+              {t(BREACH_EXPLANATION_KEYS[breach.explanation.kind], {
+                event: breach.explanation.event,
+                consecutive: breach.explanation.consecutive,
+                direction: breach.direction,
+                magnitude: formatChartValue(breach.explanation.magnitude),
+              })}
+            </span>
           )}
         </p>
       )}
