@@ -14,9 +14,18 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { Loader2, Download, Table2, Info, AlertTriangle } from "lucide-react";
-import { postForecast } from "@/lib/api";
-import { buildDiagnostics, forecastToCsv, proofFacts, reliabilityBadge, toChartSeries } from "@/lib/forecast";
+import { Loader2, Download, Table2, Info, AlertTriangle, Sparkles } from "lucide-react";
+import { getPublicConfig, postForecast } from "@/lib/api";
+import {
+  buildDiagnostics,
+  contextWindow,
+  forecastToCsv,
+  proofFacts,
+  reliabilityBadge,
+  toChartSeries,
+  withScenario,
+} from "@/lib/forecast";
+import ForecastContextPanel from "./ForecastContextPanel";
 import { formatChartLabel, formatChartValue } from "@/lib/chart-tokens";
 
 const RELIABILITY_TONE = {
@@ -110,16 +119,39 @@ function downloadCsv(csv, filename) {
  * models, confidence_levels } — construit par l'assistant de création.
  * `onEditConfig` : optionnel, ouvre l'édition du widget (bouton affiché
  * uniquement à l'état d'erreur si ce handler est fourni).
+ * `onSaveConfig(config)` : optionnel, enregistre la config (contexte et
+ * scénarios appliqués depuis le panneau) ; sans lui, ils restent locaux.
  */
-export default function ForecastChart({ rows, config, title, onEditConfig }) {
+export default function ForecastChart({ rows, config, title, onEditConfig, onSaveConfig }) {
   const t = useTranslations("ForecastChart");
   const [status, setStatus] = useState("idle"); // idle|loading|success|error
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(0);
-  const [showTable, setShowTable] = useState(false);
+  const [view, setView] = useState("chart"); // chart|table|context
   const [retryToken, setRetryToken] = useState(0);
+  const [contextOverride, setContextOverride] = useState(null);
+  const [scenarioIndex, setScenarioIndex] = useState(0);
+  const [interpretEnabled, setInterpretEnabled] = useState(false);
   const abortRef = useRef(null);
+
+  // Contexte enregistré dans la config, sauf s'il vient d'être modifié ici
+  // (la config du parent n'est pas rechargée après l'enregistrement).
+  const persistedContext = useMemo(
+    () => ({ events: config.events || [], scenarios: config.scenarios || [] }),
+    [config.events, config.scenarios],
+  );
+  const context = contextOverride || persistedContext;
+
+  useEffect(() => {
+    let alive = true;
+    getPublicConfig()
+      .then((cfg) => alive && setInterpretEnabled(Boolean(cfg?.forecast_interpret_enabled)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const safeRows = useMemo(() => (Array.isArray(rows) ? rows : []), [rows]);
 
@@ -142,6 +174,8 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
       frequency: config.frequency || null,
       models: config.models || ["prophet"],
       confidence_levels: config.confidence_levels || [0.8, 0.95],
+      events: context.events,
+      scenarios: context.scenarios,
     });
   }, [
     safeRows,
@@ -152,6 +186,7 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
     config.frequency,
     config.models,
     config.confidence_levels,
+    context,
   ]);
 
   useEffect(() => {
@@ -173,6 +208,9 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
         frequency: config.frequency || null,
         models: config.models || ["prophet"],
         confidence_levels: config.confidence_levels || [0.8, 0.95],
+        // Absents plutôt que vides : sans contexte, la requête reste celle d'avant.
+        ...(context.events.length > 0 ? { events: context.events } : {}),
+        ...(context.scenarios.length > 0 ? { scenarios: context.scenarios } : {}),
       },
       { signal: controller.signal },
     )
@@ -316,7 +354,24 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
       }),
     );
   }
-  const chartPoints = toChartSeries(current);
+  const scenarios = Array.isArray(current.scenarios) ? current.scenarios : [];
+  const scenario = scenarios[scenarioIndex] || null;
+  const chartPoints = withScenario(toChartSeries(current), scenario);
+  const ignoredEvents = (current.events || []).filter((e) => e.used === false).map((e) => e.name);
+  const hasContext = context.events.length > 0 || context.scenarios.length > 0;
+  // Avertissements de th2forecast (événement non appris, scénario inconnu…) :
+  // montrés seulement avec un contexte, pour ne pas changer l'affichage des autres.
+  const serverWarnings = hasContext ? [...new Set([...(response?.warnings || []), ...(current.warnings || [])])] : [];
+  // Interpréter un texte consomme le modèle mutualisé et modifie la config :
+  // réservé à qui peut l'enregistrer (pas un tableau de bord public).
+  const canInterpret = interpretEnabled && Boolean(onSaveConfig);
+  const showContextButton = canInterpret || hasContext;
+
+  const applyContext = async (next) => {
+    setContextOverride(next);
+    setScenarioIndex(0);
+    if (onSaveConfig) await onSaveConfig({ ...config, events: next.events, scenarios: next.scenarios });
+  };
   const historyEndIndex = (current.history || []).length - 1;
   const splitDate = current.history?.[historyEndIndex]?.date;
   const hasBands = chartPoints.some((p) => p.lower_95 != null);
@@ -353,13 +408,24 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {showContextButton && (
+            <button
+              type="button"
+              aria-pressed={view === "context"}
+              onClick={() => setView((v) => (v === "context" ? "chart" : "context"))}
+              className="inline-flex items-center gap-1 text-[11px] th-text-faint hover:th-text underline"
+            >
+              <Sparkles size={11} />
+              {view === "context" ? t("contextBack") : t("contextButton")}
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => setShowTable((v) => !v)}
+            onClick={() => setView((v) => (v === "table" ? "chart" : "table"))}
             className="inline-flex items-center gap-1 text-[11px] th-text-faint hover:th-text underline"
           >
             <Table2 size={11} />
-            {showTable ? t("hideTable") : t("tableView")}
+            {view === "table" ? t("hideTable") : t("tableView")}
           </button>
           <button
             type="button"
@@ -378,15 +444,57 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
         </p>
       )}
 
-      {diagnostics.warnings.length > 0 && (
+      {scenarios.length > 0 && view === "chart" && (
+        <div className="flex items-center gap-2 flex-wrap text-[11px]">
+          <label className="flex items-center gap-1 th-text-faint">
+            {t("scenarioLabel")}
+            <select
+              aria-label={t("scenarioLabel")}
+              value={scenarioIndex}
+              onChange={(e) => setScenarioIndex(Number(e.target.value))}
+              className="th-bg-surface border th-border rounded px-1.5 py-0.5 th-text text-[11px]"
+            >
+              {scenarios.map((s, idx) => (
+                <option key={s.name} value={idx}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {scenario?.difference && (
+            <span data-testid="forecast-scenario-difference" className="th-text-secondary">
+              {t("scenarioDifference", {
+                total: formatChartValue(scenario.difference.total),
+                pct: formatChartValue(scenario.difference.percent),
+              })}
+            </span>
+          )}
+        </div>
+      )}
+
+      {(diagnostics.warnings.length > 0 || serverWarnings.length > 0) && (
         <ul className="text-[10px] text-amber-400 space-y-0.5">
           {diagnostics.warnings.map((w) => (
             <li key={w.code}>{w.message}</li>
           ))}
+          {serverWarnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
         </ul>
       )}
 
-      {!showTable ? (
+      {view === "context" ? (
+        <div className="flex-1 min-h-[160px] overflow-auto">
+          <ForecastContextPanel
+            bounds={contextWindow(response)}
+            context={context}
+            interpretEnabled={canInterpret}
+            onApply={applyContext}
+            onDone={() => setView("chart")}
+            ignored={ignoredEvents}
+          />
+        </div>
+      ) : view === "chart" ? (
         <div className="flex-1 min-h-[160px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartPoints}>
@@ -440,6 +548,19 @@ export default function ForecastChart({ rows, config, title, onEditConfig }) {
                 connectNulls={false}
                 isAnimationActive={false}
               />
+              {scenario && (
+                <Line
+                  type="monotone"
+                  dataKey="scenario"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  strokeDasharray="2 3"
+                  dot={false}
+                  name={t("scenarioLine", { name: scenario.name })}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+              )}
               {splitDate && (
                 <ReferenceLine x={splitDate} stroke="var(--border)" strokeDasharray="2 2" />
               )}

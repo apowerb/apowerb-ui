@@ -44,6 +44,7 @@ export default function ForecastConfigStep({ columns, sampleRows, totalRows, val
     const targetVar = value.targetVar || detectTargetColumn(safeColumns, dateVar);
     const freq = detectFrequency(safeRows, dateVar).frequency;
     onChange({
+      ...value,
       dateVar: dateVar || "",
       targetVar: targetVar || "",
       groupVar: value.groupVar || "",
