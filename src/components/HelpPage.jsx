@@ -30,6 +30,7 @@ export function getCategoryMeta(t) {
     microsoft_auth: { label: t("categoryMicrosoftAuthLabel"), description: t("categoryMicrosoftAuthDescription") },
     onedrive: { label: "OneDrive", description: t("categoryOnedriveDescription") },
     outlook_mail: { label: t("categoryOutlookMailLabel"), description: t("categoryOutlookMailDescription") },
+    python_script: { label: t("categoryPythonScriptLabel"), description: t("categoryPythonScriptDescription") },
     rag: { label: "RAG", description: t("categoryRagDescription") },
     s3_tools: { label: t("categoryS3ToolsLabel"), description: t("categoryS3ToolsDescription") },
     teams: { label: t("categoryTeamsLabel"), description: t("categoryTeamsDescription") },

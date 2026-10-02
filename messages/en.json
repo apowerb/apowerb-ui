@@ -1239,6 +1239,8 @@
     "categoryOnedriveDescription": "Manage OneDrive files and folders",
     "categoryOutlookMailDescription": "Read and send Outlook emails",
     "categoryOutlookMailLabel": "Outlook Mail",
+    "categoryPythonScriptDescription": "Run custom Python in a sandboxed subprocess (self-hosted only)",
+    "categoryPythonScriptLabel": "Python Script",
     "categoryRagDescription": "Retrieval-Augmented Generation search and indexing",
     "categoryS3ToolsDescription": "Amazon S3 file operations",
     "categoryS3ToolsLabel": "S3 Storage",
