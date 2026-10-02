@@ -1239,6 +1239,8 @@
     "categoryOnedriveDescription": "Gérer les fichiers et dossiers OneDrive",
     "categoryOutlookMailDescription": "Lire et envoyer des emails Outlook",
     "categoryOutlookMailLabel": "Messagerie Outlook",
+    "categoryPythonScriptDescription": "Exécuter du code Python personnalisé dans un sous-processus isolé (auto-hébergé uniquement)",
+    "categoryPythonScriptLabel": "Script Python",
     "categoryRagDescription": "Recherche et indexation par génération augmentée de récupération (RAG)",
     "categoryS3ToolsDescription": "Opérations sur fichiers Amazon S3",
     "categoryS3ToolsLabel": "Stockage S3",

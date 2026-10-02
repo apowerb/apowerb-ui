@@ -79,6 +79,7 @@ const CATEGORY_ICON_RULES = [
   [/auth/, KeyRound],
   [/marketing|campaign/, Megaphone],
   [/tracker|followup/, ListChecks],
+  [/python/, Terminal],
   [/api|code/, Code2],
   [/workflow/, Workflow],
   [/cloud|aws|gcp/, Cloud],
