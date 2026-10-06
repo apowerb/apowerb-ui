@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  categoryLogo,
   filterAndSortTools,
   toolLeafName,
 } from "@/components/tools-manager/toolsManagerUtils";
@@ -57,5 +58,19 @@ describe("filterAndSortTools", () => {
       toolSortAsc: true,
     });
     expect(tools).toEqual(snapshot);
+  });
+});
+
+describe("categoryLogo", () => {
+  it("maps a connector category to its logo under public/integrations", () => {
+    expect(categoryLogo("notion")).toBe("/integrations/notion.png");
+    expect(categoryLogo("tools_bigquery")).toBe("/integrations/google-bigquery.png");
+    expect(categoryLogo("GitHub")).toBe("/integrations/github.svg");
+  });
+
+  it("returns null so the keyword icon is kept", () => {
+    expect(categoryLogo("database")).toBeNull();
+    expect(categoryLogo("constructor")).toBeNull();
+    expect(categoryLogo("")).toBeNull();
   });
 });

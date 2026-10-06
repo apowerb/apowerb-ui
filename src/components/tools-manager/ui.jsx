@@ -4,7 +4,8 @@ import React, { useCallback, useMemo } from "react";
 import { Search, X, ChevronDown } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { getCategoryMeta } from "../HelpPage";
-import { categoryIcon, humanizeCategory } from "./toolsManagerUtils";
+import { Image } from "@/lib/navigation";
+import { categoryIcon, categoryLogo, humanizeCategory } from "./toolsManagerUtils";
 
 /**
  * Small presentational building blocks shared by the Tool Box tabs, so every
@@ -191,6 +192,27 @@ export function useCategoryInfo() {
       label: meta[key]?.label || humanizeCategory(key),
       description: meta[key]?.description || "",
       Icon: categoryIcon(key),
+      logo: categoryLogo(key),
     };
   }, [meta]);
+}
+
+/**
+ * Category tile: the brand logo on a white tile when the category has one,
+ * otherwise the keyword icon on the blue tile. `className` sets the size.
+ */
+export function CategoryBadge({ info, iconSize = 18, className = "" }) {
+  const { Icon, logo } = info;
+  if (logo) {
+    return (
+      <div className={`shrink-0 rounded-xl bg-white border border-black/10 flex items-center justify-center overflow-hidden ${className}`}>
+        <Image src={logo} alt="" width={iconSize + 6} height={iconSize + 6} className="object-contain" />
+      </div>
+    );
+  }
+  return (
+    <div className={`shrink-0 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center ${className}`}>
+      <Icon size={iconSize} className="text-blue-400" />
+    </div>
+  );
 }
