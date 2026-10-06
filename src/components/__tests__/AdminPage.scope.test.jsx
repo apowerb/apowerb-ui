@@ -53,6 +53,7 @@ vi.mock("@/lib/api", () => ({
   disableAdminUserMfa: vi.fn(),
   forceRelogin: vi.fn(),
   setMfaRequired: vi.fn(),
+  getPublicConfig: vi.fn().mockResolvedValue({}),
   changeAdminUserRole: vi.fn(),
   createAdminGroup: vi.fn(),
   createAdminUser: vi.fn(),
