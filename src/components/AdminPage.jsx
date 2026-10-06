@@ -26,6 +26,7 @@ import {
   forceRelogin,
   setMfaRequired,
   getAdminContext,
+  getPublicConfig,
   changeAdminUserRole,
   createAdminGroup,
   createAdminUser,
@@ -121,6 +122,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Exiger la MFA n'a de sens que si un second facteur peut s'enrôler, ce qui
+  // demande la brique MFA. Sans elle le cœur refuse la demande (409) : le
+  // bouton reste caché tant que `/api/config` ne dit pas le contraire.
+  const [mfaAvailable, setMfaAvailable] = useState(false);
 
   const [tab, setTab] = useState("dashboard");
   const [newUser, setNewUser] = useState({
@@ -149,6 +154,16 @@ export default function AdminPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    let alive = true;
+    getPublicConfig()
+      .then((config) => alive && setMfaAvailable(config?.mfa_available === true))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const byId = useMemo(
     () => Object.fromEntries(users.map((u) => [u.user_id, u])),
@@ -270,6 +285,7 @@ export default function AdminPage() {
           }
           onRoleChange={(userId, role) => run(() => changeAdminUserRole(userId, role))}
           onAct={(fn) => run(fn)}
+          mfaAvailable={mfaAvailable}
         />
       ) : tab === "bugs" ? (
         <BugReportsAdmin />
@@ -375,7 +391,7 @@ function compact(n) {
  *  them (the secret is born when they scan the QR code, so a secret an
  *  administrator knows is not a second factor).
  */
-function UserActions({ user, isMe, busy, onAct, t }) {
+function UserActions({ user, isMe, busy, onAct, t, mfaAvailable }) {
   const [open, setOpen] = useState(false);
 
   const act = (fn, confirmLabel) => {
@@ -437,19 +453,23 @@ function UserActions({ user, isMe, busy, onAct, t }) {
                 <span className="block th-text-faint text-[10px]">{t("actForceReloginHint")}</span>
               </span>
             </button>
-            <button
-              type="button"
-              onClick={() => act(() => setMfaRequired(user.user_id, !user.mfa_required))}
-              className="w-full flex items-start gap-2 px-3 py-2 text-left text-xs th-text hover:th-bg-surface-hover"
-            >
-              <ShieldCheck size={13} className="mt-0.5 shrink-0" />
-              <span>
-                {user.mfa_required ? t("actStopRequiringMfa") : t("actRequireMfa")}
-                <span className="block th-text-faint text-[10px]">
-                  {user.mfa_required ? t("actStopRequiringMfaHint") : t("actRequireMfaHint")}
+            {(mfaAvailable || user.mfa_required) && (
+              // « Ne plus exiger » reste proposé sans brique : un compte déjà
+              // marqué doit toujours pouvoir être libéré.
+              <button
+                type="button"
+                onClick={() => act(() => setMfaRequired(user.user_id, !user.mfa_required))}
+                className="w-full flex items-start gap-2 px-3 py-2 text-left text-xs th-text hover:th-bg-surface-hover"
+              >
+                <ShieldCheck size={13} className="mt-0.5 shrink-0" />
+                <span>
+                  {user.mfa_required ? t("actStopRequiringMfa") : t("actRequireMfa")}
+                  <span className="block th-text-faint text-[10px]">
+                    {user.mfa_required ? t("actStopRequiringMfaHint") : t("actRequireMfaHint")}
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+            )}
             {user.mfa_enabled && (
               <button
                 type="button"
@@ -483,7 +503,7 @@ function UserActions({ user, isMe, busy, onAct, t }) {
   );
 }
 
-function UsersTab({ t, users, me, busy, newUser, setNewUser, canCreate, onCreate, onRoleChange, onAct }) {
+function UsersTab({ t, users, me, busy, newUser, setNewUser, canCreate, onCreate, onRoleChange, onAct, mfaAvailable }) {
   const field = "px-3 py-2 rounded-xl th-bg-input border th-border th-text text-sm focus:outline-none focus:border-brand";
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
@@ -721,7 +741,7 @@ function UsersTab({ t, users, me, busy, newUser, setNewUser, canCreate, onCreate
                     )}
                   </td>
                   <td className="px-2 py-3">
-                    <UserActions user={u} isMe={isMe} busy={busy} onAct={onAct} t={t} />
+                    <UserActions user={u} isMe={isMe} busy={busy} onAct={onAct} t={t} mfaAvailable={mfaAvailable} />
                   </td>
                 </tr>
               );
