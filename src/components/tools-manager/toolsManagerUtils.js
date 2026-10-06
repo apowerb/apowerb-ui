@@ -91,6 +91,34 @@ export function categoryIcon(category) {
   return rule ? rule[1] : Wrench;
 }
 
+/**
+ * Brand logo per portfolio category (backend module name). Files live in
+ * public/integrations/ and come from the public integrations catalogue.
+ * Categories without an entry keep their keyword icon.
+ */
+const CATEGORY_LOGOS = {
+  notion: "notion.png",
+  snowflake: "snowflake.png",
+  databricks: "databricks.png",
+  bigquery: "google-bigquery.png",
+  redshift: "amazon-redshift.png",
+  salesforce: "salesforce.png",
+  hubspot: "hubspot.png",
+  dynamics365: "microsoft-dynamics-365.png",
+  sharepoint: "microsoft-sharepoint.png",
+  google_drive: "google-drive.png",
+  teams: "microsoft-teams.png",
+  github: "github.svg",
+  oracle: "oracle-database.png",
+  mongodb: "mongodb.png",
+};
+
+export function categoryLogo(category) {
+  const key = String(category || "").toLowerCase().replace(/^tools_/, "");
+  const file = Object.hasOwn(CATEGORY_LOGOS, key) ? CATEGORY_LOGOS[key] : null;
+  return file ? `/integrations/${file}` : null;
+}
+
 /** "google_sheets" → "Google sheets" — fallback when no translated label exists. */
 export function humanizeCategory(category) {
   const s = String(category || "").replace(/^tools_/, "").replace(/[_-]+/g, " ").trim();

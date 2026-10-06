@@ -6,7 +6,7 @@ import { useTranslations } from "use-intl";
 import { toolLeafName } from "./toolsManagerUtils";
 import {
   Toolbar, SearchField, SelectField, ResultCount, Card, EmptyPanel,
-  SecondaryButton, useCategoryInfo,
+  SecondaryButton, useCategoryInfo, CategoryBadge,
 } from "./ui";
 
 const PREVIEW_COUNT = 6;
@@ -32,14 +32,11 @@ function CategoryCard({ category, tools, configuredCount, searching, search, onC
   const showAll = expanded || searching;
   const visible = showAll ? tools : tools.slice(0, PREVIEW_COUNT);
   const hidden = tools.length - visible.length;
-  const Icon = info.Icon;
 
   return (
     <Card className="p-4 flex flex-col hover:border-blue-500/30 transition-colors">
       <div className="flex items-start gap-3">
-        <div className="shrink-0 w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-          <Icon size={18} className="text-blue-400" />
-        </div>
+        <CategoryBadge info={info} iconSize={18} className="w-10 h-10" />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold th-text truncate" title={info.label}>
             <Highlight text={info.label} query={search} />

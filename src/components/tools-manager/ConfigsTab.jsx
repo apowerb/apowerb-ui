@@ -6,7 +6,7 @@ import { useTranslations } from "use-intl";
 import { parseToolNames, toolLeafName } from "./toolsManagerUtils";
 import {
   Toolbar, SearchField, SelectField, ResultCount, Card, EmptyPanel, IconButton,
-  PrimaryButton, SecondaryButton, Badge, useCategoryInfo,
+  PrimaryButton, SecondaryButton, Badge, useCategoryInfo, CategoryBadge,
 } from "./ui";
 
 const MAX_TOOL_CHIPS = 3;
@@ -74,7 +74,6 @@ export default function ConfigsTab({
         <Card className="divide-y divide-[var(--border-primary)] overflow-hidden">
           {filteredConfigs.map((config) => {
             const info = categoryInfo(resolveCategory(config));
-            const Icon = info.Icon;
             const tools = parseToolNames(config.tool_name);
             const active = config.status === "active";
             return (
@@ -90,9 +89,7 @@ export default function ConfigsTab({
                 className="group flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/10 focus:outline-none focus-visible:bg-white/10 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0 sm:w-72 shrink-0">
-                  <div className="shrink-0 w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                    <Icon size={16} className="text-blue-400" />
-                  </div>
+                  <CategoryBadge info={info} iconSize={16} className="w-9 h-9" />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold th-text truncate" title={config.tool_config_name}>
                       {config.tool_config_name?.replace(/^tools_/, "") || t("untitled")}
