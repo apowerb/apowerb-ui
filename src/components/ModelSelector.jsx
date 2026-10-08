@@ -6,47 +6,41 @@ import { getModels } from "@/lib/api";
 import ProviderIcon, { extractProvider, PROVIDERS } from "./ProviderIcon";
 
 // ---------------------------------------------------------------------------
-// Static registry — popular models per LiteLLM provider
+// Static registry — popular models per LiteLLM provider. Mirror of the
+// backend catalog (apowerb configs/models.py): same ids, first = recommended.
 // ---------------------------------------------------------------------------
 
 const FALLBACK_PROVIDER_MODELS = {
   anthropic: [
-    { id: "claude-sonnet-4-6",          name: "Claude Sonnet 4.6", tag: "Latest" },
-    { id: "claude-opus-4-6",            name: "Claude Opus 4.6",   tag: "Powerful" },
-    { id: "claude-haiku-4-5-20251001",  name: "Claude Haiku 4.5",  tag: "Fast" },
-    { id: "claude-sonnet-4-5-20250929", name: "Claude Sonnet 4.5", tag: null },
+    { id: "claude-opus-5-5",   name: "Claude Opus 5.5",   tag: "Recommended" },
+    { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", tag: "Balanced" },
+    { id: "claude-haiku-5-5",  name: "Claude Haiku 5.5",  tag: "Fast" },
+    { id: "claude-fable-5-1",  name: "Claude Fable 5.1",  tag: "Most capable" },
   ],
   openai: [
-    { id: "o3",           name: "o3",           tag: "Reasoning" },
-    { id: "o4-mini",      name: "o4-mini",      tag: "Fast reasoning" },
-    { id: "o3-pro",       name: "o3 Pro",       tag: "Deep reasoning" },
-    { id: "gpt-4.1",      name: "GPT-4.1",      tag: "Coding" },
-    { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", tag: "Fast" },
-    { id: "gpt-4.1-nano", name: "GPT-4.1 Nano", tag: "Fastest" },
+    { id: "gpt-6.1-sol", name: "GPT-6.1 Sol", tag: "Recommended" },
+    { id: "gpt-6-astra", name: "GPT-6 Astra", tag: "Most capable" },
+    { id: "gpt-6-luna",  name: "GPT-6 Luna",  tag: "Fast" },
   ],
   mistral: [
-    { id: "mistral-large-latest",  name: "Mistral Large 3",  tag: "Recommended" },
-    { id: "devstral-small-latest", name: "Devstral Small 2", tag: "Code" },
-    { id: "mistral-small-latest",  name: "Mistral Small 3",  tag: "Fast" },
-    { id: "codestral-latest",      name: "Codestral",        tag: "Code" },
-    { id: "open-mistral-nemo",     name: "Mistral Nemo",     tag: "Open" },
+    { id: "mistral-large-latest",  name: "Mistral Large",  tag: "Recommended" },
+    { id: "mistral-medium-latest", name: "Mistral Medium", tag: "Balanced" },
+    { id: "mistral-small-latest",  name: "Mistral Small",  tag: "Fast" },
+    { id: "codestral-latest",      name: "Codestral",      tag: "Code" },
   ],
   gemini: [
-    { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", tag: "Latest" },
-    { id: "gemini-3-pro",           name: "Gemini 3 Pro",   tag: "Powerful" },
-    { id: "gemini-2.0-flash",       name: "Gemini 2.0 Flash", tag: "Fast" },
-    { id: "gemini-2.0-pro",         name: "Gemini 2.0 Pro",   tag: null },
+    { id: "gemini-3.8-flash",       name: "Gemini 3.8 Flash",      tag: "Recommended" },
+    { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro",        tag: "Preview" },
+    { id: "gemini-3.5-flash-lite",  name: "Gemini 3.5 Flash-Lite", tag: "Fastest" },
   ],
   deepseek: [
-    { id: "deepseek-chat",     name: "DeepSeek V3.2",     tag: "Recommended" },
-    { id: "deepseek-reasoner", name: "DeepSeek V3.2 R1",  tag: "Reasoning" },
+    { id: "deepseek-flash",  name: "DeepSeek V4.1 Flash", tag: "Recommended" },
+    { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro",     tag: "Powerful" },
   ],
   groq: [
-    { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick", tag: "Powerful" },
-    { id: "meta-llama/llama-4-scout-17b-16e-instruct",     name: "Llama 4 Scout",    tag: "Fast" },
-    { id: "openai/gpt-oss-120b",                           name: "GPT-OSS 120B",     tag: "Open" },
-    { id: "qwen/qwen-3-32b",                               name: "Qwen 3 32B",       tag: "Preview" },
-    { id: "llama-3.3-70b-versatile",                        name: "Llama 3.3 70B",    tag: null },
+    { id: "openai/gpt-oss-120b",  name: "GPT-OSS 120B", tag: "Recommended" },
+    { id: "openai/gpt-oss-20b",   name: "GPT-OSS 20B",  tag: "Fast" },
+    { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", tag: "Fastest" },
   ],
 };
 
