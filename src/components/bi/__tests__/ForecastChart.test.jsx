@@ -756,3 +756,63 @@ describe("ForecastChart — scenario adjustments value", () => {
     expect(screen.queryByTestId(/forecast-adjustment-/)).toBeNull();
   });
 });
+
+describe("ForecastChart — outlier correction", () => {
+  it("relays preprocessing from the config to the request", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={{ ...config, preprocessing: { outliers: true } }} title="Sales" />);
+    await waitFor(() => expect(postForecast).toHaveBeenCalled());
+    expect(postForecast.mock.calls[0][0]).toMatchObject({ preprocessing: { outliers: true } });
+  });
+
+  it("sends no preprocessing field when the switch is off", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await waitFor(() => expect(postForecast).toHaveBeenCalled());
+    expect(postForecast.mock.calls[0][0]).not.toHaveProperty("preprocessing");
+  });
+
+  it("refetches when the switch changes on an existing widget", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    const { rerender } = render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await waitFor(() => expect(postForecast).toHaveBeenCalledTimes(1));
+    rerender(<ForecastChart rows={rows} config={{ ...config, preprocessing: { outliers: true } }} title="Sales" />);
+    await waitFor(() => expect(postForecast).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows how many outliers the engine corrected", async () => {
+    const corrected = {
+      ...successResponse,
+      series: [
+        {
+          ...successResponse.series[0],
+          preprocessing: {
+            outliers_corrected: 1,
+            anomalies_corrected: 0,
+            corrections: [{ date: "2024-02-01", original: 330, corrected: 110, kind: "outlier" }],
+          },
+        },
+      ],
+    };
+    postForecast.mockResolvedValue(corrected);
+    render(<ForecastChart rows={rows} config={{ ...config, preprocessing: { outliers: true } }} title="Sales" />);
+    const line = await screen.findByTestId("forecast-preprocessing");
+    expect(line.textContent).toMatch(/1 outlier corrected/i);
+  });
+
+  it("shows no correction line without a preprocessing block", async () => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={config} title="Sales" />);
+    await screen.findByText("Reliable");
+    expect(screen.queryByTestId("forecast-preprocessing")).toBeNull();
+  });
+});
+
+describe("ForecastChart — preprocessing switched off in a stored config", () => {
+  it.each([[{}], [{ outliers: false }]])("sends no preprocessing field for %j", async (preprocessing) => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={{ ...config, preprocessing }} title="Sales" />);
+    await waitFor(() => expect(postForecast).toHaveBeenCalled());
+    expect(postForecast.mock.calls[0][0]).not.toHaveProperty("preprocessing");
+  });
+});

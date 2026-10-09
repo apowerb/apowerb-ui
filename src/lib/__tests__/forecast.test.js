@@ -25,6 +25,8 @@ import {
   isReconciliationEnabled,
   adaptiveCalibrationFacts,
   adjustmentsFacts,
+  preprocessingFacts,
+  requestedPreprocessing,
 } from "../forecast";
 
 describe("detectDateColumn", () => {
@@ -607,5 +609,36 @@ describe("adjustmentsFacts", () => {
 
   it("skips an incomplete adjustment entry", () => {
     expect(adjustmentsFacts({ adjustments: [{ name: "X" }] })).toEqual([]);
+  });
+});
+
+describe("preprocessingFacts", () => {
+  it("returns null when the series carries no preprocessing block", () => {
+    expect(preprocessingFacts({})).toBeNull();
+    expect(preprocessingFacts(null)).toBeNull();
+  });
+
+  it("returns the outlier and anomaly counts reported by the engine", () => {
+    expect(
+      preprocessingFacts({ preprocessing: { outliers_corrected: 2, anomalies_corrected: 0, corrections: [] } }),
+    ).toEqual({ outliers: 2, anomalies: 0 });
+  });
+
+  it("treats a missing count as zero rather than inventing one", () => {
+    expect(preprocessingFacts({ preprocessing: { outliers_corrected: 1 } })).toEqual({ outliers: 1, anomalies: 0 });
+  });
+});
+
+describe("requestedPreprocessing", () => {
+  it("asks for nothing when no step is switched on", () => {
+    expect(requestedPreprocessing(undefined)).toBeNull();
+    expect(requestedPreprocessing(null)).toBeNull();
+    expect(requestedPreprocessing({})).toBeNull();
+    expect(requestedPreprocessing({ outliers: false })).toBeNull();
+  });
+
+  it("keeps only the steps switched on", () => {
+    expect(requestedPreprocessing({ outliers: true })).toEqual({ outliers: true });
+    expect(requestedPreprocessing({ outliers: true, anomalies: false })).toEqual({ outliers: true });
   });
 });

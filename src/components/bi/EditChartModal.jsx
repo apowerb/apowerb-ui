@@ -108,6 +108,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
     // ferait passer "absente" pour "décochée").
     hierarchy: existingConfig.hierarchy,
     reconciliation: existingConfig.reconciliation,
+    preprocessing: existingConfig.preprocessing,
   });
 
   // Load columns (+ a data sample for the forecast diagnostics) from chart data
@@ -220,6 +221,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
           confidence_levels: [0.8, 0.95],
           ...(forecastConfig.events?.length ? { events: forecastConfig.events } : {}),
           ...(forecastConfig.scenarios?.length ? { scenarios: forecastConfig.scenarios } : {}),
+          ...(forecastConfig.preprocessing?.outliers ? { preprocessing: { outliers: true } } : {}),
           // Le contrat (§2) met "mint" par défaut dès qu'une hiérarchie est
           // choisie : la case décochée doit donc écrire "none" explicitement,
           // jamais rien omettre (sinon le moteur réconcilierait quand même).

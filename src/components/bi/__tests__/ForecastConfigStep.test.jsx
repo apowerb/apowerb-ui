@@ -249,3 +249,32 @@ describe("ForecastConfigStep — reconciliation default and legacy compat", () =
     expect(screen.getByRole("checkbox", { name: /MinT/i })).not.toBeChecked();
   });
 });
+
+describe("ForecastConfigStep — outlier correction switch", () => {
+  const base = { dateVar: "date", targetVar: "sales", horizon: 3, models: ["prophet"] };
+
+  it("is off by default and turns preprocessing.outliers on when checked", () => {
+    const onChange = vi.fn();
+    render(<ForecastConfigStep columns={columns} sampleRows={sampleRows} value={base} onChange={onChange} />);
+    const box = screen.getByRole("checkbox", { name: /outliers/i });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    expect(onChange.mock.calls.at(-1)[0].preprocessing).toEqual({ outliers: true });
+  });
+
+  it("removes the preprocessing key when unchecked, so the request stays as before", () => {
+    const onChange = vi.fn();
+    render(
+      <ForecastConfigStep
+        columns={columns}
+        sampleRows={sampleRows}
+        value={{ ...base, preprocessing: { outliers: true } }}
+        onChange={onChange}
+      />,
+    );
+    const box = screen.getByRole("checkbox", { name: /outliers/i });
+    expect(box).toBeChecked();
+    fireEvent.click(box);
+    expect(onChange.mock.calls.at(-1)[0]).not.toHaveProperty("preprocessing");
+  });
+});

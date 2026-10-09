@@ -1394,6 +1394,7 @@ export default function AddChartWizard({
           frequency: forecastConfig.frequency || null,
           models: forecastConfig.models && forecastConfig.models.length > 0 ? forecastConfig.models : ["prophet"],
           confidence_levels: [0.8, 0.95],
+          ...(forecastConfig.preprocessing?.outliers ? { preprocessing: { outliers: true } } : {}),
           // Le contrat (§2) met "mint" par défaut dès qu'une hiérarchie est
           // choisie : la case décochée écrit "none" explicitement.
           ...(forecastConfig.hierarchy?.length

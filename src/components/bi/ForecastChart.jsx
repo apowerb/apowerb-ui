@@ -27,6 +27,8 @@ import {
   latestBreachFacts,
   proofFacts,
   reconciliationFacts,
+  preprocessingFacts,
+  requestedPreprocessing,
   reliabilityBadge,
   sortByHierarchyLevel,
   toChartSeries,
@@ -191,6 +193,7 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
       confidence_levels: config.confidence_levels || [0.8, 0.95],
       hierarchy: config.hierarchy || null,
       reconciliation: config.reconciliation || null,
+      preprocessing: requestedPreprocessing(config.preprocessing),
       chart_id: chartId || null,
       events: context.events,
       scenarios: context.scenarios,
@@ -206,6 +209,7 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
     config.confidence_levels,
     config.hierarchy,
     config.reconciliation,
+    config.preprocessing,
     chartId,
     context,
   ]);
@@ -235,6 +239,9 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
         ...(context.scenarios.length > 0 ? { scenarios: context.scenarios } : {}),
         ...(config.hierarchy?.length > 0 ? { hierarchy: config.hierarchy } : {}),
         ...(config.reconciliation ? { reconciliation: config.reconciliation } : {}),
+        ...(requestedPreprocessing(config.preprocessing)
+          ? { preprocessing: requestedPreprocessing(config.preprocessing) }
+          : {}),
         // Jamais dans l'aperçu de l'assistant (widget pas encore enregistré,
         // chartId absent) : seul un graphique d'un tableau de bord fournit
         // chartId (voir ChartRenderer).
@@ -388,6 +395,7 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
   const tracking = trackingFacts(response?.tracking);
   const breach = latestBreachFacts(response?.tracking, current.group);
   const reconciliation = reconciliationFacts(response);
+  const preprocessing = preprocessingFacts(current);
   const adaptiveBands = adaptiveCalibrationFacts(current);
   const adjustments = adjustmentsFacts(response?.tracking);
   const rareSales = isRareSales(current);
@@ -488,6 +496,12 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
             after: formatChartValue(reconciliation.maseReconciled),
             points: reconciliation.points,
           })}
+        </p>
+      )}
+
+      {preprocessing && (
+        <p data-testid="forecast-preprocessing" className="text-[11px] th-text-faint">
+          {t("outliersCorrectedLine", { count: preprocessing.outliers })}
         </p>
       )}
 
