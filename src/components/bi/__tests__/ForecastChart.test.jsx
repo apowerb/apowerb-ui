@@ -807,3 +807,12 @@ describe("ForecastChart — outlier correction", () => {
     expect(screen.queryByTestId("forecast-preprocessing")).toBeNull();
   });
 });
+
+describe("ForecastChart — preprocessing switched off in a stored config", () => {
+  it.each([[{}], [{ outliers: false }]])("sends no preprocessing field for %j", async (preprocessing) => {
+    postForecast.mockResolvedValue(successResponse);
+    render(<ForecastChart rows={rows} config={{ ...config, preprocessing }} title="Sales" />);
+    await waitFor(() => expect(postForecast).toHaveBeenCalled());
+    expect(postForecast.mock.calls[0][0]).not.toHaveProperty("preprocessing");
+  });
+});

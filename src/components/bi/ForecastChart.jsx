@@ -28,6 +28,7 @@ import {
   proofFacts,
   reconciliationFacts,
   preprocessingFacts,
+  requestedPreprocessing,
   reliabilityBadge,
   sortByHierarchyLevel,
   toChartSeries,
@@ -192,7 +193,7 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
       confidence_levels: config.confidence_levels || [0.8, 0.95],
       hierarchy: config.hierarchy || null,
       reconciliation: config.reconciliation || null,
-      preprocessing: config.preprocessing || null,
+      preprocessing: requestedPreprocessing(config.preprocessing),
       chart_id: chartId || null,
       events: context.events,
       scenarios: context.scenarios,
@@ -238,7 +239,9 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
         ...(context.scenarios.length > 0 ? { scenarios: context.scenarios } : {}),
         ...(config.hierarchy?.length > 0 ? { hierarchy: config.hierarchy } : {}),
         ...(config.reconciliation ? { reconciliation: config.reconciliation } : {}),
-        ...(config.preprocessing ? { preprocessing: config.preprocessing } : {}),
+        ...(requestedPreprocessing(config.preprocessing)
+          ? { preprocessing: requestedPreprocessing(config.preprocessing) }
+          : {}),
         // Jamais dans l'aperçu de l'assistant (widget pas encore enregistré,
         // chartId absent) : seul un graphique d'un tableau de bord fournit
         // chartId (voir ChartRenderer).

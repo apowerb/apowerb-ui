@@ -463,3 +463,12 @@ export function preprocessingFacts(series) {
     anomalies: isFiniteNumber(pre.anomalies_corrected) ? pre.anomalies_corrected : 0,
   };
 }
+
+// Étapes de prétraitement réellement demandées : seules les valeurs `true`.
+// Une config enregistrée par API peut porter `{}` ou `{outliers: false}` ;
+// l'envoyer tel quel ferait refuser la requête par le moteur Python.
+export function requestedPreprocessing(preprocessing) {
+  if (!preprocessing || typeof preprocessing !== "object") return null;
+  const on = Object.entries(preprocessing).filter(([, v]) => v === true);
+  return on.length > 0 ? Object.fromEntries(on) : null;
+}
