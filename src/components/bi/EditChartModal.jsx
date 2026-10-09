@@ -24,6 +24,7 @@ import ForecastConfigStep from "./ForecastConfigStep";
 import { isReconciliationEnabled } from "@/lib/forecast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "../Toast";
+import { BI_TABULAR_ACCEPT } from "@/lib/biTabular";
 
 const VIZ_TYPES = [
   { key: "chart", icon: BarChart3 },
@@ -448,7 +449,7 @@ export default function EditChartModal({ chart, onClose, onSaved }) {
                 {/* Upload CSV */}
                 {changeMode === "csv" && (
                   <div>
-                    <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleCsvUpload(e.target.files[0]); }} />
+                    <input ref={fileInputRef} type="file" accept={BI_TABULAR_ACCEPT} className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleCsvUpload(e.target.files[0]); }} />
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
