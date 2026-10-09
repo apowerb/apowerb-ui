@@ -35,6 +35,7 @@ import ForecastConfigStep from "./ForecastConfigStep";
 import { isReconciliationEnabled } from "@/lib/forecast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "../Toast";
+import { BI_TABULAR_ACCEPT } from "@/lib/biTabular";
 
 const STEPS = [
   { key: "source" },
@@ -334,7 +335,7 @@ function StepSource({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept={BI_TABULAR_ACCEPT}
             onChange={handleFileSelect}
             className="hidden"
           />

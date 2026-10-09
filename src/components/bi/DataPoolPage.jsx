@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "../Toast";
 import EmptyState from "@/components/EmptyState";
 import ConfirmToast from "@/components/ConfirmToast";
+import { BI_TABULAR_ACCEPT } from "@/lib/biTabular";
 
 export default function DataPoolPage() {
   const router = useRouter();
@@ -160,7 +161,7 @@ export default function DataPoolPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept={BI_TABULAR_ACCEPT}
               className="hidden"
               onChange={handleUpload}
             />
