@@ -111,31 +111,47 @@ export function useStreaming() {
               const accumulated = accumulatedContentRef.current;
               const turnContent = turnContentRef.current;
 
+              // --- Streaming delta (ADK `partial: true`) ---
+              // A delta is appended as is. The text heuristics below target
+              // cumulative events and would drop or trim legitimate deltas.
+              if (meta?.partial === true) {
+                sawPartialRef.current = true;
+                lastChunkRef.current = chunk;
+                accumulatedContentRef.current += chunk;
+                turnContentRef.current += chunk;
+                onChunk(chunk);
+                return;
+              }
+
               // --- Aggregated end-of-turn event (ADK `partial: false`) ---
-              // Once deltas have been seen, this event restates the whole
-              // turn. It REPLACES what was accumulated: only the text the
-              // deltas did not already carry is emitted. Appending it is
-              // what showed the same answer twice.
-              if (meta?.partial === true) sawPartialRef.current = true;
-              else if (sawPartialRef.current && meta && meta.partial === false) {
+              // Once deltas have been seen in the run, this event restates the
+              // whole turn. It REPLACES what was accumulated: only the text the
+              // deltas did not already carry is emitted, and it closes the
+              // turn. Appending it is what showed the same answer twice. With
+              // no delta in its turn, it is the turn's only text: appended once.
+              if (sawPartialRef.current && meta && meta.partial === false) {
+                turnContentRef.current = "";
+                if (turnContent.length === 0) {
+                  lastChunkRef.current = chunk;
+                  accumulatedContentRef.current += chunk;
+                  onChunk(chunk);
+                  return;
+                }
                 if (chunk === turnContent) return;
-                if (turnContent.length > 0 && chunk.startsWith(turnContent)) {
+                if (chunk.startsWith(turnContent)) {
                   const tail = chunk.slice(turnContent.length);
                   lastChunkRef.current = chunk;
-                  turnContentRef.current = chunk;
                   accumulatedContentRef.current += tail;
                   onChunk(tail);
                   return;
                 }
-                if (turnContent.length > 0) {
-                  // The restatement diverges from what the reader already
-                  // saw. Keeping the streamed text is the only option that
-                  // cannot double the answer; the divergence is logged.
-                  console.debug(
-                    "[useStreaming] aggregated event diverges from streamed turn, keeping streamed text",
-                  );
-                  return;
-                }
+                // The restatement diverges from what the reader already
+                // saw. Keeping the streamed text is the only option that
+                // cannot double the answer; the divergence is logged.
+                console.debug(
+                  "[useStreaming] aggregated event diverges from streamed turn, keeping streamed text",
+                );
+                return;
               }
 
               if (chunk === lastChunkRef.current) return;
