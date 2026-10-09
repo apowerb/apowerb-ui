@@ -95,6 +95,12 @@ export default function ForecastConfigStep({ columns, sampleRows, totalRows, val
 
   const selectedModel = value.models?.[0] || "prophet";
 
+  // Coupé : clé retirée, la requête reste celle d'avant (additif).
+  const toggleOutliers = (checked) => {
+    const { preprocessing, ...rest } = value;
+    onChange(checked ? { ...rest, preprocessing: { ...preprocessing, outliers: true } } : rest);
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -222,6 +228,19 @@ export default function ForecastConfigStep({ columns, sampleRows, totalRows, val
           ))}
         </div>
         <p className="text-xs th-text-faint mt-1">{modelExplanations[selectedModel]}</p>
+      </div>
+
+      <div>
+        <label className="inline-flex items-center gap-1.5 text-sm th-text">
+          <input
+            type="checkbox"
+            checked={Boolean(value.preprocessing?.outliers)}
+            onChange={(e) => toggleOutliers(e.target.checked)}
+            aria-label={t("outliersLabel")}
+          />
+          {t("outliersLabel")}
+        </label>
+        <p className="text-xs th-text-faint mt-1">{t("outliersHint")}</p>
       </div>
 
       <div className="p-3 rounded-lg border th-border bg-white/[0.02]">

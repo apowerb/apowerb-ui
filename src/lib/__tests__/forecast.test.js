@@ -25,6 +25,7 @@ import {
   isReconciliationEnabled,
   adaptiveCalibrationFacts,
   adjustmentsFacts,
+  preprocessingFacts,
 } from "../forecast";
 
 describe("detectDateColumn", () => {
@@ -607,5 +608,22 @@ describe("adjustmentsFacts", () => {
 
   it("skips an incomplete adjustment entry", () => {
     expect(adjustmentsFacts({ adjustments: [{ name: "X" }] })).toEqual([]);
+  });
+});
+
+describe("preprocessingFacts", () => {
+  it("returns null when the series carries no preprocessing block", () => {
+    expect(preprocessingFacts({})).toBeNull();
+    expect(preprocessingFacts(null)).toBeNull();
+  });
+
+  it("returns the outlier and anomaly counts reported by the engine", () => {
+    expect(
+      preprocessingFacts({ preprocessing: { outliers_corrected: 2, anomalies_corrected: 0, corrections: [] } }),
+    ).toEqual({ outliers: 2, anomalies: 0 });
+  });
+
+  it("treats a missing count as zero rather than inventing one", () => {
+    expect(preprocessingFacts({ preprocessing: { outliers_corrected: 1 } })).toEqual({ outliers: 1, anomalies: 0 });
   });
 });

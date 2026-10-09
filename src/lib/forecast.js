@@ -450,3 +450,16 @@ export function adjustmentsFacts(tracking) {
       better: a.mae_scenario < a.mae_base,
     }));
 }
+
+// Prétraitement du moteur R (champ `preprocessing` de la requête) : nombre de
+// valeurs corrigées avant l'entraînement, par série. Absent tant que la
+// correction n'a pas été demandée. L'historique renvoyé garde les valeurs
+// d'origine : seuls ces comptes disent qu'une correction a eu lieu.
+export function preprocessingFacts(series) {
+  const pre = series?.preprocessing;
+  if (!pre || typeof pre !== "object") return null;
+  return {
+    outliers: isFiniteNumber(pre.outliers_corrected) ? pre.outliers_corrected : 0,
+    anomalies: isFiniteNumber(pre.anomalies_corrected) ? pre.anomalies_corrected : 0,
+  };
+}

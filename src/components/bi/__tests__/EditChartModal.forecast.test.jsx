@@ -169,3 +169,31 @@ describe("EditChartModal — reconciliation off despite a hierarchy (contract §
     expect(payload.config).toMatchObject({ hierarchy: ["region"], reconciliation: "none" });
   });
 });
+
+describe("EditChartModal — outlier correction switch", () => {
+  it("pre-fills the saved switch and relays it back on save", async () => {
+    const chart = { ...forecastChart, config: { ...forecastChart.config, preprocessing: { outliers: true } } };
+    renderModal(chart);
+    await waitFor(() => expect(screen.getByText(/date column/i)).toBeInTheDocument());
+    expect(await screen.findByRole("checkbox", { name: /outliers/i })).toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(updateChart).toHaveBeenCalled());
+    const [, payload] = updateChart.mock.calls[0];
+    expect(payload.config).toMatchObject({ preprocessing: { outliers: true } });
+  });
+
+  it("saves no preprocessing key once the switch is turned off", async () => {
+    const chart = { ...forecastChart, config: { ...forecastChart.config, preprocessing: { outliers: true } } };
+    renderModal(chart);
+    await waitFor(() => expect(screen.getByText(/date column/i)).toBeInTheDocument());
+    fireEvent.click(await screen.findByRole("checkbox", { name: /outliers/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(updateChart).toHaveBeenCalled());
+    const [, payload] = updateChart.mock.calls[0];
+    expect(payload.config).not.toHaveProperty("preprocessing");
+  });
+});
