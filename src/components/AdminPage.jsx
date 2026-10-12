@@ -11,6 +11,7 @@ import {
   Plus,
   ShieldOff,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
   Trash2,
   UserPlus,
@@ -24,6 +25,7 @@ import {
   demandPasswordReset,
   disableAdminUserMfa,
   forceRelogin,
+  resetTokenUsage,
   setMfaRequired,
   getAdminContext,
   getPublicConfig,
@@ -451,6 +453,17 @@ function UserActions({ user, isMe, busy, onAct, t, mfaAvailable }) {
               <span>
                 {t("actForceRelogin")}
                 <span className="block th-text-faint text-[10px]">{t("actForceReloginHint")}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => act(() => resetTokenUsage(user.user_id), t("confirmResetTokens", { email: user.email }))}
+              className="w-full flex items-start gap-2 px-3 py-2 text-left text-xs th-text hover:th-bg-surface-hover"
+            >
+              <RotateCcw size={13} className="mt-0.5 shrink-0" />
+              <span>
+                {t("actResetTokens")}
+                <span className="block th-text-faint text-[10px]">{t("actResetTokensHint")}</span>
               </span>
             </button>
             {(mfaAvailable || user.mfa_required) && (

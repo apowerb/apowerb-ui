@@ -1058,6 +1058,11 @@ export const deleteAdminUser = (userId) =>
 export const forceRelogin = (userId) =>
   request(`/api/admin/users/${userId}/force-relogin`, { method: "POST" });
 
+// Puts the account's shared-model token counter back to zero. Nothing is
+// deleted: the core writes a cut-off, the consumption history stays.
+export const resetTokenUsage = (userId) =>
+  request(`/api/admin/users/${userId}/reset-token-usage`, { method: "POST" });
+
 // Demands a second factor, or stops demanding it. Enabling MFA *for*
 // someone stays impossible by construction — the secret is born when they
 // scan the QR code.
