@@ -642,3 +642,46 @@ describe("requestedPreprocessing", () => {
     expect(requestedPreprocessing({ outliers: true, anomalies: false })).toEqual({ outliers: true });
   });
 });
+
+describe("buildDiagnostics against the engine minimum", () => {
+  const months = (n) => Array.from({ length: n }, (_, i) => ({ date: `2024-${String(i + 1).padStart(2, "0")}-01`, sales: i }));
+
+  it("says the computation will be refused under the engine minimum", () => {
+    const { warnings } = buildDiagnostics({ rows: months(5), dateColumn: "date", targetColumn: "sales", horizon: 3 });
+    const short = warnings.find((w) => w.code === "short_history");
+    expect(short.message).toBe(
+      "Historique insuffisant (5 points) : le moteur en exige au moins 10 pour un horizon de 3, le calcul sera refusé.",
+    );
+  });
+
+  it("keeps the reliability warning when the computation is possible", () => {
+    const { warnings } = buildDiagnostics({ rows: months(11), dateColumn: "date", targetColumn: "sales", horizon: 6 });
+    expect(warnings.find((w) => w.code === "short_history").message).toMatch(/^Historique court \(11 points\)/);
+  });
+});
+
+describe("buildDiagnostics with a grouping column", () => {
+  // Un pourcentage choisi comme regroupement : une série d'un point par ligne.
+  const rows = [6.4, 1.1, -1.7, 5.3, 5.6].map((ecart, i) => ({ date: `2026-0${i + 1}-01`, total: 10 + i, ecart }));
+
+  it("warns when the grouping column has almost one value per row", () => {
+    const { warnings } = buildDiagnostics({ rows, dateColumn: "date", targetColumn: "total", groupColumn: "ecart", horizon: 3 });
+    expect(warnings.find((w) => w.code === "group_too_fine").message).toBe(
+      'La colonne de regroupement "ecart" crée 5 séries pour 5 lignes : presque une série par ligne. ' +
+        "Choisissez une colonne dont les valeurs se répètent (magasin, région…), ou aucun regroupement.",
+    );
+  });
+
+  it("does not warn for a grouping column whose values repeat", () => {
+    const stores = ["A", "B"].flatMap((store) => rows.map((r) => ({ ...r, store })));
+    const { warnings } = buildDiagnostics({ rows: stores, dateColumn: "date", targetColumn: "total", groupColumn: "store", horizon: 3 });
+    expect(warnings.map((w) => w.code)).not.toContain("group_too_fine");
+  });
+
+  it("does not judge the grouping on a partial preview sample", () => {
+    const { warnings } = buildDiagnostics({
+      rows, dateColumn: "date", targetColumn: "total", groupColumn: "ecart", horizon: 3, totalRows: 500,
+    });
+    expect(warnings.map((w) => w.code)).not.toContain("group_too_fine");
+  });
+});

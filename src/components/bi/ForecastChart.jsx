@@ -274,9 +274,10 @@ export default function ForecastChart({ rows, config, title, chartId, onEditConf
         rows: safeRows,
         dateColumn: config.date_var,
         targetColumn: config.target_var,
+        groupColumn: config.group_var,
         horizon: config.horizon,
       }),
-    [safeRows, config.date_var, config.target_var, config.horizon],
+    [safeRows, config.date_var, config.target_var, config.group_var, config.horizon],
   );
 
   if (safeRows.length === 0) {

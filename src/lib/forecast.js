@@ -72,12 +72,14 @@ export function defaultHorizon(frequency) {
 }
 
 const MIN_POINTS_FOR_HORIZON_FACTOR = 2;
+// Minimum d'historique par série exigé par th2forecast, quel que soit l'horizon.
+const ENGINE_MIN_POINTS = 10;
 
 // `totalRows` : nombre de lignes de la source complète quand `rows` n'en est
 // qu'un aperçu. Sur un aperçu partiel, la longueur d'historique n'est pas
 // mesurable : pas d'avertissement « historique court » (ForecastChart le
 // recalcule sur toutes les lignes au moment du calcul).
-export function buildDiagnostics({ rows, dateColumn, targetColumn, horizon, totalRows }) {
+export function buildDiagnostics({ rows, dateColumn, targetColumn, groupColumn, horizon, totalRows }) {
   const safeRows = Array.isArray(rows) ? rows : [];
   const warnings = [];
 
@@ -94,11 +96,31 @@ export function buildDiagnostics({ rows, dateColumn, targetColumn, horizon, tota
   // History length of one series: distinct dates, not rows (grouped data).
   const pointCount = dateColumn ? distinctTimes(safeRows, dateColumn).length || safeRows.length : safeRows.length;
 
-  if (!partial && horizon && pointCount < horizon * MIN_POINTS_FOR_HORIZON_FACTOR) {
+  const required = Math.max(ENGINE_MIN_POINTS, (horizon || 0) + 1);
+  if (!partial && horizon && pointCount < required) {
+    warnings.push({
+      code: "short_history",
+      message: `Historique insuffisant (${pointCount} points) : le moteur en exige au moins ${required} pour un horizon de ${horizon}, le calcul sera refusé.`,
+    });
+  } else if (!partial && horizon && pointCount < horizon * MIN_POINTS_FOR_HORIZON_FACTOR) {
     warnings.push({
       code: "short_history",
       message: `Historique court (${pointCount} points) pour un horizon de ${horizon} : la prévision sera peu fiable au-delà des premières périodes.`,
     });
+  }
+
+  // Presque une valeur distincte par ligne (un pourcentage, un montant) : une
+  // série d'un point par ligne, que le moteur refusera. Pas jugé sur un aperçu.
+  if (!partial && groupColumn && safeRows.length > 1) {
+    const groups = new Set(safeRows.map((r) => String(r[groupColumn]))).size;
+    if (groups * 2 > safeRows.length) {
+      warnings.push({
+        code: "group_too_fine",
+        message:
+          `La colonne de regroupement "${groupColumn}" crée ${groups} séries pour ${safeRows.length} lignes : presque une série par ligne. ` +
+          "Choisissez une colonne dont les valeurs se répètent (magasin, région…), ou aucun regroupement.",
+      });
+    }
   }
 
   if (dateColumn) {

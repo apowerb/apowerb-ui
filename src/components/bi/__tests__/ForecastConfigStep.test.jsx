@@ -37,7 +37,19 @@ describe("ForecastConfigStep", () => {
     expect(screen.getByText(/3 data points/i)).toBeInTheDocument();
     // Diagnostic messages come straight from lib/forecast.js (untranslated,
     // same rationale as the backend's own French error strings) — always French.
-    expect(screen.getByText(/historique court/i)).toBeInTheDocument();
+    expect(screen.getByText(/historique insuffisant/i)).toBeInTheDocument();
+  });
+
+  it("warns when the grouping column has almost one value per row", () => {
+    render(
+      <ForecastConfigStep
+        columns={columns}
+        sampleRows={sampleRows}
+        value={{ dateVar: "date", targetVar: "sales", groupVar: "sales", horizon: 3 }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByText(/presque une série par ligne/i)).toBeInTheDocument();
   });
 
   it("lets the user switch the model and explains the choice", () => {
