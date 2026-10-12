@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "use-intl";
 import { useRouter } from "@/lib/navigation";
-import { BarChart3, Globe, Building2 } from "lucide-react";
+import { BarChart3, Globe, Building2, Lock } from "lucide-react";
 import { getPublicDashboard } from "@/lib/api";
 import ChartRenderer from "./ChartRenderer";
 import StatCard from "./StatCard";
