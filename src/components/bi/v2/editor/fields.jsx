@@ -59,6 +59,8 @@ export function TextField({
 }) {
   const id = useId();
   const [draft, setDraft] = useState(value ?? "");
+  const [syncedValue, setSyncedValue] = useState(value);
+  const [editing, setEditing] = useState(false);
   const draftRef = useRef(value ?? "");
   const dirty = useRef(false);
   const timer = useRef(null);
@@ -69,17 +71,17 @@ export function TextField({
     commitRef.current = onCommit;
   });
 
-  useEffect(() => {
-    if (!dirty.current) {
-      setDraft(value ?? "");
-      draftRef.current = value ?? "";
-    }
-  }, [value]);
+  // Follow the committed value while the user is not typing.
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    if (!editing) setDraft(value ?? "");
+  }
 
   const flush = () => {
     clearTimeout(timer.current);
     if (dirty.current) {
       dirty.current = false;
+      setEditing(false);
       commitRef.current?.(draftRef.current);
     }
   };
@@ -89,6 +91,7 @@ export function TextField({
     setDraft(v);
     draftRef.current = v;
     dirty.current = true;
+    setEditing(true);
     clearTimeout(timer.current);
     if (debounce === 0) flush();
     else timer.current = setTimeout(flush, debounce);
@@ -97,7 +100,7 @@ export function TextField({
   useImperativeHandle(ref, () => ({
     insert(token) {
       const pos = el.current ? el.current.selectionStart : null;
-      const { text, caret } = insertAt(draftRef.current, token, pos);
+      const { text, caret } = insertAt(draft, token, pos);
       change(text);
       requestAnimationFrame(() => {
         if (el.current) {
