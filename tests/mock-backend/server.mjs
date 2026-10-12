@@ -26,6 +26,7 @@
  * localStorage th2_auth_token / th2_auth_user, or sign in through /api/auth/token below).
  */
 import http from "node:http";
+import { loadDashboard, computeData, applyOps } from "./dashboard-v2.mjs";
 
 const PORT = Number(process.argv[2] || process.env.PORT || 8100);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -344,7 +345,12 @@ const SEED = JSON.parse(JSON.stringify({
   agents: AGENTS, toolConfigs, datasets, schedules,
 }));
 
+// Dashboard v2 de démonstration : sa spec vit dans fixtures/, ses données sont
+// calculées par dashboard-v2.mjs à chaque filtre.
+let dashboardV2 = loadDashboard();
+
 function resetState() {
+  dashboardV2 = loadDashboard();
   AGENTS.length = 0;
   AGENTS.push(...JSON.parse(JSON.stringify(SEED.agents)));
   nextAgentId = 6;
@@ -524,6 +530,27 @@ const server = http.createServer(async (req, res) => {
     ]);
   }
   if (path.startsWith("/api/artifacts/")) return json(res, 200, []);
+  // ── Dashboard v2 (spec + data + patch) ──
+  const v2Match = path.match(/^\/api\/v1\/dashboards\/([^/]+)(?:\/(data|spec))?$/);
+  if (v2Match && v2Match[1] === dashboardV2.id) {
+    if (!v2Match[2] && req.method === "GET") return json(res, 200, dashboardV2);
+    if (v2Match[2] === "data" && req.method === "POST") {
+      return json(res, 200, computeData(dashboardV2, await readBody(req)));
+    }
+    if (v2Match[2] === "spec" && req.method === "POST") {
+      const body = await readBody(req);
+      if (body.dry_run) {
+        const draft = applyOps(JSON.parse(JSON.stringify(dashboardV2)), body.ops);
+        return json(res, 200, { dashboard: draft, data: computeData(draft, {}) });
+      }
+      applyOps(dashboardV2, body.ops);
+      return json(res, 200, { dashboard: dashboardV2 });
+    }
+  }
+  if (path === `/api/v1/dashboards/public/${dashboardV2.slug}`) return json(res, 200, dashboardV2);
+  if (path === `/api/v1/public/dashboards/${dashboardV2.slug}/data` && req.method === "POST") {
+    return json(res, 200, computeData(dashboardV2, await readBody(req)));
+  }
   if (path === "/api/v1/dashboards" || path === "/api/dashboards") return json(res, 200, { items: [{ id: 9, title: "Ventes 2026", description: "Suivi mensuel" }] });
   if (path === "/api/skills") return json(res, 200, [{ id: 1, name: "resume-executif", description: "Résumé en 5 points" }]);
   if (path.startsWith("/api/health")) return json(res, 200, { status: "ok" });

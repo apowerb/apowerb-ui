@@ -42,6 +42,7 @@ import {
   unpublishDashboard,
   getChart,
   getChartData,
+  patchDashboardSpec,
 } from "@/lib/api";
 import { useToast } from "../Toast";
 import ConfirmToast from "../ConfirmToast";
@@ -55,6 +56,13 @@ import AddChartWizard from "./AddChartWizard";
 import ChartSidebar from "./ChartSidebar";
 import MiniChat from "./MiniChat";
 import { authStorage } from "@/lib/authStorage";
+import { DashboardDataProvider } from "./v2/DashboardDataContext";
+import FilterBar from "./v2/FilterBar";
+import VisualRenderer from "./v2/VisualRenderer";
+import SpecEditorPanel from "./v2/SpecEditorPanel";
+import { useSpecEditor } from "./v2/editor/useSpecEditor";
+import { isV2Dashboard, NARROW_PX } from "./v2/isV2";
+import { fitTextBlocks } from "./v2/layout";
 
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
@@ -65,6 +73,7 @@ import "react-resizable/css/styles.css";
 
 export default function DashboardDetail({ dashboardId }) {
   const t = useTranslations("DashboardDetail");
+  const tv = useTranslations("DashboardV2");
   const router = useRouter();
   const toast = useToast();
 
@@ -115,6 +124,22 @@ export default function DashboardDetail({ dashboardId }) {
   const draggingChartRef = useRef(null);
 
   const [chartSourcesById, setChartSourcesById] = useState({});
+
+  // Dashboards v2: edit mode (spec editor panel) and the selected block.
+  const [editMode, setEditMode] = useState(false);
+  const [selectedComponentId, setSelectedComponentId] = useState(null);
+  const [textPx, setTextPx] = useState({});
+  const onContentHeight = useCallback(
+    (id, px) => setTextPx((prev) => (prev[id] === px ? prev : { ...prev, [id]: px })),
+    [],
+  );
+  const isV2 = isV2Dashboard(dashboard);
+  // One spec editor for the whole screen: canvas moves and panel edits share its
+  // request queue and its undo history.
+  const specEditor = useSpecEditor({ dashboard, onDashboardChange: setDashboard });
+  // Positions shown while a move is being saved (the editor sends it in order).
+  const [layoutOverride, setLayoutOverride] = useState({});
+  const narrowV2 = isV2 && gridWidth < NARROW_PX;
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -301,6 +326,9 @@ export default function DashboardDetail({ dashboardId }) {
     layout.forEach((item) => {
       const comp = components.find((c) => c.id === item.i);
       if (!comp) return;
+      // v2 visuals are saved through the spec when a move or resize ENDS.
+      if (comp.component_type === "visual") return;
+      if (narrowV2) return;
       const oldPos = comp.position || {};
       // Only update if position actually changed
       if (
@@ -317,6 +345,40 @@ export default function DashboardDetail({ dashboardId }) {
         console.error("Failed to save position:", err);
       });
     });
+  };
+
+  const handleVisualLayoutStop = (layout) => {
+    if (narrowV2 || !editMode) return;
+    const moved = [];
+    for (const item of layout) {
+      const comp = (dashboard?.components || []).find((c) => c.id === item.i);
+      if (!comp || comp.component_type !== "visual") continue;
+      const old = comp.position || {};
+      if (old.col === item.x && old.row === item.y && old.width === item.w && old.height === item.h) continue;
+      moved.push({
+        id: comp.id,
+        position: { col: item.x, row: item.y, width: item.w, height: item.h },
+      });
+    }
+    if (moved.length === 0) return;
+    // Shown optimistically; the dashboard itself only changes with the server
+    // response, so the editor computes its undo from the real previous state.
+    setLayoutOverride((prev) => ({ ...prev, ...Object.fromEntries(moved.map((m) => [m.id, m.position])) }));
+    specEditor
+      .apply(moved.map((m) => ({ op: "move_component", component_id: m.id, position: m.position })))
+      .then((next) => {
+        if (!next) {
+          toast.error(tv("moveFailed", { message: specEditor.error?.message || "" }));
+          fetchDashboard();
+        }
+      })
+      .finally(() => {
+        setLayoutOverride((prev) => {
+          const rest = { ...prev };
+          for (const m of moved) delete rest[m.id];
+          return rest;
+        });
+      });
   };
 
   const handlePublish = async () => {
@@ -394,7 +456,7 @@ export default function DashboardDetail({ dashboardId }) {
   }, []);
 
   const handleGridDrop = async (layout, layoutItem, event) => {
-    if (!layoutItem) return;
+    if (!layoutItem || isV2) return;
     try {
       const payload = JSON.parse(event.dataTransfer.getData("text/plain"));
       await addDashboardComponent(dashboardId, {
@@ -685,21 +747,49 @@ export default function DashboardDetail({ dashboardId }) {
     );
   }
 
-  const components = dashboard.components || [];
+  const rawComponents = (dashboard.components || []).map((c) =>
+    layoutOverride[c.id] ? { ...c, position: layoutOverride[c.id] } : c,
+  );
+  // text blocks fit their content (display only, nothing is saved)
+  const components = isV2 && !editMode ? fitTextBlocks(rawComponents, textPx) : rawComponents;
   const isDraft = dashboard.status === "draft";
 
   // Build react-grid-layout items
-  const gridLayout = components.map((comp) => ({
-    i: comp.id,
-    x: comp.position?.col || 0,
-    y: comp.position?.row || 0,
-    w: comp.position?.width || 6,
-    h: comp.position?.height || 4,
-    minW: 2,
-    minH: 2,
-  }));
+  let narrowKpiIndex = 0;
+  const gridLayout = components.map((comp) => {
+    const isVisual = comp.component_type === "visual";
+    if (narrowV2) {
+      // Phone width: two columns, KPI tiles side by side, the rest full width.
+      const isKpi = comp.visual?.type === "kpi";
+      const item = {
+        i: comp.id,
+        x: isKpi ? narrowKpiIndex++ % 2 : 0,
+        y: comp.position?.row || 0,
+        w: isKpi ? 1 : 2,
+        // full-width blocks are narrower: give text and notes room to wrap
+        h:
+          isKpi || comp.visual?.type === "text"
+            ? comp.position?.height || 4
+            : Math.max((comp.position?.height || 4) * 2, 5),
+        isDraggable: false,
+        isResizable: false,
+      };
+      return item;
+    }
+    return {
+      i: comp.id,
+      x: comp.position?.col || 0,
+      y: comp.position?.row || 0,
+      w: comp.position?.width || 6,
+      h: comp.position?.height || 4,
+      minW: 2,
+      minH: 2,
+      // v2 blocks hold clickable content: they move only in edit mode.
+      ...(isVisual ? { isDraggable: editMode, isResizable: editMode } : {}),
+    };
+  });
 
-  return (
+  const content = (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
       <header className="shrink-0 p-6 bg-linear-to-r from-brand/20 to-brand-secondary/20 border-b th-border backdrop-blur-xl">
@@ -820,6 +910,21 @@ export default function DashboardDetail({ dashboardId }) {
                 <Trash2 size={20} />
               )}
             </button>
+            {isV2 && !narrowV2 && (
+              <button
+                type="button"
+                onClick={() => setEditMode((v) => !v)}
+                aria-pressed={editMode}
+                className={`flex items-center gap-2 px-4 py-3 border rounded-xl font-bold transition-all ${
+                  editMode
+                    ? "bg-blue-500/20 border-blue-500/30 text-blue-400"
+                    : "th-bg-surface th-border th-text-muted hover:th-bg-surface-hover hover:th-text"
+                }`}
+              >
+                {editMode ? <Check size={20} /> : <Pencil size={20} />}
+                <span className="text-sm">{editMode ? tv("doneEditing") : tv("edit")}</span>
+              </button>
+            )}
             <button
               onClick={() => setShowSidebar((v) => !v)}
               className={`flex items-center gap-2 px-4 py-3 border rounded-xl font-bold transition-all ${
@@ -844,35 +949,87 @@ export default function DashboardDetail({ dashboardId }) {
       </header>
 
       {/* Filters */}
-      <div className="shrink-0 px-6 pt-4">
-        <DashboardFilters
-          labels={filterLabels}
-          onFilterChange={handleFilterChange}
-          onClear={handleFilterClear}
-        />
-      </div>
+      {isV2 && (
+        <div className="shrink-0 px-6 pt-4">
+          <FilterBar />
+        </div>
+      )}
+      {(!isV2 || filterLabels.length > 0) && (
+        <div className="shrink-0 px-6 pt-4">
+          <DashboardFilters
+            labels={filterLabels}
+            onFilterChange={handleFilterChange}
+            onClear={handleFilterClear}
+          />
+        </div>
+      )}
 
       {/* Content + Sidebar */}
       <div className="flex-1 relative overflow-hidden">
         {/* Main grid area — always rendered so it's a valid drop target */}
-        <div className="absolute inset-0 overflow-auto p-6" ref={exportAreaRef}>
+        <div
+          className="absolute inset-0 overflow-auto p-6"
+          ref={exportAreaRef}
+          style={isV2 && editMode && !narrowV2 ? { right: 380 } : undefined}
+        >
           <div ref={gridContainerRef} className="max-w-7xl mx-auto min-h-full">
             <ReactGridLayout
               layout={gridLayout}
-              cols={12}
-              rowHeight={60}
               width={gridWidth}
               onLayoutChange={handleLayoutChange}
-              draggableHandle=".drag-handle"
-              compactType="vertical"
-              margin={[16, 16]}
-              resizeHandles={["s", "w", "e", "n", "sw", "nw", "se", "ne"]}
-              dropConfig={{ enabled: true, defaultItem: { w: 6, h: 4 } }}
+              onDragStop={handleVisualLayoutStop}
+              onResizeStop={handleVisualLayoutStop}
+              {...(isV2
+                ? {
+                    // v2 grid: the v2 config props (rows of 60 px, 16 px gutters).
+                    gridConfig: { cols: narrowV2 ? 2 : 12, rowHeight: 60, margin: [16, 16] },
+                    dragConfig: { handle: ".drag-handle" },
+                    resizeConfig: { handles: ["s", "e", "se"] },
+                  }
+                : {
+                    // v1 dashboards keep the props they have always been given.
+                    cols: 12,
+                    rowHeight: 60,
+                    draggableHandle: ".drag-handle",
+                    compactType: "vertical",
+                    margin: [16, 16],
+                    resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"],
+                  })}
+              // v1 charts are not dropped into a spec dashboard (the two models are not mixed)
+              dropConfig={{ enabled: !isV2, defaultItem: { w: 6, h: 4 } }}
               onDrop={handleGridDrop}
               onDropDragOver={handleDropDragOver}
               style={{ minHeight: "100%" }}
             >
               {components.map((comp) => {
+                if (comp.component_type === "visual") {
+                  const selected = editMode && selectedComponentId === comp.id;
+                  return (
+                    <div
+                      key={comp.id}
+                      data-testid={`v2-block-${comp.id}`}
+                      onClick={editMode ? () => setSelectedComponentId(comp.id) : undefined}
+                      className={`glass-card bi-v2-card ${comp.visual?.type === "text" && !editMode ? "bi-v2-card--bare" : ""} rounded-xl flex flex-col overflow-hidden ${
+                        selected ? "ring-2 ring-blue-400" : ""
+                      } ${editMode ? "cursor-pointer" : ""}`}
+                    >
+                      {editMode && (
+                        <div
+                          className="drag-handle flex h-4 shrink-0 cursor-grab items-center justify-center th-text-ghost active:cursor-grabbing"
+                          title={tv("dragHandle")}
+                          aria-label={tv("dragHandle")}
+                        >
+                          <span aria-hidden="true" className="text-[10px] leading-none tracking-[0.3em]">
+                            ······
+                          </span>
+                        </div>
+                      )}
+                      <div className="min-h-0 flex-1">
+                        <VisualRenderer component={comp} />
+                      </div>
+                    </div>
+                  );
+                }
                 // Derive title based on component type. For chart
                 // widgets we now prefer (in order): an explicit
                 // ``title_override`` set on the dashboard widget, the
@@ -1043,6 +1200,22 @@ export default function DashboardDetail({ dashboardId }) {
             )}
           </div>
         </div>
+
+        {/* v2 spec editor — pushes the grid (see the grid area's right inset) */}
+        {isV2 && editMode && !narrowV2 && (
+          <div
+            data-testid="v2-editor-panel"
+            className="absolute top-0 right-0 bottom-0 z-10 w-[380px] overflow-y-auto border-l th-border"
+            style={{ background: "var(--bg-dropdown)" }}
+          >
+            <SpecEditorPanel
+              selectedComponentId={selectedComponentId}
+              onSelectComponent={setSelectedComponentId}
+              onDashboardChange={setDashboard}
+              controller={specEditor}
+            />
+          </div>
+        )}
 
         {/* Charts Library Sidebar — absolute right, doesn't push grid */}
         {showSidebar && (
@@ -1306,5 +1479,14 @@ export default function DashboardDetail({ dashboardId }) {
       )}
 
     </div>
+  );
+
+  // v2 dashboards share one filter state and one data call across all blocks.
+  return isV2 ? (
+    <DashboardDataProvider dashboard={dashboard} onContentHeight={onContentHeight}>
+      {content}
+    </DashboardDataProvider>
+  ) : (
+    content
   );
 }
