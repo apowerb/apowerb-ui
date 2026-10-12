@@ -98,8 +98,9 @@ function formatValue(value, format) {
   if (format === "integer") return Math.round(num).toLocaleString();
   if (format === "percent") return `${(num * 100).toFixed(1)}`;
 
-  // default: locale string with smart decimals
-  return Number.isInteger(num) ? num.toLocaleString() : num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  // default: locale string with smart decimals, keeping an explicit "+" sign
+  const text = Number.isInteger(num) ? num.toLocaleString() : num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return typeof value === "string" && value.trim().startsWith("+") && num > 0 ? `+${text}` : text;
 }
 
 function getTrendColor(direction, sentiment) {
@@ -205,7 +206,7 @@ export default function StatCard({
           <TrendIcon direction={trend.direction} className={getTrendColor(trend.direction, trend.sentiment)} />
           <span className="text-xs font-semibold">
             {trend.value != null
-              ? `${trend.value}${trend.is_percentage ? "%" : ""}`
+              ? `${formatValue(trend.value)}${trend.is_percentage ? "%" : ""}`
               : ""}
           </span>
           {trend.label && (
