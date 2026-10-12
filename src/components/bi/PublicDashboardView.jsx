@@ -8,6 +8,44 @@ import { getPublicDashboard } from "@/lib/api";
 import ChartRenderer from "./ChartRenderer";
 import StatCard from "./StatCard";
 
+// The 12-column desktop layout does not fit a narrow screen: a 3/12 KPI
+// tile shrinks to ~140px and its value overflows. Fall back to 2 columns,
+// then 1, and let the tiles flow in reading order.
+function columnsForWidth(width) {
+  if (width < 640) return 1;
+  if (width < 1024) return 2;
+  return 12;
+}
+
+function useGridColumns() {
+  const [columns, setColumns] = useState(12);
+  useEffect(() => {
+    const update = () => setColumns(columnsForWidth(window.innerWidth));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return columns;
+}
+
+function gridPlacement(position, columns) {
+  const width = position?.width || 6;
+  const height = position?.height || 4;
+  if (columns === 12) {
+    return {
+      gridColumn: `${(position?.col || 0) + 1} / span ${width}`,
+      gridRow: `${(position?.row || 0) + 1} / span ${height}`,
+    };
+  }
+  const span = width <= 6 ? 1 : columns;
+  return { gridColumn: `span ${span}`, gridRow: `span ${height}` };
+}
+
+function readingOrder(a, b) {
+  const rowDiff = (a.position?.row || 0) - (b.position?.row || 0);
+  return rowDiff || (a.position?.col || 0) - (b.position?.col || 0);
+}
+
 export default function PublicDashboardView({ slug }) {
   const t = useTranslations("PublicDashboardView");
   const VIS_BADGES = {
@@ -32,6 +70,7 @@ export default function PublicDashboardView({ slug }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartMeta, setChartMeta] = useState({});
+  const columns = useGridColumns();
 
   useEffect(() => {
     getPublicDashboard(slug)
@@ -101,7 +140,10 @@ export default function PublicDashboardView({ slug }) {
     );
   }
 
-  const components = dashboard.components || [];
+  const components =
+    columns === 12
+      ? dashboard.components || []
+      : [...(dashboard.components || [])].sort(readingOrder);
   const visBadge = VIS_BADGES[dashboard.visibility] || VIS_BADGES.public;
   const BadgeIcon = visBadge.icon;
 
@@ -152,7 +194,7 @@ export default function PublicDashboardView({ slug }) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(12, 1fr)",
+                gridTemplateColumns: `repeat(${columns}, 1fr)`,
                 gap: "16px",
                 gridAutoRows: "84px",
               }}
@@ -171,10 +213,7 @@ export default function PublicDashboardView({ slug }) {
                 return (
                   <div
                     key={comp.id}
-                    style={{
-                      gridColumn: `${(comp.position?.col || 0) + 1} / span ${comp.position?.width || 6}`,
-                      gridRow: `${(comp.position?.row || 0) + 1} / span ${comp.position?.height || 4}`,
-                    }}
+                    style={gridPlacement(comp.position, columns)}
                     className="glass-card rounded-xl overflow-hidden flex flex-col"
                   >
                     <div className="px-4 py-2.5 border-b th-border">

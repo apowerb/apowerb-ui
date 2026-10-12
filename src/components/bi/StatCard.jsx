@@ -157,6 +157,9 @@ export default function StatCard({
 }) {
   const palette = getTonePreset({ tone, color, thresholds, value });
   const formattedValue = formatValue(value, format);
+  // A long text value ("Semaine du 12/01/2026") would run out of the tile at
+  // the big KPI size: shrink it and let it wrap.
+  const isLongValue = String(formattedValue).length > 10;
 
   const hasSecondary =
     secondaryValue !== undefined && secondaryValue !== null && secondaryValue !== "";
@@ -177,7 +180,7 @@ export default function StatCard({
 
   return (
     <div className={`rounded-xl flex flex-col items-center justify-center p-3 h-full bg-linear-to-br overflow-hidden ${palette.bg} border ${palette.border}`}>
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-2 max-w-full">
         {IconComponent && (
           <IconComponent
             size={20}
@@ -185,7 +188,7 @@ export default function StatCard({
             aria-hidden="true"
           />
         )}
-        <p className={`text-3xl font-black leading-none ${palette.text}`}>
+        <p className={`${isLongValue ? "text-xl leading-tight" : "text-3xl leading-none"} font-black text-center break-words min-w-0 ${palette.text}`}>
           {prefix && <span className="text-2xl font-bold opacity-70 mr-0.5">{prefix}</span>}
           {formattedValue}
           {unit && <span className="text-2xl font-bold opacity-70 ml-1">{unit}</span>}
