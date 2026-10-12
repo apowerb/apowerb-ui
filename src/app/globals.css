@@ -1760,6 +1760,9 @@ html.light .diff-remove {
   --v2-series-2: #a78bfa;
   --v2-series-3: #2dd4bf;
   --v2-series-4: #fb923c;
+  /* captions / secondary lines: AA on the dark card surface (faint is not) */
+  --v2-caption: rgba(255, 255, 255, 0.7);
+  --v2-grid: rgba(255, 255, 255, 0.1);
 }
 html.light {
   --v2-good: #047857;
@@ -1770,6 +1773,8 @@ html.light {
   --v2-series-2: #7c3aed;
   --v2-series-3: #0f766e;
   --v2-series-4: #c2410c;
+  --v2-caption: #475569;
+  --v2-grid: rgba(15, 23, 42, 0.1);
 }
 
 /* Cards of v2 dashboards: no lift on hover (they hold interactive content). */

@@ -11,7 +11,7 @@ export const AXIS = {
 };
 export const GRID = {
   strokeDasharray: "3 3",
-  stroke: "var(--border)",
+  stroke: "var(--v2-grid)",
   vertical: false,
 };
 export const MARGIN = { top: 16, right: 8, bottom: 0, left: 0 };

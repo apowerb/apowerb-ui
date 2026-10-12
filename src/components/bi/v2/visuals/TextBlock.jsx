@@ -7,7 +7,7 @@ export default function TextBlock({ result }) {
   const text = result?.text;
   if (!text) return null;
   return (
-    <p className="bi-v2-num text-[15px] leading-relaxed th-text-secondary" data-testid="v2-text">
+    <p className="bi-v2-num text-sm leading-normal th-text-secondary sm:text-[15px]" data-testid="v2-text">
       {splitNumbers(text).map((part, i) =>
         part.bold ? (
           <strong key={i} className="font-semibold th-text">

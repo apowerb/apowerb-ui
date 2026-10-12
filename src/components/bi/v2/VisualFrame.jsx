@@ -32,22 +32,23 @@ export default function VisualFrame({
   return (
     <section
       aria-label={title || undefined}
-      className={`bi-v2-fade-in group/frame relative flex h-full min-h-0 flex-col px-4 ${dense ? "py-1" : "py-3"} [container-type:inline-size]`}
+      className={`bi-v2-fade-in group/frame relative flex h-full min-h-0 flex-col ${compact ? "" : "px-4"} ${dense ? "py-0.5" : compact ? "px-3.5 py-2.5" : "py-3"} [container-type:inline-size]`}
     >
       {(title || subtitle || meta) && (
         <header
           className={
             title || subtitle
-              ? "mb-2 flex shrink-0 items-start justify-between gap-2"
+              ? `${compact ? "mb-1" : "mb-2"} flex shrink-0 items-start justify-between gap-2`
               : "absolute right-2 top-2 z-10"
           }
         >
           {(title || subtitle) && <div className="min-w-0 [word-break:normal] [overflow-wrap:break-word] [hyphens:auto]" lang="fr">
             {title && (
               <h3
+                title={title}
                 className={
                   compact
-                    ? "text-[clamp(8.5px,5.2cqw,10px)] font-semibold uppercase leading-snug tracking-normal th-text-muted"
+                    ? "truncate text-xs font-medium leading-snug th-text-muted"
                     : "text-sm font-semibold leading-snug th-text"
                 }
               >
@@ -55,13 +56,16 @@ export default function VisualFrame({
               </h3>
             )}
             {subtitle && (
-              <p className="bi-v2-num mt-0.5 text-[11px] leading-snug th-text-faint">
+              <p className="bi-v2-num mt-0.5 text-[11px] leading-snug text-[color:var(--v2-caption)]">
                 {subtitle}
               </p>
             )}
           </div>}
           {meta && !loading && !error && (
-            <div className="shrink-0 opacity-60 transition-opacity focus-within:opacity-100 group-hover/frame:opacity-100">
+            <div
+              data-testid="v2-source-trigger"
+              className={`${compact ? "absolute right-1.5 top-1.5 z-10 rounded-md bg-[var(--bg-dropdown)]" : "-mr-1 -mt-0.5 shrink-0"} opacity-0 transition-opacity focus-within:opacity-100 group-focus-within/frame:opacity-100 group-hover/frame:opacity-100 [@media(hover:none)]:opacity-70`}
+            >
               <SourcesPopover meta={meta} title={title} />
             </div>
           )}
