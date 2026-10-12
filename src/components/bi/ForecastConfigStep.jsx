@@ -61,10 +61,11 @@ export default function ForecastConfigStep({ columns, sampleRows, totalRows, val
         rows: safeRows,
         dateColumn: value.dateVar,
         targetColumn: value.targetVar,
+        groupColumn: value.groupVar,
         horizon: value.horizon,
         totalRows,
       }),
-    [safeRows, value.dateVar, value.targetVar, value.horizon, totalRows],
+    [safeRows, value.dateVar, value.targetVar, value.groupVar, value.horizon, totalRows],
   );
 
   const groupOptions = safeColumns.filter(
