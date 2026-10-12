@@ -758,6 +758,26 @@ export const unpublishDashboard = (id) =>
 export const getPublicDashboard = (slug) =>
   request(`/api/v1/dashboards/public/${slug}`, { silent401: true });
 
+// Dashboards v2 (spec): the dashboard owns its data. One call computes every
+// visual for the given filter state. `options.signal` lets the caller cancel a
+// request that a newer filter state has made obsolete.
+export const getDashboardData = (id, body = {}, options = {}) =>
+  request(`/api/v1/dashboards/${id}/data`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+export const getPublicDashboardData = (slug, body = {}, options = {}) =>
+  request(`/api/v1/public/dashboards/${encodeURIComponent(slug)}/data`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    silent401: true,
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+// Edit the spec with patch operations ({ops: [...], dry_run}).
+export const patchDashboardSpec = (id, data) =>
+  request(`/api/v1/dashboards/${id}/spec`, { method: "POST", body: JSON.stringify(data) });
+
 export const getPublicChartData = (chartId, params = {}) => {
   const query = new URLSearchParams(params).toString();
   return request(`/api/v1/public/charts/${chartId}/data${query ? `?${query}` : ""}`, { silent401: true });

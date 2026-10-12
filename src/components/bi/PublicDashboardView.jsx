@@ -1,12 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { useTranslations } from "use-intl";
 import { useRouter } from "@/lib/navigation";
-import { BarChart3, Globe, Building2 } from "lucide-react";
+import { BarChart3, Globe, Building2, Lock } from "lucide-react";
 import { getPublicDashboard } from "@/lib/api";
 import ChartRenderer from "./ChartRenderer";
 import StatCard from "./StatCard";
+import { DashboardDataProvider } from "./v2/DashboardDataContext";
+import FilterBar from "./v2/FilterBar";
+import VisualRenderer from "./v2/VisualRenderer";
+import { isV2Dashboard, NARROW_PX } from "./v2/isV2";
+import { fitTextBlocks } from "./v2/layout";
+
+function subscribeNarrow(cb) {
+  window.addEventListener("resize", cb);
+  return () => window.removeEventListener("resize", cb);
+}
+const getNarrow = () => window.innerWidth < NARROW_PX;
+const getNarrowServer = () => false;
+
+// v2 dashboards share one filter state and one data call (public endpoint).
+function DataScope({ enabled, dashboard, slug, onContentHeight, children }) {
+  if (!enabled) return children;
+  return (
+    <DashboardDataProvider dashboard={dashboard} publicSlug={slug} onContentHeight={onContentHeight}>
+      {children}
+    </DashboardDataProvider>
+  );
+}
 
 export default function PublicDashboardView({ slug }) {
   const t = useTranslations("PublicDashboardView");
@@ -32,6 +54,12 @@ export default function PublicDashboardView({ slug }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartMeta, setChartMeta] = useState({});
+  const [textPx, setTextPx] = useState({});
+  const onContentHeight = useCallback(
+    (id, px) => setTextPx((prev) => (prev[id] === px ? prev : { ...prev, [id]: px })),
+    [],
+  );
+  const narrow = useSyncExternalStore(subscribeNarrow, getNarrow, getNarrowServer);
 
   useEffect(() => {
     getPublicDashboard(slug)
@@ -101,7 +129,10 @@ export default function PublicDashboardView({ slug }) {
     );
   }
 
-  const components = dashboard.components || [];
+  const isV2 = isV2Dashboard(dashboard);
+  const components = isV2
+    ? fitTextBlocks(dashboard.components || [], textPx)
+    : dashboard.components || [];
   const visBadge = VIS_BADGES[dashboard.visibility] || VIS_BADGES.public;
   const BadgeIcon = visBadge.icon;
 
@@ -131,8 +162,14 @@ export default function PublicDashboardView({ slug }) {
       </header>
 
       {/* Content -- CSS grid (read-only, no drag) */}
+      <DataScope enabled={isV2} dashboard={dashboard} slug={slug} onContentHeight={onContentHeight}>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
+          {isV2 && (
+            <div className="mb-4">
+              <FilterBar />
+            </div>
+          )}
           {components.length === 0 ? (
             <div className="flex items-center justify-center py-20">
               <div className="glass-card p-12 rounded-2xl text-center">
@@ -152,12 +189,37 @@ export default function PublicDashboardView({ slug }) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(12, 1fr)",
+                gridTemplateColumns: isV2 && narrow ? "repeat(2, 1fr)" : "repeat(12, 1fr)",
                 gap: "16px",
-                gridAutoRows: "84px",
+                gridAutoRows: isV2 ? "60px" : "84px",
               }}
             >
               {components.map((comp) => {
+                if (comp.component_type === "visual") {
+                  const span = narrow ? (comp.visual?.type === "kpi" ? 1 : 2) : comp.position?.width || 6;
+                  const baseRows = comp.position?.height || 4;
+                  const rows =
+                    narrow && comp.visual?.type !== "kpi" && comp.visual?.type !== "text"
+                      ? Math.max(baseRows * 2, 5)
+                      : baseRows;
+                  return (
+                    <div
+                      key={comp.id}
+                      data-testid={`v2-block-${comp.id}`}
+                      style={
+                        narrow
+                          ? { gridColumn: `span ${span}`, gridRow: `span ${rows}` }
+                          : {
+                              gridColumn: `${(comp.position?.col || 0) + 1} / span ${span}`,
+                              gridRow: `${(comp.position?.row || 0) + 1} / span ${rows}`,
+                            }
+                      }
+                      className={`glass-card bi-v2-card ${comp.visual?.type === "text" ? "bi-v2-card--bare" : ""} rounded-xl overflow-hidden`}
+                    >
+                      <VisualRenderer component={comp} />
+                    </div>
+                  );
+                }
                 const resolvedTitle =
                   comp.chart?.chart_id && chartMeta[comp.chart.chart_id]?.title;
                 const compTitle =
@@ -226,6 +288,7 @@ export default function PublicDashboardView({ slug }) {
           )}
         </div>
       </div>
+      </DataScope>
 
       {/* Footer */}
       <footer className="p-4 text-center border-t th-border">

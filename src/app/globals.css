@@ -1744,3 +1744,65 @@ html.light .diff-remove {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* ---------------------------------------------------------------------------
+ * BI dashboards v2 — semantic colours (good / warn / bad / muted / accent)
+ * ---------------------------------------------------------------------------
+ * The server names colours semantically; the UI maps them here so a dashboard
+ * reads the same in dark and light themes (AA contrast on both surfaces).
+ */
+:root {
+  --v2-good: #34d399;
+  --v2-warn: #fbbf24;
+  --v2-bad: #f87171;
+  --v2-muted: #94a3b8;
+  --v2-accent: #60a5fa;
+  --v2-series-2: #a78bfa;
+  --v2-series-3: #2dd4bf;
+  --v2-series-4: #fb923c;
+}
+html.light {
+  --v2-good: #047857;
+  --v2-warn: #b45309;
+  --v2-bad: #dc2626;
+  --v2-muted: #64748b;
+  --v2-accent: #2563eb;
+  --v2-series-2: #7c3aed;
+  --v2-series-3: #0f766e;
+  --v2-series-4: #c2410c;
+}
+
+/* Cards of v2 dashboards: no lift on hover (they hold interactive content). */
+.glass-card.bi-v2-card:hover,
+html.light .glass-card.bi-v2-card:hover {
+  transform: none;
+  background: var(--glass-card-bg);
+  border-color: var(--glass-card-hover-border);
+}
+
+/* Summary text: a paragraph on the page background, not a card. */
+.glass-card.bi-v2-card.bi-v2-card--bare,
+html.light .glass-card.bi-v2-card.bi-v2-card--bare {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.bi-v2-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+@keyframes bi-v2-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+.bi-v2-fade-in {
+  animation: bi-v2-fade-in 0.18s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bi-v2-fade-in { animation: none; }
+  .bi-v2-card, .bi-v2-card * { transition: none !important; }
+}
