@@ -12,6 +12,10 @@ import { getAuthChallenge } from "@/extensions/registry";
 
 const AuthContext = createContext(null);
 
+// Only a refusal of the credentials (401/403) ends the session. A network
+// error or a 5xx (the API being redeployed) does not sign the user out.
+const isCredentialRefusal = (err) => err?.status === 401 || err?.status === 403;
+
 export function AuthProvider({ children }) {
   // Lazy initializers — read storage synchronously to avoid cascading setState in effects
   const [user, setUser] = useState(() => authStorage.getUser());
@@ -45,20 +49,29 @@ export function AuthProvider({ children }) {
         authStorage.setUser(freshUser);
         setUser(freshUser);
         setToken(storedToken);
-      } catch {
+      } catch (profileErr) {
+        // API unreachable or failing (redeploy, network): keep the stored
+        // session. A real refusal will come back as a 401 on the next call.
+        if (!isCredentialRefusal(profileErr)) {
+          setIsLoading(false);
+          return;
+        }
         // Token expired — try to refresh using the HTTP-only refresh cookie
         try {
           const newToken = await authApi.refreshToken();
+          // Kept even if the profile call below fails on a 5xx
+          authStorage.setToken(newToken);
+          setToken(newToken);
           const freshUser = await authApi.getProfile(newToken);
           authStorage.setUser(freshUser);
-          authStorage.setToken(newToken);
           setUser(freshUser);
-          setToken(newToken);
-        } catch {
-          // Refresh also failed — must re-login
-          authStorage.clear();
-          setUser(null);
-          setToken(null);
+        } catch (refreshErr) {
+          // Only a refused refresh cookie ends the session
+          if (isCredentialRefusal(refreshErr)) {
+            authStorage.clear();
+            setUser(null);
+            setToken(null);
+          }
         }
       }
       setIsLoading(false);
