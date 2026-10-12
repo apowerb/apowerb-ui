@@ -475,7 +475,8 @@
     "tabPublishedLabel": "Publié",
     "tabSharedLabel": "Partagé",
     "thisDashboardFallback": "ce tableau de bord",
-    "viewDashboardTooltip": "Voir le tableau de bord"
+    "viewDashboardTooltip": "Voir le tableau de bord",
+    "fromTemplateButton": "Depuis un modèle"
   },
   "Breadcrumb": {
     "breadcrumbAria": "Fil d'Ariane"
@@ -4451,5 +4452,40 @@
     "goToData": "Aller aux données",
     "noteDefaultTitle": "Note",
     "noteDefaultText": "Écris ta note ici."
+  },
+  "biTemplate": {
+    "title": "Créer depuis un modèle",
+    "close": "Fermer",
+    "steps": "Étapes",
+    "step_template": "Modèle",
+    "step_dataset": "Jeu de données",
+    "step_columns": "Colonnes",
+    "step_settings": "Paramètres",
+    "loading": "Chargement…",
+    "loadFailed": "Chargement impossible : {message}",
+    "chooseTemplate": "Choisissez un modèle",
+    "noTemplates": "Aucun modèle disponible.",
+    "chooseDataset": "Choisissez un jeu de données importé",
+    "noDatasets": "Aucun jeu de données importé. Importez-en un depuis le pool de données.",
+    "datasetInfo": "{columns} colonnes · {rows} lignes",
+    "mapIntro": "Associez chaque colonne du modèle à une colonne de votre jeu de données.",
+    "expected": "Attendu : {type}",
+    "typeDate": "date",
+    "typeString": "texte",
+    "typeNumber": "nombre",
+    "required": "obligatoire",
+    "optional": "optionnelle",
+    "pick": "Choisir une colonne…",
+    "none": "Aucune",
+    "titleLabel": "Titre",
+    "rangeHint": "Entier entre {min} et {max}",
+    "paramInvalid": "Saisissez un entier entre {min} et {max}.",
+    "back": "Retour",
+    "next": "Suivant",
+    "cancel": "Annuler",
+    "create": "Créer",
+    "created": "Tableau de bord créé",
+    "renamedTo": "Renommé en « {title} » (ce nom existait déjà)",
+    "createFailed": "Le tableau de bord n'a pas pu être créé"
   }
 }

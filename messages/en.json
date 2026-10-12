@@ -475,7 +475,8 @@
     "tabPublishedLabel": "Published",
     "tabSharedLabel": "Shared",
     "thisDashboardFallback": "this dashboard",
-    "viewDashboardTooltip": "View Dashboard"
+    "viewDashboardTooltip": "View Dashboard",
+    "fromTemplateButton": "From a template"
   },
   "Breadcrumb": {
     "breadcrumbAria": "Breadcrumb"
@@ -4451,5 +4452,40 @@
     "goToData": "Go to Data",
     "noteDefaultTitle": "Note",
     "noteDefaultText": "Write your note here."
+  },
+  "biTemplate": {
+    "title": "Create from a template",
+    "close": "Close",
+    "steps": "Steps",
+    "step_template": "Template",
+    "step_dataset": "Dataset",
+    "step_columns": "Columns",
+    "step_settings": "Settings",
+    "loading": "Loading…",
+    "loadFailed": "Could not load: {message}",
+    "chooseTemplate": "Choose a template",
+    "noTemplates": "No template available.",
+    "chooseDataset": "Choose an imported dataset",
+    "noDatasets": "No imported dataset. Import one from the Data pool first.",
+    "datasetInfo": "{columns} columns · {rows} rows",
+    "mapIntro": "Match each template column to a column of your dataset.",
+    "expected": "Expected: {type}",
+    "typeDate": "date",
+    "typeString": "text",
+    "typeNumber": "number",
+    "required": "required",
+    "optional": "optional",
+    "pick": "Choose a column…",
+    "none": "None",
+    "titleLabel": "Title",
+    "rangeHint": "Whole number between {min} and {max}",
+    "paramInvalid": "Enter a whole number between {min} and {max}.",
+    "back": "Back",
+    "next": "Next",
+    "cancel": "Cancel",
+    "create": "Create",
+    "created": "Dashboard created",
+    "renamedTo": "Renamed to “{title}” (that name was already taken)",
+    "createFailed": "The dashboard could not be created"
   }
 }

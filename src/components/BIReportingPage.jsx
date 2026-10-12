@@ -17,6 +17,7 @@ import {
   Globe,
   Bot,
   MessageSquare,
+  LayoutTemplate,
 } from "lucide-react";
 import {
   listDashboards,
@@ -35,6 +36,7 @@ import { SkeletonCard } from "./Skeleton";
 import EntityJumpButton from "@/components/EntityJumpButton";
 import { toAgentId } from "@/lib/jumps";
 import { formatDate as formatDateParis } from "@/lib/datetime";
+import TemplateWizard from "@/components/bi/v2/TemplateWizard";
 
 export default function BIReportingPage() {
   const t = useTranslations("BIReportingPage");
@@ -48,6 +50,7 @@ export default function BIReportingPage() {
   // chatCharts stays null until the server splits BI and chat charts.
   const [stats, setStats] = useState({ dashboards: 0, charts: 0, chatCharts: null });
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showTemplateWizard, setShowTemplateWizard] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newDashboard, setNewDashboard] = useState({ name: "", description: "" });
   const [statusFilter, setStatusFilter] = useState("all");
@@ -178,7 +181,7 @@ export default function BIReportingPage() {
     <div className="h-full flex flex-col overflow-hidden th-bg-body">
       {/* Header */}
       <header className="shrink-0 p-6 bg-linear-to-r from-brand/20 to-brand-secondary/20 border-b th-border backdrop-blur-xl">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-linear-to-br from-brand to-brand-secondary rounded-2xl shadow-lg">
               <LayoutDashboard size={32} className="text-white" />
@@ -190,13 +193,20 @@ export default function BIReportingPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => router.push("/bi/data")}
               className="flex items-center gap-2 px-5 py-3 th-bg-surface border th-border hover:th-bg-surface-hover th-text-secondary hover:th-text rounded-xl font-bold transition-all"
             >
               <Database size={20} />
               {t("dataPoolButton")}
+            </button>
+            <button
+              onClick={() => setShowTemplateWizard(true)}
+              className="flex items-center gap-2 px-5 py-3 th-bg-surface border th-border hover:th-bg-surface-hover th-text-secondary hover:th-text rounded-xl font-bold transition-all"
+            >
+              <LayoutTemplate size={20} />
+              {t("fromTemplateButton")}
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -514,6 +524,8 @@ export default function BIReportingPage() {
           </div>
         </div>
       )}
+
+      {showTemplateWizard && <TemplateWizard onClose={() => setShowTemplateWizard(false)} />}
 
       {renameTarget && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">

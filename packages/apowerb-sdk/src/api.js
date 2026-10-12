@@ -778,6 +778,15 @@ export const getPublicDashboardData = (slug, body = {}, options = {}) =>
 export const patchDashboardSpec = (id, data) =>
   request(`/api/v1/dashboards/${id}/spec`, { method: "POST", body: JSON.stringify(data) });
 
+// Dashboard templates: a spec built from a ready-made model, bound to one of the
+// user's imported datasets. 404 / 422 carry `detail` ({errors: [...]}) on the error.
+export const listDashboardTemplates = () => request("/api/v1/dashboard-templates");
+export const createDashboardFromTemplate = (templateId, data) =>
+  request(`/api/v1/dashboard-templates/${encodeURIComponent(templateId)}/dashboards`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
 export const getPublicChartData = (chartId, params = {}) => {
   const query = new URLSearchParams(params).toString();
   return request(`/api/v1/public/charts/${chartId}/data${query ? `?${query}` : ""}`, { silent401: true });

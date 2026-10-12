@@ -345,11 +345,31 @@ const SEED = JSON.parse(JSON.stringify({
   agents: AGENTS, toolConfigs, datasets, schedules,
 }));
 
+// Modèle de tableau de bord du contrat figé (GET /api/v1/dashboard-templates).
+const STOCK_TEMPLATE = {
+  id: "stock_pilotage",
+  label: "Pilotage stocks",
+  description: "Stock, couverture et prévision par famille",
+  columns: [
+    { key: "date", label: "Semaine", type: "date", required: true, default: "semaine" },
+    { key: "family", label: "Famille", type: "string", required: true, default: "famille" },
+    { key: "sales", label: "Ventes", type: "number", required: true, default: "ventes" },
+    { key: "site", label: "Site", type: "string", required: false, default: null },
+  ],
+  params: [
+    { key: "horizon", label: "Horizon de prévision (semaines)", type: "integer", default: 8, min: 1, max: 26 },
+  ],
+};
+const TEMPLATE_TITLES_SEED = ["Ventes 2026"];
+const templateTitles = new Set(TEMPLATE_TITLES_SEED);
+
 // Dashboard v2 de démonstration : sa spec vit dans fixtures/, ses données sont
 // calculées par dashboard-v2.mjs à chaque filtre.
 let dashboardV2 = loadDashboard();
 
 function resetState() {
+  templateTitles.clear();
+  TEMPLATE_TITLES_SEED.forEach((x) => templateTitles.add(x));
   dashboardV2 = loadDashboard();
   AGENTS.length = 0;
   AGENTS.push(...JSON.parse(JSON.stringify(SEED.agents)));
@@ -531,6 +551,21 @@ const server = http.createServer(async (req, res) => {
   }
   if (path.startsWith("/api/artifacts/")) return json(res, 200, []);
   // ── Dashboard v2 (spec + data + patch) ──
+  if (path === "/api/v1/dashboard-templates" && req.method === "GET") return json(res, 200, [STOCK_TEMPLATE]);
+  const tplMatch = path.match(/^\/api\/v1\/dashboard-templates\/([^/]+)\/dashboards$/);
+  if (tplMatch && req.method === "POST") {
+    if (tplMatch[1] !== STOCK_TEMPLATE.id) return json(res, 404, { detail: "Unknown template" });
+    const body = await readBody(req);
+    const errors = STOCK_TEMPLATE.columns
+      .filter((c) => c.required && !body.columns?.[c.key])
+      .map((c) => `Column '${c.key}' is required`);
+    if (errors.length) return json(res, 422, { detail: { errors } });
+    let title = String(body.title || STOCK_TEMPLATE.label);
+    for (let n = 2; templateTitles.has(title); n++) title = `${body.title} (${n})`;
+    templateTitles.add(title);
+    return json(res, 201, { dashboard_id: dashboardV2.id, title, url: `/bi/${dashboardV2.id}` });
+  }
+
   const v2Match = path.match(/^\/api\/v1\/dashboards\/([^/]+)(?:\/(data|spec))?$/);
   if (v2Match && v2Match[1] === dashboardV2.id) {
     if (!v2Match[2] && req.method === "GET") return json(res, 200, dashboardV2);
