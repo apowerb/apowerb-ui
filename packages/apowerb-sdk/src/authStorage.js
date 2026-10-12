@@ -223,7 +223,11 @@ export const realAuthApi = {
     });
 
     if (!response.ok) {
-      throw new Error("Unable to retrieve profile");
+      // The status lets callers tell a refused token (401/403) from an API
+      // that is briefly unavailable (5xx).
+      throw Object.assign(new Error("Unable to retrieve profile"), {
+        status: response.status,
+      });
     }
 
     const data = await response.json();
@@ -333,7 +337,9 @@ export const realAuthApi = {
     });
 
     if (!response.ok) {
-      throw new Error("Session expired, please sign in again");
+      throw Object.assign(new Error("Session expired, please sign in again"), {
+        status: response.status,
+      });
     }
 
     const data = await response.json();
