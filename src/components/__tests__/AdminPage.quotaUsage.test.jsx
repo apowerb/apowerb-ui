@@ -103,10 +103,19 @@ describe("Colonne Usage : quota du mois", () => {
 
   it("garde le quota mais n'indique pas une remise à zéro d'un mois précédent", async () => {
     const row = await openUsers([
-      { ...base, quota_tokens: 50_000, token_usage_reset_at: "2026-09-30T23:00:00Z" },
+      // 30/09 23:00 à Paris : encore septembre, comme pour le cœur.
+      { ...base, quota_tokens: 50_000, token_usage_reset_at: "2026-09-30T21:00:00Z" },
     ]);
     expect(within(row).getByText('quotaMonth({"tokens":"50k"})')).toBeTruthy();
     expect(row.textContent).not.toMatch(/quotaResetOn/);
+  });
+
+  it("compte le mois à l'heure de Paris, comme le cœur", async () => {
+    // 30/09 23:00 UTC = 1er octobre 01:00 à Paris : remise à zéro de ce mois-ci.
+    const row = await openUsers([
+      { ...base, quota_tokens: 50_000, token_usage_reset_at: "2026-09-30T23:00:00Z" },
+    ]);
+    expect(within(row).getByText('quotaResetOn({"date":"1 oct."})')).toBeTruthy();
   });
 
   it("ignore une date de remise à zéro illisible", async () => {

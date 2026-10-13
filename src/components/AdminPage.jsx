@@ -388,12 +388,18 @@ function compact(n) {
 
 // Older servers send neither `quota_tokens` nor `token_usage_reset_at`: each
 // helper answers null so the cell shows nothing rather than "undefined".
+// The core counts the month in Europe/Paris (billing timezone): a reset at
+// 23:00 UTC on the last day already belongs to the next month there.
+const parisMonth = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Paris",
+  year: "numeric",
+  month: "2-digit",
+});
+
 function resetThisMonth(value, now = new Date()) {
   const at = toDate(value);
   if (!at) return null;
-  const sameMonth =
-    at.getUTCFullYear() === now.getUTCFullYear() && at.getUTCMonth() === now.getUTCMonth();
-  return sameMonth ? at : null;
+  return parisMonth.format(at) === parisMonth.format(now) ? at : null;
 }
 
 function QuotaUsage({ user, t }) {
