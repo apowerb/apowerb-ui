@@ -5,6 +5,7 @@ import { useChatContext, ACTIONS } from "@/contexts/ChatContext";
 import { useStreaming } from "./useStreaming";
 import { uploadFileChunked, generateTitle } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { ACTION_CARD_TOOL_TO_KIND } from "@/lib/actionCards";
 
 /**
  * Trigger a browser notification if permitted.
@@ -33,20 +34,6 @@ function triggerBrowserNotification(title, body) {
     });
   }
 }
-
-// Maps a tool name emitted by the agent to the `kind` string used on the front
-// to dispatch to the right typed action-card component.
-const ACTION_CARD_TOOL_TO_KIND = {
-  request_user_input: "user_input",
-  confirm_destructive: "confirm_destructive",
-  request_payment: "payment",
-  schedule_followup: "followup",
-  propose_artifact_edit: "artifact_edit",
-  request_file_from_user: "file_request",
-  propose_agent_upgrade: "agent_upgrade",
-  embed_chart: "chart_embed",
-  request_location: "location_request",
-};
 
 // What "Continue" sends when a reply stopped short. Written as a plain user
 // turn so every backend understands it; rendered as a small synthetic line.
