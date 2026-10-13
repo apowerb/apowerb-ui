@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "use-intl";
 import { SelectField } from "./fields";
-import { BLOCK_TYPES, defaultVisual, measuresFor, newId } from "./lib";
+import { BLOCK_TYPES, FORECAST_MIN_ROWS, blockNeeds, defaultVisual, measuresFor, newId, sourceFields, sourceMeasures } from "./lib";
 
 /**
  * Gallery of block types. One click adds a block pre-filled from the chosen
@@ -17,6 +17,10 @@ export default function AddBlockPanel({ editor, onNeedSource }) {
   const sources = dashboard.sources || [];
   const hasSource = sources.length > 0;
   const [sourceName, setSourceName] = useState(null);
+  const current = sourceName || sources[0]?.name;
+  const fields = current ? sourceFields(dashboard, data, current) : [];
+  const measures = current ? sourceMeasures(dashboard, current) : [];
+  const rowCount = data?.sources?.[current]?.row_count ?? null;
 
   const add = async (type) => {
     const draft = defaultVisual(type, dashboard, data, { noteTitle: t("noteDefaultTitle"), noteText: t("noteDefaultText") }, sourceName);
@@ -50,7 +54,8 @@ export default function AddBlockPanel({ editor, onNeedSource }) {
       )}
       <ul className="grid grid-cols-2 gap-2">
         {BLOCK_TYPES.map(({ type, icon: Icon }) => {
-          const disabled = type !== "note" && !hasSource;
+          const needs = type !== "note" && hasSource ? blockNeeds(type, fields, measures, rowCount) : null;
+          const disabled = (type !== "note" && !hasSource) || !!needs;
           return (
             <li key={type}>
               <button
@@ -64,6 +69,9 @@ export default function AddBlockPanel({ editor, onNeedSource }) {
                 </span>
                 <span className="text-sm font-medium th-text">{t(`types.${type}`)}</span>
                 <span className="text-[11px] leading-snug th-text-faint">{t(`typeHints.${type}`)}</span>
+                {needs && (
+                  <span className="text-[11px] leading-snug text-amber-400">{t(`needs.${needs}`, { min: FORECAST_MIN_ROWS })}</span>
+                )}
               </button>
             </li>
           );
