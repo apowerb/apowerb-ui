@@ -272,6 +272,18 @@ export function forecastDefaults(fields) {
   };
 }
 
+/** Forecast settings moved to another source: keeps the fields it has, guesses the others. */
+export function forecastForSource(current, fields) {
+  const has = (k) => !!k && fields.some((f) => f.name === k);
+  const guess = forecastDefaults(fields);
+  return {
+    ...(current || {}),
+    date_var: has(current?.date_var) ? current.date_var : guess.date_var,
+    target_var: has(current?.target_var) ? current.target_var : guess.target_var,
+    group_var: has(current?.group_var) ? current.group_var : null,
+  };
+}
+
 /** `sourceName`: the dashboard source to build on (default: the first one). */
 export function defaultVisual(type, dashboard, data, labels = {}, sourceName = null) {
   if (type === "note") return { type: "note", title: labels.noteTitle || null, text: labels.noteText || "" };

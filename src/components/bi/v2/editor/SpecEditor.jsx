@@ -95,7 +95,7 @@ function BlockList({ dashboard, onSelect }) {
 export default function SpecEditor({ dashboard, data = null, selectedComponentId = null, onSelectComponent, onDashboardChange, controller = null, tabRequest = null }) {
   const t = useTranslations("biEditor");
   const [open, setOpen] = useState(true);
-  const [tab, setTab] = useState("block");
+  const [tab, setTab] = useState(tabRequest?.tab || "block");
   // `controller`: a spec editor owned by the screen (shared queue and undo history).
   const own = useSpecEditor({ dashboard, onDashboardChange });
   const sp = controller || own;
