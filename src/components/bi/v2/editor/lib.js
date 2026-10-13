@@ -41,7 +41,10 @@ export const SEMANTIC_COLORS = {
   accent: "#3b82f6",
 };
 export const SWATCHES = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#6b7280"];
-export const PERIOD_PRESETS = ["13w", "26w", "52w", "3m", "12m", "all"];
+export const PERIOD_PRESETS = ["7d", "30d", "90d", "13w", "26w", "52w", "3m", "12m", "1y", "2y", "3y", "ytd", "mtd", "all"];
+/** Presets offered by a new period filter (the others can be ticked). */
+export const NEW_PERIOD_PRESETS = ["30d", "13w", "26w", "12m", "ytd", "all"];
+export { AGGREGATIONS, TIME_GRAINS } from "../filterValues";
 export const SQL_FUNCTIONS = ["SUM", "AVG", "MIN", "MAX", "COUNT", "NULLIF"];
 export const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 

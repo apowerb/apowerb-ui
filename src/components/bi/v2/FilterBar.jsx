@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { ChevronDown, RotateCcw, X } from "lucide-react";
 import { useDashboardData } from "./DashboardDataContext";
+import { AGGREGATIONS, PERIOD_RE, PERIOD_UNITS, TIME_GRAINS } from "./filterValues";
 
 const DEFAULT_PRESETS = ["13w", "26w", "52w", "all"];
 
@@ -99,10 +100,77 @@ function MultiFilter({ spec, value, options, onChange, allLabel, countLabel }) {
   );
 }
 
+function ChoiceFilter({ spec, value, onChange, t }) {
+  const grain = spec.type === "time_grain";
+  const allowed = grain ? TIME_GRAINS : AGGREGATIONS;
+  const choices = spec.presets?.length ? allowed.filter((c) => spec.presets.includes(c)) : allowed;
+  return (
+    <select
+      aria-label={spec.label}
+      value={value ?? (grain ? "" : "sum")}
+      onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
+      className={`${controlClass} min-w-32 cursor-pointer`}
+      style={controlStyle}
+    >
+      {grain && <option value="">{t("grainNone")}</option>}
+      {choices.map((c) => (
+        <option key={c} value={c}>
+          {t(grain ? `grain.${c}` : `aggregation.${c}`)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function CustomPeriod({ value, onChange, t }) {
+  const m = PERIOD_RE.exec(value || "");
+  const [n, setN] = useState(m ? m[1] : "");
+  const [unit, setUnit] = useState(m ? m[2] : "m");
+  const commit = (nextN, nextUnit) => {
+    if (PERIOD_RE.test(`${nextN}${nextUnit}`)) onChange(`${nextN}${nextUnit}`);
+  };
+  return (
+    <div className="inline-flex items-center gap-1.5">
+      <input
+        type="number"
+        min={1}
+        max={999}
+        aria-label={t.customN}
+        value={n}
+        onChange={(e) => {
+          setN(e.target.value);
+          commit(e.target.value, unit);
+        }}
+        className={`${controlClass} w-16`}
+        style={controlStyle}
+      />
+      <select
+        aria-label={t.unit}
+        value={unit}
+        onChange={(e) => {
+          setUnit(e.target.value);
+          commit(n, e.target.value);
+        }}
+        className={`${controlClass} cursor-pointer`}
+        style={controlStyle}
+      >
+        {PERIOD_UNITS.map((u) => (
+          <option key={u} value={u}>
+            {t.unitLabel(u)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function PeriodFilter({ spec, value, onChange, t }) {
   const presets = spec.presets?.length ? spec.presets : DEFAULT_PRESETS;
   const current = value ?? "all";
   const radios = useRef([]);
+  const isCustom = !presets.includes(current);
+  const [customOpen, setCustomOpen] = useState(false);
+  const showCustom = isCustom || customOpen;
 
   const onKeyDown = (e, idx) => {
     let next = null;
@@ -135,7 +203,10 @@ function PeriodFilter({ spec, value, onChange, t }) {
             aria-label={t.periodLong(p)}
             title={t.periodLong(p)}
             tabIndex={checked ? 0 : -1}
-            onClick={() => onChange(p)}
+            onClick={() => {
+              setCustomOpen(false);
+              onChange(p);
+            }}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={`px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)] ${
               checked
@@ -147,6 +218,27 @@ function PeriodFilter({ spec, value, onChange, t }) {
           </button>
         );
       })}
+      <button
+        type="button"
+        role="radio"
+        aria-checked={isCustom}
+        aria-label={t.custom}
+        title={t.custom}
+        tabIndex={isCustom ? 0 : -1}
+        onClick={() => setCustomOpen(true)}
+        className={`px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)] ${
+          showCustom
+            ? "bg-[color-mix(in_srgb,var(--v2-accent)_22%,transparent)] th-text"
+            : "th-text-muted hover:bg-[var(--bg-surface-hover)]"
+        }`}
+      >
+        {t.customShort}
+      </button>
+      {showCustom && (
+        <span className="border-l px-1.5 py-0.5" style={{ borderColor: "var(--glass-input-border)" }}>
+          <CustomPeriod value={isCustom ? current : null} onChange={onChange} t={t} />
+        </span>
+      )}
     </div>
   );
 }
@@ -191,19 +283,23 @@ export default function FilterBar() {
     useDashboardData();
   if (!specFilters.length && !error) return null;
 
+  const UNIT_KEYS = { d: "Days", w: "Weeks", m: "Months", y: "Years" };
+  const periodText = (p, size) => {
+    if (p === "all") return t(size === "Short" ? "periodAll" : "periodAllLong");
+    if (p === "ytd") return t(`periodYtd${size}`);
+    if (p === "mtd") return t(`periodMtd${size}`);
+    const m = PERIOD_RE.exec(p);
+    if (!m) return p;
+    return t(`period${UNIT_KEYS[m[2]]}${size}`, { n: Number(m[1]) });
+  };
   const labels = {
-    periodShort(p) {
-      if (p === "all") return t("periodAll");
-      const m = /^(\d+)([wm])$/.exec(p);
-      if (!m) return p;
-      return t(m[2] === "w" ? "periodWeeksShort" : "periodMonthsShort", { n: Number(m[1]) });
-    },
-    periodLong(p) {
-      if (p === "all") return t("periodAllLong");
-      const m = /^(\d+)([wm])$/.exec(p);
-      if (!m) return p;
-      return t(m[2] === "w" ? "periodWeeksLong" : "periodMonthsLong", { n: Number(m[1]) });
-    },
+    periodShort: (p) => periodText(p, "Short"),
+    periodLong: (p) => periodText(p, "Long"),
+    custom: t("periodCustom"),
+    customShort: t("periodCustomShort"),
+    customN: t("periodCustomN"),
+    unit: t("periodUnit"),
+    unitLabel: (u) => t(`periodUnits.${u}`),
   };
 
   const chips = specFilters.filter((f) => crossed.has(f.id) && values[f.id] != null);
@@ -230,6 +326,8 @@ export default function FilterBar() {
               </span>
               {f.type === "relative_period" ? (
                 <PeriodFilter spec={f} value={values[f.id]} onChange={(v) => setFilter(f.id, v)} t={labels} />
+              ) : f.type === "time_grain" || f.type === "aggregation" ? (
+                <ChoiceFilter spec={f} value={values[f.id]} onChange={(v) => setFilter(f.id, v)} t={t} />
               ) : f.type === "date_range" ? (
                 <DateRangeFilter spec={f} value={values[f.id]} onChange={(v) => setFilter(f.id, v)} />
               ) : f.type === "multi" ? (

@@ -12,13 +12,29 @@ import {
   TextField,
   Toggle,
 } from "./fields";
-import { PERIOD_PRESETS, allFields, fieldError, moveItem, uniqueIdent } from "./lib";
+import {
+  AGGREGATIONS,
+  NEW_PERIOD_PRESETS,
+  PERIOD_PRESETS,
+  TIME_GRAINS,
+  allFields,
+  fieldError,
+  isDateField,
+  isNumberField,
+  moveItem,
+  uniqueIdent,
+} from "./lib";
 
-const FILTER_TYPES = ["select", "multi", "relative_period", "date_range"];
+const FILTER_TYPES = ["select", "multi", "relative_period", "date_range", "time_grain", "aggregation"];
+
+/** Fields a filter type can use: a date to bucket, a number to aggregate. */
+const fieldsFor = (type, fields) =>
+  type === "time_grain" ? fields.filter(isDateField) : type === "aggregation" ? fields.filter(isNumberField) : fields;
 
 /** Editable properties shared by the add form and the inline edit of a filter. */
 function FilterDetails({ filter, onChange, t }) {
-  const presets = filter.presets || PERIOD_PRESETS;
+  const presets = filter.presets || NEW_PERIOD_PRESETS;
+  const grains = filter.presets?.length ? TIME_GRAINS.filter((g) => filter.presets.includes(g)) : TIME_GRAINS;
   return (
     <div className="space-y-2.5">
       <TextField label={t("filterLabel")} value={filter.label} onCommit={(v) => onChange({ label: v || filter.label })} />
@@ -42,6 +58,28 @@ function FilterDetails({ filter, onChange, t }) {
           </div>
           <SelectField label={t("filterDefault")} value={filter.default} empty={t("noDefault")} options={presets.map((p) => ({ value: p, label: t(`period.${p}`) }))} onChange={(v) => onChange({ default: v })} />
         </>
+      ) : filter.type === "time_grain" ? (
+        <>
+          <div role="group" aria-label={t("grains")} className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide th-text-muted">{t("grains")}</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {TIME_GRAINS.map((g) => (
+                <Toggle
+                  key={g}
+                  label={t(`grain.${g}`)}
+                  checked={grains.includes(g)}
+                  onChange={(on) => {
+                    const next = TIME_GRAINS.filter((x) => (x === g ? on : grains.includes(x)));
+                    onChange({ presets: next, default: next.includes(filter.default) ? filter.default : null });
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <SelectField label={t("filterDefault")} value={filter.default} empty={t("grainNone")} options={grains.map((g) => ({ value: g, label: t(`grain.${g}`) }))} onChange={(v) => onChange({ default: v })} />
+        </>
+      ) : filter.type === "aggregation" ? (
+        <SelectField label={t("filterDefault")} value={filter.default} empty={t("aggregation.sum")} options={AGGREGATIONS.filter((a) => a !== "sum").map((a) => ({ value: a, label: t(`aggregation.${a}`) }))} onChange={(v) => onChange({ default: v })} />
       ) : filter.type === "select" ? (
         <TextField label={t("filterDefault")} value={filter.default == null ? "" : String(filter.default)} hint={t("filterDefaultHint")} onCommit={(v) => onChange({ default: v === "" ? null : v })} />
       ) : null}
@@ -53,11 +91,13 @@ function AddFilterForm({ editor, onDone }) {
   const t = useTranslations("biEditor");
   const { dashboard, data } = editor;
   const fields = allFields(dashboard, data);
-  const [field, setField] = useState(fields[0]?.name || "");
+  const [picked, setField] = useState(fields[0]?.name || "");
   const [type, setType] = useState("select");
   const [label, setLabel] = useState("");
   const [def, setDef] = useState({});
-  const f = fields.find((x) => x.name === field);
+  const usable = fieldsFor(type, fields);
+  const field = usable.some((x) => x.name === picked) ? picked : usable[0]?.name || "";
+  const f = usable.find((x) => x.name === field);
 
   const filter = {
     id: uniqueIdent(field, (dashboard.filters || []).map((x) => x.id)),
@@ -65,13 +105,14 @@ function AddFilterForm({ editor, onDone }) {
     field,
     type,
     default: def.default ?? null,
-    ...(type === "relative_period" ? { presets: def.presets || PERIOD_PRESETS } : {}),
+    ...(type === "relative_period" ? { presets: def.presets || NEW_PERIOD_PRESETS } : {}),
+    ...(type === "time_grain" ? { presets: def.presets || TIME_GRAINS } : {}),
   };
 
   return (
     <div className="space-y-3 rounded-xl border th-border p-3" role="group" aria-label={t("addFilter")}>
       <h4 className="text-sm font-semibold th-text">{t("addFilter")}</h4>
-      <SelectField label={t("filterField")} value={field} options={fields.map((x) => ({ value: x.name, label: `${x.label || x.name} · ${x.source}` }))} onChange={(v) => setField(v || "")} error={fieldError(editor.error, "field")} />
+      <SelectField label={t("filterField")} value={field} options={usable.map((x) => ({ value: x.name, label: `${x.label || x.name} · ${x.source}` }))} onChange={(v) => setField(v || "")} error={fieldError(editor.error, "field")} />
       <SelectField label={t("filterType")} value={type} options={FILTER_TYPES.map((x) => ({ value: x, label: t(`filterTypes.${x}`) }))} onChange={(v) => { setType(v || "select"); setDef({}); }} />
       <FilterDetails filter={{ ...filter, label: filter.label }} t={t} onChange={({ label: l, ...rest }) => { if (l !== undefined) setLabel(l); if (Object.keys(rest).length) setDef((d) => ({ ...d, ...rest })); }} />
       <div className="flex justify-end gap-2">
