@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { getDashboardData, getPublicDashboardData } from "@/lib/api";
+import { AGGREGATIONS, TIME_GRAINS, isPeriodValue } from "./filterValues";
 
 /**
  * Filter state + computed data of a v2 dashboard.
@@ -70,8 +71,13 @@ export function parseFiltersFromSearch(search, filters) {
     } else if (f.type === "relative_period") {
       const v = params.get(key);
       if (v === "") out[f.id] = null;
-      else if (v && (f.presets?.length ? f.presets : DEFAULT_PRESETS).includes(v)) out[f.id] = v;
+      else if (v && ((f.presets?.length ? f.presets : DEFAULT_PRESETS).includes(v) || isPeriodValue(v))) out[f.id] = v;
       // unknown preset: keep the spec default
+    } else if (f.type === "time_grain" || f.type === "aggregation") {
+      const v = params.get(key);
+      if (v === "") out[f.id] = null;
+      else if ((f.type === "time_grain" ? TIME_GRAINS : AGGREGATIONS).includes(v)) out[f.id] = v;
+      // unknown value: keep the spec default (the server would refuse it)
     } else {
       const v = params.get(key);
       out[f.id] = v === "" ? null : v;

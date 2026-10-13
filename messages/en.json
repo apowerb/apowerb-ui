@@ -941,7 +941,41 @@
     "doneEditing": "Done",
     "moveFailed": "Could not save the new position: {message}",
     "dragHandle": "Move block",
-    "warnings": "Warnings"
+    "warnings": "Warnings",
+    "periodDaysShort": "{n} d",
+    "periodYearsShort": "{n} yr",
+    "periodDaysLong": "{n, plural, one {Last day} other {Last # days}}",
+    "periodYearsLong": "{n, plural, one {Last year} other {Last # years}}",
+    "periodYtdShort": "YTD",
+    "periodYtdLong": "Year to date",
+    "periodMtdShort": "MTD",
+    "periodMtdLong": "Month to date",
+    "periodCustom": "Custom period",
+    "periodCustomShort": "Custom",
+    "periodCustomN": "Number of units",
+    "periodUnit": "Unit",
+    "periodUnits": {
+      "d": "days",
+      "w": "weeks",
+      "m": "months",
+      "y": "years"
+    },
+    "grain": {
+      "hour": "By hour",
+      "day": "By day",
+      "week": "By week",
+      "month": "By month",
+      "quarter": "By quarter",
+      "year": "By year"
+    },
+    "grainNone": "No grouping",
+    "aggregation": {
+      "sum": "Sum",
+      "avg": "Average",
+      "min": "Minimum",
+      "max": "Maximum",
+      "count": "Count"
+    }
   },
   "DashboardFilters": {
     "apply": "Apply",
@@ -4462,7 +4496,9 @@
       "select": "Single choice",
       "multi": "Multiple choice",
       "relative_period": "Relative period",
-      "date_range": "Date range"
+      "date_range": "Date range",
+      "time_grain": "Time grain",
+      "aggregation": "Aggregation"
     },
     "period": {
       "13w": "13 weeks",
@@ -4470,7 +4506,15 @@
       "52w": "52 weeks",
       "3m": "3 months",
       "12m": "12 months",
-      "all": "All"
+      "all": "All",
+      "7d": "7 days",
+      "30d": "30 days",
+      "90d": "90 days",
+      "1y": "1 year",
+      "2y": "2 years",
+      "3y": "3 years",
+      "ytd": "Year to date",
+      "mtd": "Month to date"
     },
     "addIntro": "Pick a block: it is pre-filled from the chosen source.",
     "addNeedsSource": "Add a source first to create data blocks.",
@@ -4491,7 +4535,24 @@
     "forecastTarget": "Value to forecast",
     "forecastGroup": "Grouping",
     "forecastHorizon": "Horizon (periods)",
-    "chooseField": "Choose a field"
+    "chooseField": "Choose a field",
+    "grain": {
+      "hour": "By hour",
+      "day": "By day",
+      "week": "By week",
+      "month": "By month",
+      "quarter": "By quarter",
+      "year": "By year"
+    },
+    "grainNone": "No grouping (raw dates)",
+    "grains": "Grains offered",
+    "aggregation": {
+      "sum": "Sum",
+      "avg": "Average",
+      "min": "Minimum",
+      "max": "Maximum",
+      "count": "Count"
+    }
   },
   "biTemplate": {
     "title": "Create from a template",

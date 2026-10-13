@@ -941,7 +941,41 @@
     "doneEditing": "Terminer",
     "moveFailed": "Impossible d'enregistrer la nouvelle position : {message}",
     "dragHandle": "Déplacer le bloc",
-    "warnings": "Avertissements"
+    "warnings": "Avertissements",
+    "periodDaysShort": "{n} j",
+    "periodYearsShort": "{n} an",
+    "periodDaysLong": "{n, plural, one {Dernier jour} other {# derniers jours}}",
+    "periodYearsLong": "{n, plural, one {Dernière année} other {# dernières années}}",
+    "periodYtdShort": "Année",
+    "periodYtdLong": "Depuis le début de l'année",
+    "periodMtdShort": "Mois",
+    "periodMtdLong": "Depuis le début du mois",
+    "periodCustom": "Période personnalisée",
+    "periodCustomShort": "Perso.",
+    "periodCustomN": "Nombre d'unités",
+    "periodUnit": "Unité",
+    "periodUnits": {
+      "d": "jours",
+      "w": "semaines",
+      "m": "mois",
+      "y": "années"
+    },
+    "grain": {
+      "hour": "Par heure",
+      "day": "Par jour",
+      "week": "Par semaine",
+      "month": "Par mois",
+      "quarter": "Par trimestre",
+      "year": "Par année"
+    },
+    "grainNone": "Sans regroupement",
+    "aggregation": {
+      "sum": "Somme",
+      "avg": "Moyenne",
+      "min": "Minimum",
+      "max": "Maximum",
+      "count": "Nombre"
+    }
   },
   "DashboardFilters": {
     "apply": "Appliquer",
@@ -4462,7 +4496,9 @@
       "select": "Choix unique",
       "multi": "Choix multiple",
       "relative_period": "Période relative",
-      "date_range": "Plage de dates"
+      "date_range": "Plage de dates",
+      "time_grain": "Regroupement temporel",
+      "aggregation": "Agrégation"
     },
     "period": {
       "13w": "13 semaines",
@@ -4470,7 +4506,15 @@
       "52w": "52 semaines",
       "3m": "3 mois",
       "12m": "12 mois",
-      "all": "Tout"
+      "all": "Tout",
+      "7d": "7 jours",
+      "30d": "30 jours",
+      "90d": "90 jours",
+      "1y": "1 an",
+      "2y": "2 ans",
+      "3y": "3 ans",
+      "ytd": "Depuis le début de l'année",
+      "mtd": "Depuis le début du mois"
     },
     "addIntro": "Choisis un bloc : il est pré-rempli à partir de la source choisie.",
     "addNeedsSource": "Ajoute d'abord une source pour créer des blocs de données.",
@@ -4491,7 +4535,24 @@
     "forecastTarget": "Valeur à prévoir",
     "forecastGroup": "Regroupement",
     "forecastHorizon": "Horizon (périodes)",
-    "chooseField": "Choisir un champ"
+    "chooseField": "Choisir un champ",
+    "grain": {
+      "hour": "Par heure",
+      "day": "Par jour",
+      "week": "Par semaine",
+      "month": "Par mois",
+      "quarter": "Par trimestre",
+      "year": "Par année"
+    },
+    "grainNone": "Sans regroupement (dates brutes)",
+    "grains": "Regroupements proposés",
+    "aggregation": {
+      "sum": "Somme",
+      "avg": "Moyenne",
+      "min": "Minimum",
+      "max": "Maximum",
+      "count": "Nombre"
+    }
   },
   "biTemplate": {
     "title": "Créer depuis un modèle",
