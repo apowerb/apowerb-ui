@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 
 const push = vi.fn();
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
@@ -12,6 +12,7 @@ vi.mock("@/lib/api", () => ({
   listBiDatasets: vi.fn(),
   previewBiDataset: vi.fn(),
   createDashboardFromTemplate: vi.fn(),
+  deleteDashboardTemplate: vi.fn(),
 }));
 
 const api = await import("@/lib/api");
@@ -21,25 +22,31 @@ const TEMPLATE = {
   id: "stock_pilotage",
   label: "Pilotage stocks",
   description: "Stock steering",
+  version: 2,
+  origin: "builtin",
+  owner: null,
+  visibility: null,
+  can_delete: false,
   columns: [
     { key: "date", label: "Semaine", type: "date", required: true, default: "semaine" },
     { key: "family", label: "Famille", type: "string", required: true, default: "famille" },
     { key: "sales", label: "Ventes", type: "number", required: true, default: "ventes" },
     { key: "site", label: "Site", type: "string", required: false, default: null },
+    { key: "stock", label: "Stock", type: "number", required: false, default: "stock" },
   ],
   params: [{ key: "horizon", label: "Horizon de prévision (semaines)", type: "integer", default: 8, min: 1, max: 26 }],
 };
 
 const col = (name, type = "string") => ({ name, type });
 
-function setup({ columns, create } = {}) {
-  api.listDashboardTemplates.mockResolvedValue([TEMPLATE]);
+function setup({ columns, create, templates = [TEMPLATE], datasets, rows = [] } = {}) {
+  api.listDashboardTemplates.mockResolvedValue(templates);
   api.listBiDatasets.mockResolvedValue({
-    datasets: [{ file_id: "ds-9", filename: "ventes.csv", columns_count: 4, row_count: 10 }],
+    datasets: datasets || [{ file_id: "ds-9", filename: "ventes.csv", columns_count: 4, row_count: 10 }],
   });
   api.previewBiDataset.mockResolvedValue({
     columns: columns || [col("Semaine", "date"), col("FAMILLE"), col("ventes", "number"), col("magasin")],
-    sample_rows: [],
+    sample_rows: rows,
     row_count: 10,
   });
   if (create) api.createDashboardFromTemplate.mockImplementation(create);
@@ -86,7 +93,7 @@ describe("TemplateWizard", () => {
     setup();
     await reachColumns();
     expect(screen.getByText("Expected: date")).toBeInTheDocument();
-    expect(screen.getByText("Expected: number")).toBeInTheDocument();
+    expect(screen.getAllByText("Expected: number")).toHaveLength(2);
   });
 
   it("blocks Next while a required column is unmapped, and unblocks when chosen by hand", async () => {
@@ -147,7 +154,7 @@ describe("TemplateWizard", () => {
     expect(api.createDashboardFromTemplate).toHaveBeenCalledWith("stock_pilotage", {
       dataset_id: "ds-9",
       title: "Mon tableau",
-      columns: { date: "week", family: "product_group", sales: "qty", site: null },
+      columns: { date: "week", family: "product_group", sales: "qty", site: null, stock: null },
       params: { horizon: 12 },
     });
     expect(toast.info).not.toHaveBeenCalled();
@@ -204,5 +211,116 @@ describe("TemplateWizard", () => {
     await screen.findByText("Pilotage stocks");
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("filters the dataset list by name", async () => {
+    setup({
+      datasets: [
+        { file_id: "ds-1", filename: "ventes.csv", columns_count: 1, row_count: 1 },
+        { file_id: "ds-2", filename: "stock.xlsx", columns_count: 1, row_count: 1 },
+      ],
+    });
+    await screen.findByText("Pilotage stocks");
+    next();
+    await screen.findByRole("radio", { name: /stock\.xlsx/ });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search datasets" }), { target: { value: "VEN" } });
+    expect(screen.queryByRole("radio", { name: /stock\.xlsx/ })).toBeNull();
+    expect(screen.getByRole("radio", { name: /ventes\.csv/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search datasets" }), { target: { value: "nope" } });
+    expect(screen.getByText(/No dataset matches “nope”/)).toBeInTheDocument();
+  });
+
+  it("previews the first 5 rows of the chosen dataset on the columns step", async () => {
+    const rows = Array.from({ length: 9 }, (_, i) => ({ Semaine: `S${i + 1}`, FAMILLE: "A", ventes: i, magasin: "M" }));
+    setup({ rows });
+    await reachColumns();
+    const table = screen.getByRole("table", { name: /First rows of ventes\.csv/ });
+    const body = within(table).getAllByRole("row");
+    expect(body).toHaveLength(1 + 5);
+    expect(within(table).getByText("S5")).toBeInTheDocument();
+    expect(within(table).queryByText("S6")).toBeNull();
+  });
+
+  it("warns, without blocking, when a chosen column has another type than expected", async () => {
+    setup({ columns: [col("Semaine", "string"), col("FAMILLE"), col("ventes", "string"), col("magasin")] });
+    await reachColumns();
+    expect(screen.getByText(/looks like text, but date is expected/)).toBeInTheDocument();
+    expect(screen.getByText(/looks like text, but number is expected/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
+  });
+
+  it("does not warn when the types match", async () => {
+    setup({ columns: [col("Semaine", "date"), col("FAMILLE"), col("ventes", "float"), col("magasin")] });
+    await reachColumns();
+    expect(screen.queryByText(/is expected/)).toBeNull();
+  });
+
+  it("preselects an optional column by its default name and offers None", async () => {
+    setup({ columns: [col("Semaine", "date"), col("FAMILLE"), col("ventes", "number"), col("Stock", "number")] });
+    await reachColumns();
+    expect(screen.getByLabelText("Stock")).toHaveValue("Stock");
+    expect(screen.getByLabelText("Stock").querySelector("option[value='']")).toHaveTextContent("None");
+    fireEvent.change(screen.getByLabelText("Stock"), { target: { value: "" } });
+    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
+  });
+
+  describe("user templates", () => {
+    const MINE = {
+      ...TEMPLATE,
+      id: "user_1",
+      label: "Mon modèle",
+      origin: "user",
+      owner: "x@acme.fr",
+      visibility: "private",
+      can_delete: true,
+    };
+    const SHARED = {
+      ...TEMPLATE,
+      id: "user_2",
+      label: "Modèle équipe",
+      origin: "user",
+      owner: "y@acme.fr",
+      visibility: "organization",
+      can_delete: false,
+    };
+
+    it("badges user templates and offers delete only on the ones the user can delete", async () => {
+      setup({ templates: [TEMPLATE, MINE, SHARED] });
+      await screen.findByText("Mon modèle");
+      expect(screen.getByText("My template")).toBeInTheDocument();
+      expect(screen.getByText("Organization")).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /^Delete template/ })).toHaveLength(1);
+      expect(screen.getByRole("button", { name: "Delete template Mon modèle" })).toBeInTheDocument();
+    });
+
+    it("asks for confirmation, then deletes and removes the card", async () => {
+      api.deleteDashboardTemplate.mockResolvedValue({});
+      setup({ templates: [TEMPLATE, MINE] });
+      fireEvent.click(await screen.findByRole("button", { name: "Delete template Mon modèle" }));
+      expect(api.deleteDashboardTemplate).not.toHaveBeenCalled();
+      expect(screen.getByRole("alertdialog")).toHaveTextContent("Mon modèle");
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+      await waitFor(() => expect(screen.queryByText("Mon modèle")).toBeNull());
+      expect(api.deleteDashboardTemplate).toHaveBeenCalledWith("user_1");
+      expect(toast.success).toHaveBeenCalled();
+    });
+
+    it("keeps the template when the confirmation is cancelled", async () => {
+      setup({ templates: [TEMPLATE, MINE] });
+      fireEvent.click(await screen.findByRole("button", { name: "Delete template Mon modèle" }));
+      fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(api.deleteDashboardTemplate).not.toHaveBeenCalled();
+      expect(screen.getByText("Mon modèle")).toBeInTheDocument();
+    });
+
+    it("keeps the template and reports the error when the delete fails", async () => {
+      api.deleteDashboardTemplate.mockRejectedValue(new Error("Forbidden"));
+      setup({ templates: [TEMPLATE, MINE] });
+      fireEvent.click(await screen.findByRole("button", { name: "Delete template Mon modèle" }));
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("Forbidden")));
+      expect(screen.getByText("Mon modèle")).toBeInTheDocument();
+    });
   });
 });
