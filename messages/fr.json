@@ -4236,6 +4236,12 @@
       "note": "Encadré",
       "forecast": "Prévision"
     },
+    "needs": {
+      "date": "Nécessite une colonne date",
+      "number": "Nécessite une colonne numérique",
+      "dimension": "Nécessite une colonne catégorie",
+      "rows": "Nécessite au moins {min} lignes"
+    },
     "typeHints": {
       "kpi": "Un chiffre clé avec sa comparaison et sa cible.",
       "combo": "Barres et courbes sur deux axes.",

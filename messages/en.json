@@ -4236,6 +4236,12 @@
       "note": "Callout",
       "forecast": "Forecast"
     },
+    "needs": {
+      "date": "Needs a date column",
+      "number": "Needs a number column",
+      "dimension": "Needs a category column",
+      "rows": "Needs at least {min} rows"
+    },
     "typeHints": {
       "kpi": "One key figure with its comparison and target.",
       "combo": "Bars and lines on two axes.",

@@ -21,6 +21,7 @@ describe("biEditor i18n", () => {
     "stepKind.": ["start", "increase", "decrease", "end"],
     "sorts.": ["x_asc", "x_desc", "value_asc", "value_desc"],
     "types.": ["kpi", "combo", "bar", "hbar", "diverging_bar", "line", "area", "pie", "waterfall", "forecast", "table", "text", "note"],
+    "needs.": ["date", "number", "dimension", "rows"],
     "typeHints.": ["kpi", "combo", "bar", "hbar", "diverging_bar", "line", "area", "pie", "waterfall", "forecast", "table", "text", "note"],
     "formats.": ["number", "integer", "compact", "percent", "decimal1", "decimal2", "weeks"],
     "filterTypes.": ["select", "multi", "relative_period", "date_range"],

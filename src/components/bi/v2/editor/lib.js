@@ -97,6 +97,30 @@ export const isNumberField = (f) => f.type === "number" || f.role === "measure";
 export const isDimensionField = (f) =>
   isDateField(f) || f.role === "dimension" || (!f.role && f.type !== "number");
 
+export const FORECAST_MIN_ROWS = 10;
+
+/**
+ * What a block type is missing in a source, or null when it can be built.
+ * Unknown fields (source not computed yet) never block: the gallery would
+ * otherwise grey out every card the moment a source is added.
+ * Returns "date" | "number" | "dimension" | "rows" | null.
+ */
+export function blockNeeds(type, fields, measures = [], rowCount = null) {
+  if (type === "note" || type === "table" || !fields?.length) return null;
+  const hasNumber = measures.length > 0 || fields.some(isNumberField);
+  const hasDate = fields.some(isDateField);
+  const hasAxis = fields.some(isDimensionField);
+  if (type === "line" || type === "area" || type === "forecast") {
+    if (!hasDate) return "date";
+    if (!hasNumber) return "number";
+    if (type === "forecast" && rowCount != null && rowCount < FORECAST_MIN_ROWS) return "rows";
+    return null;
+  }
+  if (!hasNumber) return "number";
+  if (type === "kpi" || type === "text" || type === "waterfall") return null;
+  return hasAxis ? null : "dimension";
+}
+
 export function allFields(dashboard, data) {
   const out = [];
   const seen = new Set();
