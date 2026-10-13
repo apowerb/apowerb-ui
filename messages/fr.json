@@ -2891,6 +2891,8 @@
     "passwordTooShort": "8 caractères au minimum.",
     "permissions": "Permissions",
     "permissionsSelected": "{count, plural, =0 {Aucune permission} one {# permission} other {# permissions}}",
+    "quotaMonth": "{tokens} ce mois",
+    "quotaResetOn": "remis à zéro le {date}",
     "refresh": "Actualiser",
     "removeMemberOf": "Retirer {email} de {name}",
     "role": "Rôle",

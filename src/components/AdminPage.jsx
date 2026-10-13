@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "use-intl";
+import { useFormatter, useTranslations } from "use-intl";
+import { toDate } from "@/lib/datetime";
 import {
   KeyRound,
   Loader2,
@@ -385,6 +386,45 @@ function compact(n) {
   return String(n);
 }
 
+// Older servers send neither `quota_tokens` nor `token_usage_reset_at`: each
+// helper answers null so the cell shows nothing rather than "undefined".
+// The core counts the month in Europe/Paris (billing timezone): a reset at
+// 23:00 UTC on the last day already belongs to the next month there.
+const parisMonth = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Paris",
+  year: "numeric",
+  month: "2-digit",
+});
+
+function resetThisMonth(value, now = new Date()) {
+  const at = toDate(value);
+  if (!at) return null;
+  return parisMonth.format(at) === parisMonth.format(now) ? at : null;
+}
+
+function QuotaUsage({ user, t }) {
+  const hasQuota = Number.isFinite(user.quota_tokens);
+  const resetAt = resetThisMonth(user.token_usage_reset_at);
+  if (!hasQuota && !resetAt) return null;
+  return <QuotaLines quota={hasQuota ? user.quota_tokens : null} resetAt={resetAt} t={t} />;
+}
+
+function QuotaLines({ quota, resetAt, t }) {
+  const format = useFormatter();
+  return (
+    <span className="block th-text-faint text-[10px]">
+      {quota !== null && <span className="block">{t("quotaMonth", { tokens: compact(quota) })}</span>}
+      {resetAt && (
+        <span className="block">
+          {t("quotaResetOn", {
+            date: format.dateTime(resetAt, { day: "numeric", month: "short", timeZone: "Europe/Paris" }),
+          })}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** What an administrator can demand of one account.
  *
  *  Every entry rides a flow the core already owns. Two things an
@@ -691,6 +731,7 @@ function UsersTab({ t, users, me, busy, newUser, setNewUser, canCreate, onCreate
                         <span className="th-text-ghost cursor-help">—</span>
                       </Hint>
                     )}
+                    {u.tokens ? <QuotaUsage user={u} t={t} /> : null}
                   </td>
                   <td className="px-4 py-3">
                     <span className="flex flex-wrap gap-1">
