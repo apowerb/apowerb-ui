@@ -7,7 +7,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "lint:no-undef": "node .github/scripts/lint-no-undef.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

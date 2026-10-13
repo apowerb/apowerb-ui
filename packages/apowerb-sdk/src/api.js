@@ -786,6 +786,28 @@ export const createDashboardFromTemplate = (templateId, data) =>
     method: "POST",
     body: JSON.stringify(data),
   });
+// Template lifecycle (contract 13/10/2026): delete a user template, save a
+// dashboard as a template, swap its source file, re-sync it with its template.
+// 409 / 422 carry `detail` ({errors: [...]}) on the error.
+export const deleteDashboardTemplate = (templateId) =>
+  request(`/api/v1/dashboard-templates/${encodeURIComponent(templateId)}`, { method: "DELETE" });
+export const saveDashboardAsTemplate = (dashboardId, data) =>
+  request(`/api/v1/dashboards/${encodeURIComponent(dashboardId)}/template`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+export const getDashboardSourceRequirements = (dashboardId) =>
+  request(`/api/v1/dashboards/${encodeURIComponent(dashboardId)}/source-requirements`);
+export const replaceDashboardSource = (dashboardId, data) =>
+  request(`/api/v1/dashboards/${encodeURIComponent(dashboardId)}/source`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+export const upgradeDashboardFromTemplate = (dashboardId, data) =>
+  request(`/api/v1/dashboards/${encodeURIComponent(dashboardId)}/upgrade`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
 export const getPublicChartData = (chartId, params = {}) => {
   const query = new URLSearchParams(params).toString();
