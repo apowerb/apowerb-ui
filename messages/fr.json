@@ -476,7 +476,18 @@
     "tabSharedLabel": "Partagé",
     "thisDashboardFallback": "ce tableau de bord",
     "viewDashboardTooltip": "Voir le tableau de bord",
-    "fromTemplateButton": "Depuis un modèle"
+    "fromTemplateButton": "Depuis un modèle",
+    "dataLabel": "Données",
+    "dataHint": "Les graphiques du tableau de bord seront construits sur ces données. Tu pourras en ajouter d'autres ensuite.",
+    "addDataButton": "Ajouter des données",
+    "removeSourceButton": "Retirer {name}",
+    "sourceKinds": {
+      "dataset": "Fichier",
+      "database": "Base de données",
+      "onedrive_excel": "OneDrive",
+      "google_drive": "Google Drive",
+      "agent": "Agent"
+    }
   },
   "Breadcrumb": {
     "breadcrumbAria": "Fil d'Ariane"
@@ -4222,7 +4233,8 @@
       "waterfall": "Cascade",
       "table": "Tableau",
       "text": "Phrase de synthèse",
-      "note": "Encadré"
+      "note": "Encadré",
+      "forecast": "Prévision"
     },
     "typeHints": {
       "kpi": "Un chiffre clé avec sa comparaison et sa cible.",
@@ -4236,7 +4248,8 @@
       "waterfall": "D'une valeur de départ à une valeur d'arrivée, étape par étape.",
       "table": "Lignes et colonnes avec seuils.",
       "text": "Une phrase avec des chiffres à jour.",
-      "note": "Note en markdown avec badges de provenance."
+      "note": "Note en markdown avec badges de provenance.",
+      "forecast": "Prévision de la série par le moteur, avec intervalles."
     },
     "rows": "Lignes",
     "rowField": "Champ des lignes",
@@ -4355,7 +4368,8 @@
     "kind": {
       "dataset": "Jeu de données",
       "sql": "Requête SQL",
-      "source": "Source dérivée"
+      "source": "Source dérivée",
+      "connector": "Connecteur"
     },
     "rowCount": "{count, plural, one {# ligne} other {# lignes}}",
     "lastDate": "dernière date {date}",
@@ -4454,7 +4468,22 @@
     "addNeedsSource": "Ajoute d'abord une source pour créer des blocs de données.",
     "goToData": "Aller aux données",
     "noteDefaultTitle": "Note",
-    "noteDefaultText": "Écris ta note ici."
+    "noteDefaultText": "Écris ta note ici.",
+    "blockSource": "Données",
+    "kindNew": "Données de la plateforme",
+    "connector": {
+      "database": "Base de données",
+      "onedrive_excel": "OneDrive",
+      "google_drive": "Google Drive",
+      "agent": "Agent",
+      "csv": "Fichier"
+    },
+    "forecastSection": "Prévision",
+    "forecastDate": "Colonne date",
+    "forecastTarget": "Valeur à prévoir",
+    "forecastGroup": "Regroupement",
+    "forecastHorizon": "Horizon (périodes)",
+    "chooseField": "Choisir un champ"
   },
   "biTemplate": {
     "title": "Créer depuis un modèle",

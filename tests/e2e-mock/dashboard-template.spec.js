@@ -37,7 +37,7 @@ test.describe("créer un tableau de bord depuis un modèle", () => {
     await dialog.getByRole("button", { name: "Create" }).click();
     // le toast dure 4 s et la première compilation de la page cible plus longtemps
     await expect(page.getByText(/Renamed to “Ventes 2026 \(\d+\)”/)).toBeVisible();
-    await expect(page).toHaveURL(/\/bi\/v2-stock$/);
+    await expect(page).toHaveURL(/\/bi\/v2-stock$/, { timeout: 30_000 });
     await assertNoErrorScreen(page, "après la création depuis un modèle");
   });
 

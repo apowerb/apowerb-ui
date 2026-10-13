@@ -1,20 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "use-intl";
+import { SelectField } from "./fields";
 import { BLOCK_TYPES, defaultVisual, newId } from "./lib";
 
 /**
- * Gallery of block types. One click adds a block pre-filled from the first
- * source (first date on x, first measure as series, ...) and selects it.
+ * Gallery of block types. One click adds a block pre-filled from the chosen
+ * dashboard source (first date on x, first measure as series, ...) and
+ * selects it.
  * editor = { dashboard, data, apply, onSelect }
  */
 export default function AddBlockPanel({ editor, onNeedSource }) {
   const t = useTranslations("biEditor");
   const { dashboard, data, apply, onSelect } = editor;
-  const hasSource = (dashboard.sources || []).length > 0;
+  const sources = dashboard.sources || [];
+  const hasSource = sources.length > 0;
+  const [sourceName, setSourceName] = useState(null);
 
   const add = async (type) => {
-    const visual = defaultVisual(type, dashboard, data, { noteTitle: t("noteDefaultTitle"), noteText: t("noteDefaultText") });
+    const visual = defaultVisual(type, dashboard, data, { noteTitle: t("noteDefaultTitle"), noteText: t("noteDefaultText") }, sourceName);
     if (!visual) return;
     const id = newId();
     const next = await apply([{ op: "add_visual", visual, component_id: id }]);
@@ -24,6 +29,14 @@ export default function AddBlockPanel({ editor, onNeedSource }) {
   return (
     <div className="space-y-3">
       <p className="text-xs th-text-muted">{t("addIntro")}</p>
+      {sources.length > 1 && (
+        <SelectField
+          label={t("blockSource")}
+          value={sourceName || sources[0].name}
+          options={sources.map((s) => ({ value: s.name, label: s.label || s.name }))}
+          onChange={setSourceName}
+        />
+      )}
       {!hasSource && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-amber-300">
           {t("addNeedsSource")}{" "}
