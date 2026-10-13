@@ -262,6 +262,43 @@ function pickSeriesKeys(dashboard, data, sourceName) {
  * A new visual of `type`, pre-filled from the first source: first date (or
  * dimension) on x, first measure as the series.
  */
+const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * KPI, waterfall and summary sentence read measures, but a source added from
+ * the UI has none: its number columns are offered instead. Each number column
+ * the visual uses where a measure is expected becomes a `SUM(column)` measure.
+ * Returns the visual pointing at those measures and the `upsert_measure` ops
+ * to apply before it.
+ */
+export function measuresFor(visual, dashboard, data) {
+  if (!visual?.source) return { visual, ops: [] };
+  const measures = sourceMeasures(dashboard, visual.source);
+  const fields = sourceFields(dashboard, data, visual.source);
+  const taken = measures.map((m) => m.name);
+  const made = {};
+  const ops = [];
+  const toMeasure = (key) => {
+    if (!key || measures.some((m) => m.name === key)) return key;
+    if (made[key]) return made[key];
+    const field = fields.find((f) => f.name === key && isNumberField(f));
+    if (!field) return key;
+    const name = uniqueIdent(key, taken);
+    taken.push(name);
+    made[key] = name;
+    const col = IDENT.test(key) ? key : `"${key.replace(/"/g, '""')}"`;
+    ops.push({ op: "upsert_measure", source: visual.source, measure: { name, label: field.label || key, expr: `SUM(${col})`, format: "number" } });
+    return name;
+  };
+  let v = visual;
+  if (v.kpi?.measure) {
+    v = { ...v, kpi: { ...v.kpi, measure: toMeasure(v.kpi.measure), ...(v.kpi.sparkline ? { sparkline: toMeasure(v.kpi.sparkline) } : {}) } };
+  }
+  if ((v.steps || []).length) v = { ...v, steps: v.steps.map((s) => ({ ...s, measure: toMeasure(s.measure) })) };
+  if (v.type === "text" && v.text) v = { ...v, text: v.text.replace(/\{\{\s*([A-Za-z0-9_. -]+?)\s*(\||\}\})/g, (_, k, end) => `{{${toMeasure(k)}${end}`) };
+  return ops.length ? { visual: v, ops } : { visual, ops };
+}
+
 /** Forecast settings guessed from a source: its first date and first number. */
 export function forecastDefaults(fields) {
   return {

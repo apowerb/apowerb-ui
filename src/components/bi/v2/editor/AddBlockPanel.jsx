@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "use-intl";
 import { SelectField } from "./fields";
-import { BLOCK_TYPES, defaultVisual, newId } from "./lib";
+import { BLOCK_TYPES, defaultVisual, measuresFor, newId } from "./lib";
 
 /**
  * Gallery of block types. One click adds a block pre-filled from the chosen
@@ -19,10 +19,11 @@ export default function AddBlockPanel({ editor, onNeedSource }) {
   const [sourceName, setSourceName] = useState(null);
 
   const add = async (type) => {
-    const visual = defaultVisual(type, dashboard, data, { noteTitle: t("noteDefaultTitle"), noteText: t("noteDefaultText") }, sourceName);
-    if (!visual) return;
+    const draft = defaultVisual(type, dashboard, data, { noteTitle: t("noteDefaultTitle"), noteText: t("noteDefaultText") }, sourceName);
+    if (!draft) return;
+    const { visual, ops } = measuresFor(draft, dashboard, data);
     const id = newId();
-    const next = await apply([{ op: "add_visual", visual, component_id: id }]);
+    const next = await apply([...ops, { op: "add_visual", visual, component_id: id }]);
     if (next) onSelect?.(id);
   };
 
