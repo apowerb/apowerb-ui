@@ -60,6 +60,7 @@ import { DashboardDataProvider } from "./v2/DashboardDataContext";
 import FilterBar from "./v2/FilterBar";
 import VisualRenderer from "./v2/VisualRenderer";
 import SpecEditorPanel from "./v2/SpecEditorPanel";
+import TemplateActionsMenu from "./v2/TemplateActionsMenu";
 import { useSpecEditor } from "./v2/editor/useSpecEditor";
 import { isV2Dashboard, NARROW_PX } from "./v2/isV2";
 import { fitTextBlocks } from "./v2/layout";
@@ -874,6 +875,7 @@ export default function DashboardDetail({ dashboardId }) {
                 </button>
               </>
             )}
+            {isV2 && <TemplateActionsMenu dashboard={dashboard} onDashboardChange={setDashboard} />}
             {/* Export dropdown */}
             <div className="relative" ref={exportMenuRef}>
               <button

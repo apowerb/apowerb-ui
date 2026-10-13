@@ -30,6 +30,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Sorties de test et de build, jamais du code source.
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    "tests/e2e-mock/.results/**",
+    "tests/e2e-mock/shots/**",
   ]),
 ]);
 
