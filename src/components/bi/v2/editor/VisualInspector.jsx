@@ -25,6 +25,7 @@ import {
   getComponent,
   isDateField,
   isDimensionField,
+  isNumberField,
   newId,
   sourceFields,
   sourceMeasures,
@@ -216,6 +217,43 @@ export default function VisualInspector({ editor, componentId }) {
           />
           <NumberField label={t("topN")} value={visual.top_n} min={1} max={500} onCommit={(v) => update({ top_n: v }, "top_n")} error={err("top_n")} />
           <SelectField label={t("sort")} value={visual.sort} empty={t("sortDefault")} options={SORTS.map((s) => ({ value: s, label: t(`sorts.${s}`) }))} onChange={(v) => update({ sort: v }, "sort")} />
+        </Section>
+      )}
+
+      {visual.type === "forecast" && (
+        <Section title={t("forecastSection")}>
+          <SelectField
+            label={t("forecastDate")}
+            value={visual.forecast?.date_var}
+            empty={t("chooseField")}
+            options={fields.filter(isDateField).map((f) => ({ value: f.name, label: f.label || f.name }))}
+            onChange={(v) => update({ forecast: { ...(visual.forecast || {}), date_var: v } }, "date_var")}
+            error={err("date_var") || err("forecast")}
+          />
+          <SelectField
+            label={t("forecastTarget")}
+            value={visual.forecast?.target_var}
+            empty={t("chooseField")}
+            options={fields.filter((f) => !isDateField(f) && isNumberField(f)).map((f) => ({ value: f.name, label: f.label || f.name }))}
+            onChange={(v) => update({ forecast: { ...(visual.forecast || {}), target_var: v } }, "target_var")}
+            error={err("target_var")}
+          />
+          <SelectField
+            label={t("forecastGroup")}
+            value={visual.forecast?.group_var}
+            empty={t("none")}
+            options={fields.filter((f) => !isDateField(f) && isDimensionField(f)).map((f) => ({ value: f.name, label: f.label || f.name }))}
+            onChange={(v) => update({ forecast: { ...(visual.forecast || {}), group_var: v } }, "group_var")}
+            error={err("group_var")}
+          />
+          <NumberField
+            label={t("forecastHorizon")}
+            value={visual.forecast?.horizon ?? 12}
+            min={1}
+            max={366}
+            onCommit={(v) => update({ forecast: { ...(visual.forecast || {}), horizon: v || 12 } }, "horizon")}
+            error={err("horizon")}
+          />
         </Section>
       )}
 

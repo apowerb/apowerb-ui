@@ -476,7 +476,18 @@
     "tabSharedLabel": "Shared",
     "thisDashboardFallback": "this dashboard",
     "viewDashboardTooltip": "View Dashboard",
-    "fromTemplateButton": "From a template"
+    "fromTemplateButton": "From a template",
+    "dataLabel": "Data",
+    "dataHint": "The dashboard's charts are built on this data. You can add more later.",
+    "addDataButton": "Add data",
+    "removeSourceButton": "Remove {name}",
+    "sourceKinds": {
+      "dataset": "File",
+      "database": "Database",
+      "onedrive_excel": "OneDrive",
+      "google_drive": "Google Drive",
+      "agent": "Agent"
+    }
   },
   "Breadcrumb": {
     "breadcrumbAria": "Breadcrumb"
@@ -4222,7 +4233,8 @@
       "waterfall": "Waterfall",
       "table": "Table",
       "text": "Summary sentence",
-      "note": "Callout"
+      "note": "Callout",
+      "forecast": "Forecast"
     },
     "typeHints": {
       "kpi": "One key figure with its comparison and target.",
@@ -4236,7 +4248,8 @@
       "waterfall": "From a start value to an end value, step by step.",
       "table": "Rows and columns with thresholds.",
       "text": "A sentence with live figures.",
-      "note": "Markdown note with provenance badges."
+      "note": "Markdown note with provenance badges.",
+      "forecast": "Engine forecast of the series, with intervals."
     },
     "rows": "Rows",
     "rowField": "Row field",
@@ -4355,7 +4368,8 @@
     "kind": {
       "dataset": "Dataset",
       "sql": "SQL query",
-      "source": "Derived source"
+      "source": "Derived source",
+      "connector": "Connector"
     },
     "rowCount": "{count, plural, one {# row} other {# rows}}",
     "lastDate": "last date {date}",
@@ -4454,7 +4468,22 @@
     "addNeedsSource": "Add a source first to create data blocks.",
     "goToData": "Go to Data",
     "noteDefaultTitle": "Note",
-    "noteDefaultText": "Write your note here."
+    "noteDefaultText": "Write your note here.",
+    "blockSource": "Data",
+    "kindNew": "Platform data",
+    "connector": {
+      "database": "Database",
+      "onedrive_excel": "OneDrive",
+      "google_drive": "Google Drive",
+      "agent": "Agent",
+      "csv": "File"
+    },
+    "forecastSection": "Forecast",
+    "forecastDate": "Date column",
+    "forecastTarget": "Value to forecast",
+    "forecastGroup": "Grouping",
+    "forecastHorizon": "Horizon (periods)",
+    "chooseField": "Choose a field"
   },
   "biTemplate": {
     "title": "Create from a template",

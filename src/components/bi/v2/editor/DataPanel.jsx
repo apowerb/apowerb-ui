@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "use-intl";
 import { Database, Pencil, Plus, Trash2 } from "lucide-react";
-import { listBiDatasets } from "@/lib/api";
+import { toSourceSpec } from "../sources";
 import MeasureEditor from "./MeasureEditor";
+import SourcePicker from "./SourcePicker";
 import {
   BTN_CLS,
   BTN_PRIMARY_CLS,
@@ -110,41 +111,20 @@ function TransformsView({ source, editor }) {
 function AddSourceForm({ editor, onDone }) {
   const t = useTranslations("biEditor");
   const { dashboard } = editor;
-  const [kind, setKind] = useState("dataset");
+  const [kind, setKind] = useState("new");
   const [label, setLabel] = useState("");
-  const [datasetId, setDatasetId] = useState("");
   const [parent, setParent] = useState("");
-  const [datasets, setDatasets] = useState([]);
-  const [loadError, setLoadError] = useState(null);
   const sources = dashboard.sources || [];
+  const taken = sources.map((s) => s.name);
 
-  useEffect(() => {
-    let alive = true;
-    listBiDatasets(dashboard.organization_id)
-      .then((res) => alive && setDatasets(res?.datasets || []))
-      .catch((e) => alive && setLoadError(e.message));
-    return () => {
-      alive = false;
-    };
-  }, [dashboard.organization_id]);
-
-  const ds = datasets.find((d) => d.file_id === datasetId);
-  const valid = kind === "dataset" ? !!datasetId : !!parent;
-
-  const submit = async () => {
-    const base = label || ds?.filename?.replace(/\.[^.]+$/, "") || parent || "source";
-    const name = uniqueIdent(base, sources.map((s) => s.name));
-    const source = {
-      name,
-      label: label || ds?.filename || name,
-      kind,
-      ...(kind === "dataset" ? { dataset_id: datasetId } : { parent }),
-      transforms: [],
-      fields: [],
-      measures: [],
-    };
+  const save = async (source) => {
     const next = await editor.apply([{ op: "upsert_source", source }], { field: "source" });
     if (next) onDone();
+  };
+
+  const addDerived = () => {
+    const name = uniqueIdent(label || parent, taken);
+    save({ name, label: label || name, kind: "source", parent, transforms: [], fields: [], measures: [] });
   };
 
   return (
@@ -153,29 +133,27 @@ function AddSourceForm({ editor, onDone }) {
       <SelectField
         label={t("sourceKind")}
         value={kind}
-        options={[{ value: "dataset", label: t("kindDataset") }, ...(sources.length ? [{ value: "source", label: t("kindDerived") }] : [])]}
-        onChange={(v) => setKind(v || "dataset")}
+        options={[{ value: "new", label: t("kindNew") }, ...(sources.length ? [{ value: "source", label: t("kindDerived") }] : [])]}
+        onChange={(v) => setKind(v || "new")}
       />
-      {kind === "dataset" ? (
-        <SelectField
-          label={t("dataset")}
-          value={datasetId}
-          empty={t("chooseDataset")}
-          options={datasets.map((d) => ({ value: d.file_id, label: d.filename }))}
-          onChange={(v) => setDatasetId(v || "")}
-          error={loadError || fieldError(editor.error, "dataset_id")}
-        />
+      <TextField label={t("sourceLabel")} value={label} debounce={0} onCommit={setLabel} />
+      {kind === "new" ? (
+        <>
+          <SourcePicker onPick={(pick) => save(toSourceSpec(pick, taken, label))} />
+          {fieldError(editor.error, "source") && <p role="alert" className="text-[11px] text-red-400">{fieldError(editor.error, "source")}</p>}
+        </>
       ) : (
         <SelectField label={t("parentSource")} value={parent} empty={t("chooseSource")} options={sources.map((s) => ({ value: s.name, label: s.label || s.name }))} onChange={(v) => setParent(v || "")} error={fieldError(editor.error, "parent")} />
       )}
-      <TextField label={t("sourceLabel")} value={label} debounce={0} onCommit={setLabel} placeholder={ds?.filename} />
       <div className="flex justify-end gap-2">
         <button type="button" className={BTN_CLS} onClick={onDone}>
           {t("cancel")}
         </button>
-        <button type="button" className={BTN_PRIMARY_CLS} disabled={!valid} onClick={submit}>
-          {t("addSource")}
-        </button>
+        {kind === "source" && (
+          <button type="button" className={BTN_PRIMARY_CLS} disabled={!parent} onClick={addDerived}>
+            {t("addSource")}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -214,7 +192,7 @@ export default function DataPanel({ editor }) {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium th-text">{s.label || s.name}</span>
                   <span className="block truncate text-[11px] th-text-faint">
-                    {t(`kind.${s.kind}`)}
+                    {s.kind === "connector" ? t(`connector.${s.source_type}`) : t(`kind.${s.kind}`)}
                     {meta ? ` · ${t("rowCount", { count: meta.row_count })}` : ""}
                     {meta?.last_date ? ` · ${t("lastDate", { date: meta.last_date })}` : ""}
                   </span>

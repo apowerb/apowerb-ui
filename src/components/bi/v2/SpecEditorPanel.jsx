@@ -7,7 +7,7 @@ import { useDashboardData } from "./DashboardDataContext";
  * Mount point of the spec editor: gives it the dashboard and its computed data
  * from the shared context (the data refetches by itself when the spec changes).
  */
-export default function SpecEditorPanel({ selectedComponentId, onSelectComponent, onDashboardChange, controller = null }) {
+export default function SpecEditorPanel({ selectedComponentId, onSelectComponent, onDashboardChange, controller = null, tabRequest = null }) {
   const { dashboard, data } = useDashboardData();
   return (
     <SpecEditor
@@ -16,6 +16,7 @@ export default function SpecEditorPanel({ selectedComponentId, onSelectComponent
       selectedComponentId={selectedComponentId}
       onSelectComponent={onSelectComponent}
       controller={controller}
+      tabRequest={tabRequest}
       onDashboardChange={onDashboardChange}
     />
   );

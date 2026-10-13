@@ -92,13 +92,23 @@ function BlockList({ dashboard, onSelect }) {
  *  - onDashboardChange(newDashboard): called with the dashboard returned by every save
  *  - controller: optional useSpecEditor() result owned by the parent (its onDashboardChange is used)
  */
-export default function SpecEditor({ dashboard, data = null, selectedComponentId = null, onSelectComponent, onDashboardChange, controller = null }) {
+export default function SpecEditor({ dashboard, data = null, selectedComponentId = null, onSelectComponent, onDashboardChange, controller = null, tabRequest = null }) {
   const t = useTranslations("biEditor");
   const [open, setOpen] = useState(true);
   const [tab, setTab] = useState("block");
   // `controller`: a spec editor owned by the screen (shared queue and undo history).
   const own = useSpecEditor({ dashboard, onDashboardChange });
   const sp = controller || own;
+
+  // `tabRequest` = {tab, at}: a new `at` brings that tab forward (New Chart).
+  const [prevRequest, setPrevRequest] = useState(tabRequest);
+  if (tabRequest !== prevRequest) {
+    setPrevRequest(tabRequest);
+    if (tabRequest?.tab) {
+      setTab(tabRequest.tab);
+      setOpen(true);
+    }
+  }
 
   // A selection made on the canvas brings the Block tab forward.
   const [prevSelected, setPrevSelected] = useState(selectedComponentId);

@@ -12,6 +12,7 @@ import {
   Layers,
   ArrowLeftRight,
   Footprints,
+  TrendingUp,
 } from "lucide-react";
 
 export const BLOCK_TYPES = [
@@ -24,6 +25,7 @@ export const BLOCK_TYPES = [
   { type: "area", icon: AreaChart },
   { type: "pie", icon: PieChart },
   { type: "waterfall", icon: Footprints },
+  { type: "forecast", icon: TrendingUp },
   { type: "table", icon: Table2 },
   { type: "text", icon: Type },
   { type: "note", icon: NotebookText },
@@ -260,9 +262,20 @@ function pickSeriesKeys(dashboard, data, sourceName) {
  * A new visual of `type`, pre-filled from the first source: first date (or
  * dimension) on x, first measure as the series.
  */
-export function defaultVisual(type, dashboard, data, labels = {}) {
+/** Forecast settings guessed from a source: its first date and first number. */
+export function forecastDefaults(fields) {
+  return {
+    date_var: fields.find(isDateField)?.name ?? null,
+    target_var: fields.find((f) => !isDateField(f) && isNumberField(f))?.name ?? null,
+    group_var: null,
+    horizon: 12,
+  };
+}
+
+/** `sourceName`: the dashboard source to build on (default: the first one). */
+export function defaultVisual(type, dashboard, data, labels = {}, sourceName = null) {
   if (type === "note") return { type: "note", title: labels.noteTitle || null, text: labels.noteText || "" };
-  const src = (dashboard?.sources || [])[0];
+  const src = (sourceName && getSource(dashboard, sourceName)) || (dashboard?.sources || [])[0];
   if (!src) return null;
   const fields = sourceFields(dashboard, data, src.name);
   const date = fields.find(isDateField);
@@ -298,6 +311,8 @@ export function defaultVisual(type, dashboard, data, labels = {}) {
         series: keys[0] ? [{ key: keys[0], mark: markFor(type), axis: "left" }] : [],
         ...(type === "hbar" || type === "pie" ? { sort: "value_desc", top_n: type === "pie" ? 8 : 10 } : {}),
       };
+    case "forecast":
+      return { ...base, title: labels.forecastTitle || null, forecast: forecastDefaults(fields) };
     case "waterfall": {
       const ks = keys.slice(0, 4);
       return {
@@ -361,6 +376,8 @@ export function typeChangeChanges(visual, type, dashboard, data) {
     (visual.series || []).forEach((s) => cols.push({ key: s.key }));
     if (!cols.length) keys.slice(0, 4).forEach((k) => cols.push({ key: k }));
     changes.columns = cols;
+  } else if (type === "forecast" && !visual.forecast) {
+    changes.forecast = forecastDefaults(fields);
   } else if (type === "waterfall" && !(visual.steps || []).length) {
     const ks = (visual.series || []).map((s) => s.key);
     const use = (ks.length ? ks : keys).slice(0, 4);

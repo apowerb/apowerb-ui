@@ -97,7 +97,7 @@ function Stepper({ activeStep }) {
 // ---------------------------------------------------------------------------
 // Step 1 — Select Data Source
 // ---------------------------------------------------------------------------
-function StepSource({
+export function StepSource({
   sourceMode,
   setSourceMode,
   onDataSourceSelected,

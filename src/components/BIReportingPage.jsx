@@ -37,6 +37,8 @@ import EntityJumpButton from "@/components/EntityJumpButton";
 import { toAgentId } from "@/lib/jumps";
 import { formatDate as formatDateParis } from "@/lib/datetime";
 import TemplateWizard from "@/components/bi/v2/TemplateWizard";
+import SourcePicker from "@/components/bi/v2/editor/SourcePicker";
+import { toSourceSpec } from "@/components/bi/v2/sources";
 
 export default function BIReportingPage() {
   const t = useTranslations("BIReportingPage");
@@ -53,6 +55,9 @@ export default function BIReportingPage() {
   const [showTemplateWizard, setShowTemplateWizard] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newDashboard, setNewDashboard] = useState({ name: "", description: "" });
+  // Data of the new dashboard: its charts are built on these sources.
+  const [newSources, setNewSources] = useState([]);
+  const [pickingSource, setPickingSource] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [sharedDashboards, setSharedDashboards] = useState([]);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -152,6 +157,18 @@ export default function BIReportingPage() {
     }
   };
 
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setNewDashboard({ name: "", description: "" });
+    setNewSources([]);
+    setPickingSource(false);
+  };
+
+  const addNewSource = (pick) => {
+    setNewSources((prev) => [...prev, toSourceSpec(pick, prev.map((s) => s.name))]);
+    setPickingSource(false);
+  };
+
   const handleCreate = async () => {
     if (!newDashboard.name.trim()) {
       toast.error(t("dashboardNameRequiredToast"));
@@ -162,10 +179,10 @@ export default function BIReportingPage() {
       const created = await createDashboard({
         title: newDashboard.name.trim(),
         description: newDashboard.description.trim() || undefined,
+        sources: newSources,
       });
       toast.success(t("dashboardCreatedToast"));
-      setShowCreateModal(false);
-      setNewDashboard({ name: "", description: "" });
+      closeCreateModal();
       fetchData();
       if (created?.id) {
         router.push(`/bi/${created.id}`);
@@ -459,14 +476,11 @@ export default function BIReportingPage() {
       {/* Create Dashboard Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-card rounded-2xl p-6 w-full max-w-md animate-scale-in">
+          <div className={`glass-card rounded-2xl p-6 w-full max-h-[90vh] overflow-y-auto animate-scale-in ${pickingSource ? "max-w-4xl" : "max-w-xl"}`}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold th-text">{t("newDashboardButton")}</h2>
               <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setNewDashboard({ name: "", description: "" });
-                }}
+                onClick={closeCreateModal}
                 className="p-2 rounded-lg hover:th-bg-surface-hover th-text-secondary transition-colors"
               >
                 <X size={20} />
@@ -500,21 +514,67 @@ export default function BIReportingPage() {
                   className="glass-input w-full px-4 py-2.5 rounded-lg resize-none"
                 />
               </div>
+
+              <div>
+                <p className="block text-sm font-medium th-text mb-1">
+                  {t("dataLabel")} <span className="text-red-400">*</span>
+                </p>
+                <p className="text-xs th-text-muted mb-2">{t("dataHint")}</p>
+                {newSources.length > 0 && (
+                  <ul className="space-y-1.5 mb-2">
+                    {newSources.map((s) => (
+                      <li key={s.name} className="flex items-center gap-2 rounded-lg border th-border px-3 py-2">
+                        <Database size={14} className="th-text-faint shrink-0" aria-hidden="true" />
+                        <span className="min-w-0 flex-1 truncate text-sm th-text">{s.label}</span>
+                        <span className="text-xs th-text-faint">{t(`sourceKinds.${s.source_type || s.kind}`)}</span>
+                        <button
+                          type="button"
+                          onClick={() => setNewSources((prev) => prev.filter((x) => x.name !== s.name))}
+                          aria-label={t("removeSourceButton", { name: s.label })}
+                          className="p-1 rounded hover:th-bg-surface-hover th-text-secondary"
+                        >
+                          <X size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {pickingSource ? (
+                  <div className="rounded-xl border th-border p-3">
+                    <SourcePicker onPick={addNewSource} />
+                    <div className="flex justify-end mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setPickingSource(false)}
+                        className="px-3 py-1.5 rounded-lg text-sm th-text-secondary hover:th-text hover:th-bg-surface-hover"
+                      >
+                        {t("cancelButton")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setPickingSource(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed th-border text-sm th-text-secondary hover:th-text hover:th-bg-surface-hover"
+                  >
+                    <Plus size={16} />
+                    {t("addDataButton")}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 mt-6">
               <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setNewDashboard({ name: "", description: "" });
-                }}
+                onClick={closeCreateModal}
                 className="px-4 py-2.5 rounded-lg th-text-secondary hover:th-text hover:th-bg-surface-hover font-medium transition-colors"
               >
                 {t("cancelButton")}
               </button>
               <button
                 onClick={handleCreate}
-                disabled={creating || !newDashboard.name.trim()}
+                disabled={creating || !newDashboard.name.trim() || newSources.length === 0}
                 className="btn-brand flex items-center gap-2 px-5 py-2.5 text-white rounded-lg font-bold"
               >
                 {creating && <Loader2 size={16} className="animate-spin" />}

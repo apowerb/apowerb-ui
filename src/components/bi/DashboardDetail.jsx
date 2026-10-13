@@ -127,6 +127,7 @@ export default function DashboardDetail({ dashboardId }) {
 
   // Dashboards v2: edit mode (spec editor panel) and the selected block.
   const [editMode, setEditMode] = useState(false);
+  const [editorTabRequest, setEditorTabRequest] = useState(null);
   const [selectedComponentId, setSelectedComponentId] = useState(null);
   const [textPx, setTextPx] = useState({});
   const onContentHeight = useCallback(
@@ -140,6 +141,16 @@ export default function DashboardDetail({ dashboardId }) {
   // Positions shown while a move is being saved (the editor sends it in order).
   const [layoutOverride, setLayoutOverride] = useState({});
   const narrowV2 = isV2 && gridWidth < NARROW_PX;
+  // A v2 dashboard owns its data: a new block is built from its sources in the
+  // editor, never through the chart wizard (which asks for data again).
+  const openNewChart = () => {
+    if (!isV2) {
+      setShowAddChart(true);
+      return;
+    }
+    setEditMode(true);
+    setEditorTabRequest({ tab: "add", at: Date.now() });
+  };
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -938,7 +949,7 @@ export default function DashboardDetail({ dashboardId }) {
               <span className="text-sm">{t("library")}</span>
             </button>
             <button
-              onClick={() => setShowAddChart(true)}
+              onClick={openNewChart}
               className="btn-brand flex items-center gap-2 px-5 py-3 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:scale-105"
             >
               <Plus size={20} />
@@ -1188,7 +1199,7 @@ export default function DashboardDetail({ dashboardId }) {
                       {t("openLibrary")}
                     </button>
                     <button
-                      onClick={() => setShowAddChart(true)}
+                      onClick={openNewChart}
                       className="btn-brand inline-flex items-center gap-2 px-5 py-3 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:scale-105"
                     >
                       <Plus size={20} />
@@ -1213,6 +1224,7 @@ export default function DashboardDetail({ dashboardId }) {
               onSelectComponent={setSelectedComponentId}
               onDashboardChange={setDashboard}
               controller={specEditor}
+              tabRequest={editorTabRequest}
             />
           </div>
         )}

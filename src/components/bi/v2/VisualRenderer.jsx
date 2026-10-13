@@ -7,6 +7,7 @@ import AreaVisual from "./visuals/AreaVisual";
 import BarVisual from "./visuals/BarVisual";
 import ComboChart from "./visuals/ComboChart";
 import DivergingBar from "./visuals/DivergingBar";
+import ForecastVisual from "./visuals/ForecastVisual";
 import KpiTile from "./visuals/KpiTile";
 import LineVisual from "./visuals/LineVisual";
 import NoteBlock from "./visuals/NoteBlock";
@@ -60,6 +61,7 @@ const BODIES = {
   pie: PieVisual,
   diverging_bar: DivergingBar,
   waterfall: Waterfall,
+  forecast: ForecastVisual,
   table: TableVisual,
   text: TextBlock,
   note: NoteBlock,
