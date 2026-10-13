@@ -22,6 +22,7 @@ import {
   BLOCK_TYPES,
   CHART_TYPES,
   fieldError,
+  forecastForSource,
   getComponent,
   isDateField,
   isDimensionField,
@@ -74,6 +75,7 @@ export default function VisualInspector({ editor, componentId }) {
         x: visual.x && f.some((x) => x.name === visual.x) ? visual.x : null,
         series: (visual.series || []).filter((s) => keep(s.key)),
         columns: (visual.columns || []).filter((c) => keep(c.key)),
+        ...(visual.type === "forecast" ? { forecast: forecastForSource(visual.forecast, f) } : {}),
       },
       "source",
     );
