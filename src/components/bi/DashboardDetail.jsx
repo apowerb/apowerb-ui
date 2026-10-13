@@ -804,7 +804,7 @@ export default function DashboardDetail({ dashboardId }) {
   const content = (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 p-6 bg-linear-to-r from-brand/20 to-brand-secondary/20 border-b th-border backdrop-blur-xl">
+      <header className="relative z-20 shrink-0 p-6 bg-linear-to-r from-brand/20 to-brand-secondary/20 border-b th-border backdrop-blur-xl">
         <Breadcrumb
           className="mb-3"
           items={[
