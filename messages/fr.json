@@ -4464,7 +4464,7 @@
       "12m": "12 mois",
       "all": "Tout"
     },
-    "addIntro": "Choisis un bloc : il est pré-rempli depuis ta première source.",
+    "addIntro": "Choisis un bloc : il est pré-rempli à partir de la source choisie.",
     "addNeedsSource": "Ajoute d'abord une source pour créer des blocs de données.",
     "goToData": "Aller aux données",
     "noteDefaultTitle": "Note",

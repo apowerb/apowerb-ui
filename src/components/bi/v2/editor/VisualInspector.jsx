@@ -27,6 +27,7 @@ import {
   isDateField,
   isDimensionField,
   isNumberField,
+  measuresFor,
   newId,
   sourceFields,
   sourceMeasures,
@@ -64,6 +65,14 @@ export default function VisualInspector({ editor, componentId }) {
     .filter((f) => isDimensionField(f) || isDateField(f))
     .map((f) => ({ value: f.name, label: f.label || f.name }));
   if (visual.x && !xOptions.some((o) => o.value === visual.x)) xOptions.unshift({ value: visual.x, label: visual.x });
+
+  // A type reading measures (KPI, waterfall, sentence) gets them created from number columns.
+  const changeType = (type) => {
+    const changes = typeChangeChanges(visual, type, dashboard, data);
+    const { visual: next, ops } = measuresFor({ ...visual, ...changes }, dashboard, data);
+    for (const k of ["kpi", "steps", "text"]) if (k in changes) changes[k] = next[k];
+    apply([...ops, { op: "update_visual", component_id: componentId, changes }], { field: "type" });
+  };
 
   const changeSource = (name) => {
     if (!name || name === visual.source) return;
@@ -130,7 +139,7 @@ export default function VisualInspector({ editor, componentId }) {
                 title={t(`types.${type}`)}
                 aria-label={t(`types.${type}`)}
                 aria-pressed={visual.type === type}
-                onClick={() => visual.type !== type && update(typeChangeChanges(visual, type, dashboard, data), "type")}
+                onClick={() => visual.type !== type && changeType(type)}
                 className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 text-[10px] leading-tight focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
                   visual.type === type ? "border-blue-500 bg-blue-500/15 th-text" : "th-border th-text-muted hover:th-bg-surface-hover"
                 }`}
