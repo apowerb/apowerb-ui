@@ -350,11 +350,19 @@ const STOCK_TEMPLATE = {
   id: "stock_pilotage",
   label: "Pilotage stocks",
   description: "Stock, couverture et prévision par famille",
+  version: 2,
+  origin: "builtin",
+  owner: null,
+  visibility: null,
+  can_delete: false,
   columns: [
     { key: "date", label: "Semaine", type: "date", required: true, default: "semaine" },
     { key: "family", label: "Famille", type: "string", required: true, default: "famille" },
     { key: "sales", label: "Ventes", type: "number", required: true, default: "ventes" },
     { key: "site", label: "Site", type: "string", required: false, default: null },
+    { key: "stock", label: "Stock", type: "number", required: false, default: "stock" },
+    { key: "safety", label: "Seuil de sécurité", type: "number", required: false, default: "seuil_securite" },
+    { key: "lead_time", label: "Délai fournisseur (semaines)", type: "number", required: false, default: "delai_fournisseur_sem" },
   ],
   params: [
     { key: "horizon", label: "Horizon de prévision (semaines)", type: "integer", default: 8, min: 1, max: 26 },
@@ -363,14 +371,37 @@ const STOCK_TEMPLATE = {
 const TEMPLATE_TITLES_SEED = ["Ventes 2026"];
 const templateTitles = new Set(TEMPLATE_TITLES_SEED);
 
+// Modèles utilisateur : le mien (supprimable) et celui d'un collègue.
+const USER_TEMPLATES_SEED = [
+  { ...STOCK_TEMPLATE, id: "user_mon_modele", label: "Mon modèle", description: "Mon pilotage maison", version: 1,
+    origin: "user", owner: "demo@th2.ai", visibility: "private", can_delete: true, params: [] },
+  { ...STOCK_TEMPLATE, id: "user_equipe", label: "Modèle équipe", description: "Partagé par l'équipe", version: 1,
+    origin: "user", owner: "collegue@th2.ai", visibility: "organization", can_delete: false, params: [] },
+];
+const userTemplates = JSON.parse(JSON.stringify(USER_TEMPLATES_SEED));
+const allTemplates = () => [STOCK_TEMPLATE, ...userTemplates];
+const taken = (label) => allTemplates().some((x) => x.label.toLowerCase() === label.toLowerCase());
+
 // Dashboard v2 de démonstration : sa spec vit dans fixtures/, ses données sont
 // calculées par dashboard-v2.mjs à chaque filtre.
-let dashboardV2 = loadDashboard();
+// Provenance du modèle : écrite à la création, mise à jour par source/upgrade.
+function withProvenance(d) {
+  d.template = {
+    id: STOCK_TEMPLATE.id,
+    version: 1,
+    columns: { date: "mois", family: "region", sales: "montant", site: null, stock: null, safety: null, lead_time: null },
+    params: { horizon: 8 },
+  };
+  return d;
+}
+let dashboardV2 = withProvenance(loadDashboard());
 
 function resetState() {
   templateTitles.clear();
   TEMPLATE_TITLES_SEED.forEach((x) => templateTitles.add(x));
-  dashboardV2 = loadDashboard();
+  userTemplates.length = 0;
+  userTemplates.push(...JSON.parse(JSON.stringify(USER_TEMPLATES_SEED)));
+  dashboardV2 = withProvenance(loadDashboard());
   AGENTS.length = 0;
   AGENTS.push(...JSON.parse(JSON.stringify(SEED.agents)));
   nextAgentId = 6;
@@ -551,7 +582,18 @@ const server = http.createServer(async (req, res) => {
   }
   if (path.startsWith("/api/artifacts/")) return json(res, 200, []);
   // ── Dashboard v2 (spec + data + patch) ──
-  if (path === "/api/v1/dashboard-templates" && req.method === "GET") return json(res, 200, [STOCK_TEMPLATE]);
+  if (path === "/api/v1/dashboard-templates" && req.method === "GET") return json(res, 200, allTemplates());
+  const tplOne = path.match(/^\/api\/v1\/dashboard-templates\/([^/]+)$/);
+  if (tplOne && req.method === "DELETE") {
+    const at = userTemplates.findIndex((x) => x.id === tplOne[1]);
+    if (at !== -1 && userTemplates[at].can_delete) {
+      userTemplates.splice(at, 1);
+      res.writeHead(204, { "Access-Control-Allow-Origin": "*" });
+      return res.end();
+    }
+    if (tplOne[1] === STOCK_TEMPLATE.id || at !== -1) return json(res, 403, { detail: "Modèle non supprimable" });
+    return json(res, 404, { detail: "Modèle inconnu" });
+  }
   const tplMatch = path.match(/^\/api\/v1\/dashboard-templates\/([^/]+)\/dashboards$/);
   if (tplMatch && req.method === "POST") {
     if (tplMatch[1] !== STOCK_TEMPLATE.id) return json(res, 404, { detail: "Unknown template" });
@@ -564,6 +606,59 @@ const server = http.createServer(async (req, res) => {
     for (let n = 2; templateTitles.has(title); n++) title = `${body.title} (${n})`;
     templateTitles.add(title);
     return json(res, 201, { dashboard_id: dashboardV2.id, title, url: `/bi/${dashboardV2.id}` });
+  }
+
+  // ── Cycle de vie : source, mise à jour, enregistrement comme modèle ──
+  const lifeMatch = path.match(/^\/api\/v1\/dashboards\/([^/]+)\/(source-requirements|source|upgrade|template)$/);
+  if (lifeMatch && lifeMatch[1] === dashboardV2.id) {
+    const action = lifeMatch[2];
+    const prov = dashboardV2.template;
+    const datasetColumns = ["mois", "region", "montant"];
+    if (action === "source-requirements" && req.method === "GET") {
+      return json(res, 200, {
+        source: datasets.find((d) => d.file_id === dashboardV2.sources[0].dataset_id)?.filename || "ventes-2025.csv",
+        dataset_id: "ds-1",
+        template: prov,
+        columns: STOCK_TEMPLATE.columns.map((c) => ({
+          key: c.key, label: c.label, type: c.type, required: c.required, current: prov?.columns?.[c.key] ?? null,
+        })),
+      });
+    }
+    if (action === "source" && req.method === "POST") {
+      const body = await readBody(req);
+      if (!datasets.some((d) => d.file_id === body.dataset_id)) return json(res, 404, { detail: "Jeu de données inconnu" });
+      const errors = STOCK_TEMPLATE.columns
+        .filter((c) => c.required && !datasetColumns.includes(body.columns?.[c.key]))
+        .map((c) => `Colonne « ${c.label} » absente du nouveau fichier. Colonnes disponibles : ${datasetColumns.join(", ")}`);
+      if (errors.length) return json(res, 422, { detail: { errors } });
+      if (body.dry_run) return json(res, 200, { dashboard: dashboardV2, missing: [] });
+      dashboardV2.sources[0].dataset_id = body.dataset_id;
+      if (prov) prov.columns = { ...prov.columns, ...body.columns };
+      return json(res, 200, { dashboard: dashboardV2, missing: [] });
+    }
+    if (action === "upgrade" && req.method === "POST") {
+      const body = await readBody(req);
+      if (!prov && !body.template_id) return json(res, 422, { detail: { errors: ["Ni provenance ni modèle fourni"] } });
+      if (body.template_id && body.template_id !== STOCK_TEMPLATE.id) return json(res, 404, { detail: "Modèle inconnu" });
+      const from = prov ? prov.version : null;
+      dashboardV2.template = {
+        id: STOCK_TEMPLATE.id,
+        version: STOCK_TEMPLATE.version,
+        columns: body.columns || prov.columns,
+        params: body.params || prov.params,
+      };
+      return json(res, 200, { dashboard: dashboardV2, from_version: from, to_version: STOCK_TEMPLATE.version });
+    }
+    if (action === "template" && req.method === "POST") {
+      const body = await readBody(req);
+      if (taken(String(body.label || ""))) return json(res, 409, { detail: "Un modèle porte déjà ce nom" });
+      const created = {
+        ...STOCK_TEMPLATE, id: `user_${userTemplates.length + 10}`, label: body.label, description: body.description || "",
+        version: 1, origin: "user", owner: "demo@th2.ai", visibility: body.visibility, can_delete: true, params: [],
+      };
+      userTemplates.push(created);
+      return json(res, 201, created);
+    }
   }
 
   const v2Match = path.match(/^\/api\/v1\/dashboards\/([^/]+)(?:\/(data|spec))?$/);
@@ -726,12 +821,21 @@ const server = http.createServer(async (req, res) => {
     const [, fileId, preview] = datasetMatch;
     if (preview) {
       return json(res, 200, {
-        columns: ["mois", "region", "montant"],
-        rows: [
-          { mois: "janvier", region: "Est", montant: 1200 },
-          { mois: "février", region: "Est", montant: 1450 },
-          { mois: "mars", region: "Ouest", montant: 980 },
+        file_id: fileId,
+        columns: [
+          { name: "mois", type: "string" },
+          { name: "region", type: "string" },
+          { name: "montant", type: "int" },
         ],
+        row_count: 1240,
+        sample_rows: [
+        { mois: "janvier", region: "Est", montant: 1200 },
+        { mois: "février", region: "Est", montant: 1450 },
+        { mois: "mars", region: "Ouest", montant: 980 },
+        { mois: "avril", region: "Nord", montant: 1100 },
+        { mois: "mai", region: "Sud", montant: 1320 },
+        { mois: "juin", region: "Est", montant: 1410 },
+      ],
       });
     }
     if (req.method === "DELETE") {

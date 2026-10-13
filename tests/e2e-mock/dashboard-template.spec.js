@@ -11,19 +11,19 @@ async function reachColumns(page) {
   await signIn(page, "/bi");
   await page.getByRole("button", { name: "From a template" }).click();
   const dialog = page.getByRole("dialog", { name: "Create from a template" });
-  await expect(dialog.getByText("Pilotage stocks")).toBeVisible();
+  await dialog.getByText("Pilotage stocks").click();
   await dialog.getByRole("button", { name: "Next" }).click();
   await dialog.getByText("ventes-2025.csv").click();
   await dialog.getByRole("button", { name: "Next" }).click();
-  await expect(dialog.getByLabel("Semaine")).toBeVisible();
+  await expect(dialog.getByLabel("Semaine", { exact: true })).toBeVisible();
   return dialog;
 }
 
 async function mapByHand(dialog) {
   await expect(dialog.getByRole("button", { name: "Next" })).toBeDisabled();
-  await dialog.getByLabel("Semaine").selectOption("mois");
-  await dialog.getByLabel("Famille").selectOption("region");
-  await dialog.getByLabel("Ventes").selectOption("montant");
+  await dialog.getByLabel("Semaine", { exact: true }).selectOption("mois");
+  await dialog.getByLabel("Famille", { exact: true }).selectOption("region");
+  await dialog.getByLabel("Ventes", { exact: true }).selectOption("montant");
   await expect(dialog.getByRole("button", { name: "Next" })).toBeEnabled();
 }
 
