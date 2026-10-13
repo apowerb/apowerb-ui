@@ -8,20 +8,7 @@ import remarkGfm from "remark-gfm";
 import { useStreaming } from "@/hooks/useStreaming";
 import { createSession, getSessionHistory } from "@/lib/api";
 import ActionCard from "@/components/chat/action-cards/ActionCard";
-
-// Mirrors the mapping used in useChat.js so the mini chat shares the same
-// interactive cards as the main chat (chips picker, confirmation, payment…).
-const ACTION_CARD_TOOL_TO_KIND = {
-  request_user_input: "user_input",
-  confirm_destructive: "confirm_destructive",
-  request_payment: "payment",
-  schedule_followup: "followup",
-  propose_artifact_edit: "artifact_edit",
-  request_file_from_user: "file_request",
-  propose_agent_upgrade: "agent_upgrade",
-  embed_chart: "chart_embed",
-  request_location: "location_request",
-};
+import { ACTION_CARD_TOOL_TO_KIND, dropRefusedCard } from "@/lib/actionCards";
 
 // Compact markdown renderer — same plugin set as the main ChatMessage but a
 // lighter component map tailored for the mini chat's narrow width.
@@ -254,6 +241,15 @@ export default function MiniChat({
           ),
         );
       },
+      onToolResult: ({ name, result }) => {
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== assistantMsgId) return m;
+            const cards = dropRefusedCard(m.cards, name, result);
+            return cards === m.cards ? m : { ...m, cards };
+          }),
+        );
+      },
       onToolCall: (toolCall) => {
         const kind = ACTION_CARD_TOOL_TO_KIND[toolCall.name];
         if (!kind) return;
@@ -433,6 +429,15 @@ export default function MiniChat({
                               prev.map((m) =>
                                 m.id === newAssistantId ? { ...m, content: updated } : m,
                               ),
+                            );
+                          },
+                          onToolResult: ({ name, result }) => {
+                            setMessages((prev) =>
+                              prev.map((m) => {
+                                if (m.id !== newAssistantId) return m;
+                                const cards = dropRefusedCard(m.cards, name, result);
+                                return cards === m.cards ? m : { ...m, cards };
+                              }),
                             );
                           },
                           onToolCall: (toolCall) => {

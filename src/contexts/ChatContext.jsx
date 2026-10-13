@@ -17,6 +17,7 @@ import {
   addToolStep,
   setToolStepResult,
 } from "@/lib/reasoningSteps";
+import { dropRefusedCard } from "@/lib/actionCards";
 
 const ChatContext = createContext(null);
 
@@ -376,7 +377,8 @@ export function chatReducer(state, action) {
             break;
           }
         }
-        return { ...msg, toolCalls: updated, steps };
+        const actionCards = dropRefusedCard(msg.actionCards, toolName, result);
+        return { ...msg, toolCalls: updated, steps, ...(actionCards !== msg.actionCards && { actionCards }) };
       });
 
       const newSessions = new Map(state.sessions);
