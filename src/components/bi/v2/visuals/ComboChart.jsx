@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { resolveColor, rowColor, seriesColor, xTick } from "../format";
+import { resolveColor, rowColor, seriesColor } from "../format";
 import {
   AXIS,
   ChartBox,
@@ -111,7 +111,7 @@ export default function ComboChart({ visual, result, defaultMark = "bar" }) {
             ))}
         </defs>
         <CartesianGrid {...GRID} />
-        <XAxis dataKey={visual.x} tickFormatter={xTick} {...AXIS} minTickGap={28} tickMargin={6} />
+        <XAxis dataKey={visual.x} tickFormatter={formats.xTick} {...AXIS} minTickGap={28} tickMargin={6} />
         <YAxis yAxisId="left" tickFormatter={formats.tick(series.find((s) => s.axis === "left")?.key)} width={44} tickCount={5} {...AXIS} axisLine={false} />
         {hasRight && (
           <YAxis yAxisId="right" orientation="right" tickFormatter={formats.tick(series.find((s) => s.axis === "right")?.key)} width={44} tickCount={5} {...AXIS} axisLine={false} />

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { useTranslations } from "use-intl";
 import { Database, X } from "lucide-react";
+import { useDashboardLocale } from "./DashboardDataContext";
+import { intlLocale } from "./format";
 import { ProvenanceBadge } from "./visuals/NoteBlock";
 
 /**
@@ -12,6 +14,7 @@ import { ProvenanceBadge } from "./visuals/NoteBlock";
  */
 export default function SourcesPopover({ meta, title }) {
   const t = useTranslations("DashboardV2");
+  const locale = useDashboardLocale();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const buttonRef = useRef(null);
@@ -180,7 +183,7 @@ export default function SourcesPopover({ meta, title }) {
               <div className="flex items-center justify-between border-t th-border pt-2">
                 <dt className="font-semibold th-text-muted">{t("rows")}</dt>
                 <dd className="bi-v2-num th-text">
-                  {new Intl.NumberFormat("fr-FR").format(meta?.row_count ?? 0)}
+                  {new Intl.NumberFormat(intlLocale(locale)).format(meta?.row_count ?? 0)}
                 </dd>
               </div>
             </dl>

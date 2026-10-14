@@ -13,20 +13,20 @@ export function isTotalRow(row, xKey) {
   return row?._total === true || (xKey != null && TOTAL_LABEL.test(String(row?.[xKey] ?? "")));
 }
 
-function cellText(value, kind) {
+function cellText(value, kind, locale) {
   if (value == null || value === "") return "—";
-  if (typeof value === "number") return formatFull(value, kind);
-  if (isIsoDate(value)) return shortDate(value);
+  if (typeof value === "number") return formatFull(value, kind, locale);
+  if (isIsoDate(value)) return shortDate(value, locale);
   return String(value);
 }
 
-function compareValues(a, b) {
+function compareValues(a, b, locale) {
   const na = typeof a === "number" ? a : Number.NaN;
   const nb = typeof b === "number" ? b : Number.NaN;
   if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
   if (a == null) return 1;
   if (b == null) return -1;
-  return String(a).localeCompare(String(b), "fr", { numeric: true });
+  return String(a).localeCompare(String(b), locale, { numeric: true });
 }
 
 /**
@@ -38,6 +38,7 @@ export default function TableVisual({ visual, result }) {
   const t = useTranslations("DashboardV2");
   const ctx = useOptionalDashboardData();
   const formats = useFormats(visual);
+  const { locale } = formats;
   const rows = useMemo(() => result?.rows || [], [result]);
   const [sort, setSort] = useState({ key: null, dir: "desc" });
 
@@ -60,12 +61,12 @@ export default function TableVisual({ visual, result }) {
     const data = rows.filter((r) => !isTotalRow(r, xKey));
     if (sort.key) {
       data.sort((a, b) => {
-        const c = compareValues(a[sort.key], b[sort.key]);
+        const c = compareValues(a[sort.key], b[sort.key], locale);
         return sort.dir === "asc" ? c : -c;
       });
     }
     return { body: data, foot: total };
-  }, [rows, sort, xKey]);
+  }, [rows, sort, xKey, locale]);
 
   if (rows.length === 0) return <EmptyState>—</EmptyState>;
 
@@ -132,7 +133,7 @@ export default function TableVisual({ visual, result }) {
               }`}
               style={status ? { color: resolveColor(status) } : undefined}
             >
-              {cellText(row[c.key], c.format || formats.kind(c.key))}
+              {cellText(row[c.key], c.format || formats.kind(c.key), locale)}
             </td>
           );
         })}

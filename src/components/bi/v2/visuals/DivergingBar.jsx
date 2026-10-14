@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { resolveColor, rowColor, seriesColor, xTick } from "../format";
+import { resolveColor, rowColor, seriesColor } from "../format";
 import {
   AXIS,
   ChartBox,
@@ -42,7 +42,7 @@ export default function DivergingBar({ visual, result }) {
         <CartesianGrid {...GRID} />
         <XAxis
           dataKey={visual.x}
-          tickFormatter={xTick}
+          tickFormatter={formats.xTick}
           {...AXIS}
           minTickGap={12}
           tickLine={false}

@@ -1,8 +1,8 @@
 "use client";
 
 import { ResponsiveContainer } from "recharts";
-import { useOptionalDashboardData } from "../DashboardDataContext";
-import { compactFr, formatFull, isIsoDate, longDate, tickByKind, xTick } from "../format";
+import { useDashboardLocale, useOptionalDashboardData } from "../DashboardDataContext";
+import { compact, formatFull, isIsoDate, longDate, tickByKind, xTick } from "../format";
 
 export const AXIS = {
   tick: { fill: "var(--text-secondary)", fontSize: 11 },
@@ -30,8 +30,9 @@ export function ChartBox({ children, minHeight = 120 }) {
   );
 }
 
-/** Tooltip using the series labels (not raw column names) and French numbers. */
+/** Tooltip using the series labels (not raw column names) and the dashboard language. */
 export function VisualTooltip({ active, payload, label, labels = {}, fmt }) {
+  const locale = useDashboardLocale();
   if (!active || !payload || payload.length === 0) return null;
   const rows = payload.filter((p) => p && p.value != null && !String(p.dataKey).startsWith("_"));
   if (rows.length === 0) return null;
@@ -46,7 +47,7 @@ export function VisualTooltip({ active, payload, label, labels = {}, fmt }) {
       }}
     >
       {label != null && label !== "" && (
-        <div className="mb-1.5 font-semibold">{isIsoDate(label) ? longDate(label) : xTick(label)}</div>
+        <div className="mb-1.5 font-semibold">{isIsoDate(label) ? longDate(label, locale) : xTick(label, locale)}</div>
       )}
       <div className="flex flex-col gap-1">
         {rows.map((p, i) => {
@@ -60,7 +61,7 @@ export function VisualTooltip({ active, payload, label, labels = {}, fmt }) {
               />
               <span style={{ color: "var(--text-secondary)" }}>{labels[key] || p.name || key}</span>
               <span className="ml-auto pl-3 font-semibold">
-                {fmt ? fmt(key, p.value) : formatFull(p.value, null)}
+                {fmt ? fmt(key, p.value) : formatFull(p.value, null, locale)}
               </span>
             </div>
           );
@@ -112,6 +113,7 @@ export function EmptyState({ children }) {
  */
 export function useFormats(visual) {
   const ctx = useOptionalDashboardData();
+  const locale = useDashboardLocale();
   const source = ctx?.dashboard?.sources?.find((s) => s.name === visual?.source);
   const fields = ctx?.data?.sources?.[visual?.source]?.fields;
   const kind = (key) =>
@@ -120,7 +122,10 @@ export function useFormats(visual) {
     null;
   return {
     kind,
-    value: (key, v) => formatFull(v, kind(key)),
-    tick: (key) => tickByKind(kind(key)),
+    value: (key, v) => formatFull(v, kind(key), locale),
+    tick: (key) => tickByKind(kind(key), locale),
+    xTick: (v) => xTick(v, locale),
+    compact: (v) => compact(v, locale),
+    locale,
   };
 }

@@ -7,7 +7,17 @@ import {
   prefillMapping,
   typeMismatch,
   isNewerVersion,
+  templateLang,
 } from "../templateLib";
+
+describe("templateLang", () => {
+  it("sends en for English and fr for everything else", () => {
+    expect(templateLang("en")).toBe("en");
+    expect(templateLang("fr")).toBe("fr");
+    expect(templateLang("de")).toBe("fr");
+    expect(templateLang(undefined)).toBe("fr");
+  });
+});
 
 describe("normalizeType", () => {
   it.each([

@@ -72,6 +72,16 @@ describe("TableVisual", () => {
     expect(screen.getByText(/^1\s200$/)).toBeInTheDocument();
   });
 
+  it("formats numbers in English when the dashboard locale is en", () => {
+    render(
+      <Ctx value={{ dashboard: { id: "d1", filters: [], locale: "en" } }}>
+        <TableVisual visual={visual} result={{ rows }} />
+      </Ctx>,
+    );
+    expect(screen.getByText("1,200")).toBeInTheDocument();
+    expect(screen.getByText("90%")).toBeInTheDocument();
+  });
+
   it("sorts by column and pins the total row in the foot", () => {
     render(
       <Ctx>

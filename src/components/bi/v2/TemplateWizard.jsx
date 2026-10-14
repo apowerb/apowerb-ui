@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "use-intl";
+import { useLocale, useTranslations } from "use-intl";
 import { Loader2, LayoutTemplate, Trash2 } from "lucide-react";
 import { useRouter } from "@/lib/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,7 +19,7 @@ import DatasetPicker from "./DatasetPicker";
 import DatasetPreviewTable from "./DatasetPreviewTable";
 import { ColumnMapper, ErrorList, LabelledInput, ParamFields } from "./formParts";
 import { useDatasetPreview } from "./useDatasetPreview";
-import { autoMap, mappingBody, paramError, paramsBody, submitErrors } from "./templateLib";
+import { autoMap, mappingBody, paramError, paramsBody, submitErrors, templateLang } from "./templateLib";
 
 export { autoMap };
 
@@ -27,6 +27,7 @@ const STEPS = ["template", "dataset", "columns", "settings"];
 
 export default function TemplateWizard({ onClose }) {
   const t = useTranslations("biTemplate");
+  const lang = templateLang(useLocale());
   const router = useRouter();
   const toast = useToast();
   const { user } = useAuth();
@@ -70,7 +71,7 @@ export default function TemplateWizard({ onClose }) {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([listDashboardTemplates(), listBiDatasets(organizationId)])
+    Promise.all([listDashboardTemplates(lang), listBiDatasets(organizationId)])
       .then(([tpls, ds]) => {
         if (!alive) return;
         const list = Array.isArray(tpls) ? tpls : tpls?.items || [];
@@ -82,7 +83,7 @@ export default function TemplateWizard({ onClose }) {
     return () => {
       alive = false;
     };
-  }, [organizationId]);
+  }, [organizationId, lang]);
 
   const missingRequired = useMemo(
     () => (template ? template.columns.some((c) => c.required && !mapping[c.key]) : true),
@@ -106,6 +107,7 @@ export default function TemplateWizard({ onClose }) {
         title: sentTitle,
         columns: mappingBody(template.columns, mapping),
         params: paramsBody(template.params, params),
+        lang,
       });
       if (res?.title && res.title !== sentTitle) toast.info(t("renamedTo", { title: res.title }));
       else toast.success(t("created"));

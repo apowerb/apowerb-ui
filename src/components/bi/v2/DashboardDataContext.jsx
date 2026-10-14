@@ -42,6 +42,11 @@ export function useOptionalDashboardData() {
   return useContext(DashboardDataContext);
 }
 
+/** Language of the dashboard texts and numbers: "en", or "fr" for French and unset. */
+export function useDashboardLocale() {
+  return useContext(DashboardDataContext)?.dashboard?.locale ?? "fr";
+}
+
 function defaultsOf(filters) {
   const out = {};
   for (const f of filters || []) out[f.id] = f.default ?? null;
