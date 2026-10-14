@@ -156,8 +156,15 @@ describe("TemplateWizard", () => {
       title: "Mon tableau",
       columns: { date: "week", family: "product_group", sales: "qty", site: null, stock: null },
       params: { horizon: 12 },
+      lang: "en",
     });
     expect(toast.info).not.toHaveBeenCalled();
+  });
+
+  it("lists the templates in the app language", async () => {
+    setup();
+    await screen.findByText("Pilotage stocks");
+    expect(api.listDashboardTemplates).toHaveBeenCalledWith("en");
   });
 
   it("announces a rename when the server returns another title", async () => {

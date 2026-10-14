@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatFull, resolveColor, rowColor, seriesColor, xTick } from "../format";
+import { resolveColor, rowColor, seriesColor, withPercent } from "../format";
 import {
   AXIS,
   ChartBox,
@@ -82,14 +82,14 @@ export default function BarVisual({ visual, result, horizontal = false }) {
             <YAxis
               type="category"
               dataKey={visual.x}
-              tickFormatter={xTick}
+              tickFormatter={formats.xTick}
               width={96}
               {...AXIS}
             />
           </>
         ) : (
           <>
-            <XAxis dataKey={visual.x} tickFormatter={xTick} {...AXIS} minTickGap={12} />
+            <XAxis dataKey={visual.x} tickFormatter={formats.xTick} {...AXIS} minTickGap={12} />
             <YAxis tickFormatter={formats.tick(series[0].key)} width={48} {...AXIS} />
           </>
         )}
@@ -126,7 +126,7 @@ export default function BarVisual({ visual, result, horizontal = false }) {
                 position="right"
                 content={({ x, y, width, height, value }) => {
                   const share = total > 0 ? Math.round((Number(value) / total) * 100) : null;
-                  const text = formatFull(value, formats.kind(s.key));
+                  const text = formats.value(s.key, value);
                   return (
                     <text
                       x={Number(x) + Number(width) + 6}
@@ -135,7 +135,7 @@ export default function BarVisual({ visual, result, horizontal = false }) {
                       className="bi-v2-num"
                       style={{ fill: "var(--text-secondary)", fontSize: 11 }}
                     >
-                      {share == null ? text : `${share}\u00a0% \u00b7 ${text}`}
+                      {share == null ? text : `${withPercent(share, formats.locale)} \u00b7 ${text}`}
                     </text>
                   );
                 }}

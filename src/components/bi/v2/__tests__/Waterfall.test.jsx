@@ -27,6 +27,17 @@ describe("buildWaterfallBars", () => {
     expect(bars[3].color).toBe("var(--v2-accent)");
   });
 
+  it("labels bars in English when the dashboard locale is en", () => {
+    const bars = buildWaterfallBars(
+      [
+        { label: "In", value: 15300, base: 0, kind: "increase" },
+        { label: "Out", value: -2400000, base: 0, kind: "decrease" },
+      ],
+      "en",
+    );
+    expect(bars.map((b) => b.text)).toEqual(["+15.3k", "\u22122.4M"]);
+  });
+
   it("falls back to a running total when the base is missing", () => {
     const bars = buildWaterfallBars([
       { label: "a", value: 100, kind: "start" },

@@ -780,7 +780,8 @@ export const patchDashboardSpec = (id, data) =>
 
 // Dashboard templates: a spec built from a ready-made model, bound to one of the
 // user's imported datasets. 404 / 422 carry `detail` ({errors: [...]}) on the error.
-export const listDashboardTemplates = () => request("/api/v1/dashboard-templates");
+export const listDashboardTemplates = (lang = "fr") =>
+  request(`/api/v1/dashboard-templates?${new URLSearchParams({ lang })}`);
 export const createDashboardFromTemplate = (templateId, data) =>
   request(`/api/v1/dashboard-templates/${encodeURIComponent(templateId)}/dashboards`, {
     method: "POST",

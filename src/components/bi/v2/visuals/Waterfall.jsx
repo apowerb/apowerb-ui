@@ -10,8 +10,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { compactFr, resolveColor, signedCompactFr, xTick } from "../format";
-import { AXIS, ChartBox, EmptyState, GRID, MARGIN } from "./shared";
+import { compact, resolveColor, signedCompact } from "../format";
+import { AXIS, ChartBox, EmptyState, GRID, MARGIN, useFormats } from "./shared";
 
 const KIND_COLOR = {
   start: "var(--v2-accent)",
@@ -20,8 +20,8 @@ const KIND_COLOR = {
   decrease: "var(--v2-bad)",
 };
 
-function signedText(n) {
-  return n < 0 ? `\u2212${compactFr(Math.abs(n))}` : compactFr(n);
+function signedText(n, locale) {
+  return n < 0 ? `\u2212${compact(Math.abs(n), locale)}` : compact(n, locale);
 }
 
 /**
@@ -31,7 +31,7 @@ function signedText(n) {
  * magnitude for increase/decrease. Falls back to a running total when the
  * server omits `base`.
  */
-export function buildWaterfallBars(rows) {
+export function buildWaterfallBars(rows, locale) {
   let running = 0;
   return (rows || []).map((row) => {
     const kind = row.kind || "increase";
@@ -58,10 +58,10 @@ export function buildWaterfallBars(rows) {
     const edge = base + height;
     const text =
       kind === "increase"
-        ? signedCompactFr(magnitude)
+        ? signedCompact(magnitude, locale)
         : kind === "decrease"
-          ? signedCompactFr(-magnitude)
-          : signedText(height);
+          ? signedCompact(-magnitude, locale)
+          : signedText(height, locale);
     return {
       label: row.label,
       kind,
@@ -75,6 +75,7 @@ export function buildWaterfallBars(rows) {
 }
 
 function WaterfallTooltip({ active, payload }) {
+  const formats = useFormats();
   const bar = payload?.[0]?.payload;
   if (!active || !bar) return null;
   return (
@@ -83,21 +84,22 @@ function WaterfallTooltip({ active, payload }) {
       className="bi-v2-num rounded-lg border px-3 py-2 text-xs shadow-xl"
       style={{ borderColor: "var(--border)", background: "var(--bg-dropdown)", color: "var(--foreground)" }}
     >
-      <span className="mr-3" style={{ color: "var(--text-secondary)" }}>{xTick(bar.label)}</span>
+      <span className="mr-3" style={{ color: "var(--text-secondary)" }}>{formats.xTick(bar.label)}</span>
       <span className="font-semibold">{bar.text}</span>
     </div>
   );
 }
 
 export default function Waterfall({ result }) {
-  const bars = buildWaterfallBars(result?.rows);
+  const formats = useFormats();
+  const bars = buildWaterfallBars(result?.rows, formats.locale);
   if (bars.length === 0) return <EmptyState>—</EmptyState>;
   return (
     <ChartBox>
       <BarChart data={bars} margin={{ ...MARGIN, top: 22 }}>
         <CartesianGrid {...GRID} />
-        <XAxis dataKey="label" tickFormatter={xTick} {...AXIS} interval={0} />
-        <YAxis tickFormatter={compactFr} width={44} {...AXIS} />
+        <XAxis dataKey="label" tickFormatter={formats.xTick} {...AXIS} interval={0} />
+        <YAxis tickFormatter={formats.compact} width={44} {...AXIS} />
         <Tooltip content={<WaterfallTooltip />} cursor={{ fill: "var(--bg-surface-hover)", opacity: 0.5 }} />
         <Bar dataKey="range" radius={2} maxBarSize={56} isAnimationActive={false}>
           {bars.map((b, i) => (

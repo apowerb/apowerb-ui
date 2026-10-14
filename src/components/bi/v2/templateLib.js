@@ -1,3 +1,6 @@
+/** Language the server writes templates in: the app language when English, French otherwise. */
+export const templateLang = (locale) => (locale === "en" ? "en" : "fr");
+
 export const columnName = (c) => (typeof c === "string" ? c : c?.name);
 
 /** Dataset column types as the preview reports them, folded to date / number / string. */

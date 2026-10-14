@@ -42,6 +42,16 @@ describe("TemplateActionsMenu", () => {
     expect(screen.getByRole("menuitem", { name: "Save as a template" })).toBeInTheDocument();
   });
 
+  it("lists the templates in the dashboard language", async () => {
+    await open({ ...linked(3), locale: "en" }, [tpl(3)]);
+    expect(api.listDashboardTemplates).toHaveBeenCalledWith("en");
+  });
+
+  it("lists the templates in French for a dashboard without locale", async () => {
+    await open(linked(3), [tpl(3)]);
+    expect(api.listDashboardTemplates).toHaveBeenCalledWith("fr");
+  });
+
   it("offers the update only when the template version is newer than the provenance", async () => {
     await open(linked(1), [tpl(3)]);
     expect(await screen.findByRole("menuitem", { name: "Update to the latest template version" })).toBeInTheDocument();
