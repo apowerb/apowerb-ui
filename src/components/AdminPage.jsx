@@ -204,7 +204,7 @@ export default function AdminPage() {
     // Same shell as the other dashboard screens: a fixed header and a body
     // that scrolls. Without it the list simply ran off the bottom.
     <div className="flex flex-col h-full">
-      <div className="shrink-0 p-6 pb-0 max-w-6xl mx-auto w-full">
+      <div className="shrink-0 p-6 pb-0 w-full">
       <header className="flex items-center gap-3 mb-6">
         <div className="p-3 rounded-2xl btn-brand">
           <ShieldCheck size={22} />
@@ -268,7 +268,7 @@ export default function AdminPage() {
 
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6 max-w-6xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-6 pb-6 w-full">
       {loading ? (
         <Skeleton className="h-64 w-full rounded-2xl" />
       ) : tab === "users" ? (

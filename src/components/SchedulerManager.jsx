@@ -1432,11 +1432,11 @@ export default function SchedulerManager() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {loading ? (
-          <div className="max-w-7xl mx-auto">
+          <div className="w-full">
             <SkeletonList count={5} />
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className="w-full space-y-6">
             {/* Stats Bar */}
             <StatsBar stats={stats} />
 

@@ -141,7 +141,7 @@ export default function AgentStatusBar() {
       <div
         role="status"
         aria-live="polite"
-        className={`mx-auto w-full max-w-3xl px-3 py-1.5 mb-2 ${display.bg} border ${display.border} rounded-lg flex items-center gap-2`}
+        className={`mx-auto w-full max-w-6xl px-3 py-1.5 mb-2 ${display.bg} border ${display.border} rounded-lg flex items-center gap-2`}
       >
         {display.octopus ? (
           <ThinkingOctopus size={26} className="shrink-0" />

@@ -98,7 +98,7 @@ export default function BugReportsAdmin({ initialReportId = null }) {
   }, [initialReportId]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-4">
+    <div className="p-6 w-full space-y-4">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold th-text flex items-center gap-2">
           <Bug className="w-6 h-6 th-text-accent" aria-hidden="true" />
