@@ -85,6 +85,17 @@ describe("TemplateActionsMenu", () => {
     expect(screen.getByRole("dialog", { name: "Update to the latest template version" })).toBeInTheDocument();
   });
 
+  it("offers to change the language of a dashboard built from a stock template", async () => {
+    await open({ ...linked(3), locale: "fr" }, [{ ...tpl(3), origin: "builtin" }]);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Change the language" }));
+    expect(screen.getByRole("dialog", { name: "Change the language" })).toBeInTheDocument();
+  });
+
+  it("hides the language change for a user template or a dashboard without one", async () => {
+    await open(linked(3), [{ ...tpl(3), origin: "user" }]);
+    expect(screen.queryByRole("menuitem", { name: "Change the language" })).toBeNull();
+  });
+
   it("closes the menu on Escape", async () => {
     await open(linked(3), [tpl(3)]);
     fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { ChevronDown, LayoutTemplate } from "lucide-react";
 import { listDashboardTemplates } from "@/lib/api";
+import ChangeLanguageModal from "./ChangeLanguageModal";
 import { useOptionalDashboardData } from "./DashboardDataContext";
 import ReplaceSourceModal from "./ReplaceSourceModal";
 import SaveAsTemplateModal from "./SaveAsTemplateModal";
@@ -13,7 +14,7 @@ import { isNewerVersion, templateLang } from "./templateLib";
 const ITEM_CLS =
   "w-full text-left px-4 py-2.5 text-sm font-medium th-text hover:th-bg-surface-hover focus:outline-none focus-visible:bg-blue-500/20 transition-colors";
 
-/** Template lifecycle actions of a v2 dashboard: replace the file, update to the template, save as template. */
+/** Template lifecycle actions of a v2 dashboard: replace the file, update to the template, change language, save as template. */
 export default function TemplateActionsMenu({ dashboard, onDashboardChange }) {
   const t = useTranslations("biTemplate");
   const data = useOptionalDashboardData();
@@ -49,6 +50,8 @@ export default function TemplateActionsMenu({ dashboard, onDashboardChange }) {
   const latest = provenance ? templates?.find((x) => x.id === provenance.id) : null;
   const canUpgrade = !!latest && isNewerVersion(latest.version, provenance.version);
   const canAttach = !provenance && (templates?.length ?? 0) > 0;
+  // a user template is stored in one language only
+  const canChangeLanguage = latest?.origin === "builtin";
 
   function choose(name) {
     setOpen(false);
@@ -118,6 +121,11 @@ export default function TemplateActionsMenu({ dashboard, onDashboardChange }) {
               {t("menuAttach")}
             </button>
           )}
+          {canChangeLanguage && (
+            <button type="button" role="menuitem" className={ITEM_CLS} onClick={() => choose("language")}>
+              {t("menuLanguage")}
+            </button>
+          )}
           <button type="button" role="menuitem" className={ITEM_CLS} onClick={() => choose("save")}>
             {t("menuSave")}
           </button>
@@ -126,6 +134,9 @@ export default function TemplateActionsMenu({ dashboard, onDashboardChange }) {
       {modal === "replace" && <ReplaceSourceModal dashboardId={dashboard.id} onClose={closeModal} onDone={changed} />}
       {modal === "upgrade" && (
         <UpgradeTemplateModal dashboard={dashboard} templates={templates || []} onClose={closeModal} onDone={changed} />
+      )}
+      {modal === "language" && (
+        <ChangeLanguageModal dashboard={dashboard} template={latest} onClose={closeModal} onDone={changed} />
       )}
       {modal === "save" && <SaveAsTemplateModal dashboard={dashboard} onClose={closeModal} />}
     </div>
