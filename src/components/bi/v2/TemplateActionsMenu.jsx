@@ -8,7 +8,7 @@ import { useOptionalDashboardData } from "./DashboardDataContext";
 import ReplaceSourceModal from "./ReplaceSourceModal";
 import SaveAsTemplateModal from "./SaveAsTemplateModal";
 import UpgradeTemplateModal from "./UpgradeTemplateModal";
-import { isNewerVersion } from "./templateLib";
+import { isNewerVersion, templateLang } from "./templateLib";
 
 const ITEM_CLS =
   "w-full text-left px-4 py-2.5 text-sm font-medium th-text hover:th-bg-surface-hover focus:outline-none focus-visible:bg-blue-500/20 transition-colors";
@@ -26,13 +26,14 @@ export default function TemplateActionsMenu({ dashboard, onDashboardChange }) {
 
   useEffect(() => {
     let alive = true;
-    listDashboardTemplates()
+    // the update keeps the dashboard language, so compare against templates in that language
+    listDashboardTemplates(templateLang(dashboard.locale))
       .then((list) => alive && setTemplates(Array.isArray(list) ? list : list?.items || []))
       .catch(() => alive && setTemplates([]));
     return () => {
       alive = false;
     };
-  }, [dashboard.id]);
+  }, [dashboard.id, dashboard.locale]);
 
   useEffect(() => {
     if (!open) return undefined;
