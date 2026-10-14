@@ -191,7 +191,7 @@ export default function DataPoolPage() {
             </div>
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className="w-full space-y-6">
             {/* Tabs */}
             <div className="flex items-center gap-2">
               {tabs.map((tab) => {

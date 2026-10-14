@@ -269,13 +269,13 @@ function linkifyChildren(children) {
 // Markdown component overrides - stable reference (created once)
 const markdownComponents = {
   h1: ({ node, ...props }) => (
-    <h1 className="text-lg font-bold my-2" {...props} />
+    <h1 className="text-xl font-bold my-2" {...props} />
   ),
   h2: ({ node, ...props }) => (
-    <h2 className="text-base font-bold my-2" {...props} />
+    <h2 className="text-lg font-bold my-2" {...props} />
   ),
   h3: ({ node, ...props }) => (
-    <h3 className="text-sm font-bold my-1" {...props} />
+    <h3 className="text-base font-bold my-1" {...props} />
   ),
   ul: ({ node, ...props }) => (
     <ul className="list-disc ml-4 my-2 space-y-1" {...props} />
@@ -284,7 +284,7 @@ const markdownComponents = {
     <ol className="list-decimal ml-4 my-2 space-y-1" {...props} />
   ),
   li: ({ node, children, ...props }) => (
-    <li className="text-sm" {...props}>{linkifyChildren(children)}</li>
+    <li className="text-[15px]" {...props}>{linkifyChildren(children)}</li>
   ),
   p: ({ node, children, ...props }) => (
     <p className="mb-2 last:mb-0 whitespace-pre-wrap" {...props}>
@@ -708,7 +708,7 @@ export default memo(function ChatMessage({
                 ))}
               </div>
             )}
-            <div className="text-sm break-words markdown-content user-bubble-md th-text">
+            <div className="text-[15px] break-words markdown-content user-bubble-md th-text">
               {renderedMarkdown}
             </div>
           </div>
@@ -810,7 +810,7 @@ export default memo(function ChatMessage({
 
         {/* The answer */}
         {(markdownContent || isStreaming) && (
-          <div className="text-sm leading-relaxed break-words markdown-content th-text-secondary">
+          <div className="text-[15px] leading-relaxed break-words markdown-content th-text-secondary">
             {renderedMarkdown}
             {isStreaming && (
               <span className="inline-flex items-center ml-1 align-middle">

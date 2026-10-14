@@ -247,7 +247,7 @@ export default function HomeDashboard() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="p-4 md:p-5 lg:p-6 max-w-7xl mx-auto space-y-5">
+      <div className="p-4 md:p-5 lg:p-6 w-full space-y-5">
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
           <div>

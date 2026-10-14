@@ -786,7 +786,7 @@ export default function IntegrationsManager() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="w-full space-y-6">
 
           <StatsBar total={PROVIDERS.length} connected={integrations.length} />
 

@@ -101,7 +101,7 @@ export default function ChatHome({ session = null }) {
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar">
-      <div className="mx-auto w-full max-w-3xl px-6 py-10 animate-fade-in">
+      <div className="mx-auto w-full max-w-6xl px-6 py-10 animate-fade-in">
         {/* Greeting */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-2">

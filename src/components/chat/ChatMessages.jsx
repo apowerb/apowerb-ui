@@ -486,7 +486,7 @@ export default function ChatMessages({ onEditPrompt, onOpenArtifact }) {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-6"
       >
-        <div className="mx-auto w-full max-w-3xl py-4">
+        <div className="mx-auto w-full max-w-6xl py-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-16 gap-2">
               <MessageSquare size={28} className="text-brand/50" />

@@ -73,7 +73,7 @@ export default function ToolsManager() {
     <div className="h-full flex flex-col th-bg-body overflow-hidden">
       {/* ── Header ── */}
       <header className="shrink-0 border-b th-border backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div className="w-full px-4 sm:px-6 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <div className="shrink-0 w-10 h-10 rounded-xl bg-linear-to-br from-brand to-brand-secondary flex items-center justify-center shadow-md">
@@ -134,7 +134,7 @@ export default function ToolsManager() {
           id="toolbox-panel"
           role="tabpanel"
           aria-labelledby={`toolbox-tab-${activeTab.key}`}
-          className="max-w-7xl mx-auto px-4 sm:px-6 py-6"
+          className="w-full px-4 sm:px-6 py-6"
         >
           <p className="flex items-start gap-2 text-sm th-text-muted mb-5">
             <Info size={16} className="shrink-0 mt-0.5 th-text-faint" />

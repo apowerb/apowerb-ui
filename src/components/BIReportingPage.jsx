@@ -239,14 +239,14 @@ export default function BIReportingPage() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {loading ? (
-          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className="w-full space-y-6">
             {/* Stats Bar */}
             <div className={`grid gap-3 ${stats.chatCharts === null ? "grid-cols-2" : "grid-cols-3"}`}>
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-center gap-3">

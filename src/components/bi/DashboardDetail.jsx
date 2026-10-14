@@ -985,7 +985,7 @@ export default function DashboardDetail({ dashboardId }) {
           ref={exportAreaRef}
           style={isV2 && editMode && !narrowV2 ? { right: 380 } : undefined}
         >
-          <div ref={gridContainerRef} className="max-w-7xl mx-auto min-h-full">
+          <div ref={gridContainerRef} className="w-full min-h-full">
             <ReactGridLayout
               layout={gridLayout}
               width={gridWidth}

@@ -167,7 +167,7 @@ export default function WorkflowsPage() {
 
   return (
     <div className="h-full overflow-y-auto p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="w-full">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-2">

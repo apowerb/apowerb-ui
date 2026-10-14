@@ -207,7 +207,7 @@ export default function PublicDashboardView({ slug }) {
       {/* Content -- CSS grid (read-only, no drag) */}
       <DataScope enabled={isV2} dashboard={dashboard} slug={slug} onContentHeight={onContentHeight}>
       <div className="p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           {isV2 && (
             <div className="mb-4">
               <FilterBar />
