@@ -523,6 +523,11 @@ export function processSSEBlock(block, callbacks) {
         if (onThinking) onThinking(part.text);
       } else if (part.functionCall) {
         flushText();
+        // google-adk 2.12 streams a tool call as partial events (no `args`,
+        // `willContinue`) before the final event with the complete call. Only
+        // that final event is a call: counting the partial ones showed one
+        // chart card per streamed delta (5 charts for 1 embed_chart, Azure).
+        if (partial) continue;
         const fc = part.functionCall;
         if (onToolCall) onToolCall({ name: fc.name, args: fc.args || {} });
       } else if (part.functionResponse) {
