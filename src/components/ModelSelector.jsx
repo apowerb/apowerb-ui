@@ -42,6 +42,20 @@ const FALLBACK_PROVIDER_MODELS = {
     { id: "openai/gpt-oss-20b",   name: "GPT-OSS 20B",  tag: "Fast" },
     { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", tag: "Fastest" },
   ],
+  // Eden AI : passerelle, l'id après `edenai/` garde le provider amont.
+  // Le serveur ajoute l'URL Eden par défaut : seule la clé est à saisir.
+  edenai: [
+    { id: "openai/gpt-6.1-sol",                 name: "GPT-6.1 Sol",       tag: "Recommended" },
+    { id: "anthropic/claude-sonnet-5-5",        name: "Claude Sonnet 5.5", tag: "Balanced" },
+    { id: "mistral/mistral-large-latest",       name: "Mistral Large",     tag: "Powerful" },
+    { id: "google/gemini-3.8-flash",            name: "Gemini 3.8 Flash",  tag: "Fast" },
+  ],
+  // Azure AI Foundry : l'id est le nom du déploiement, et l'URL du projet est
+  // obligatoire (pas d'endpoint par défaut, le serveur refuse l'agent sans).
+  azure_ai: [
+    { id: "gpt-6.1-sol", name: "GPT-6.1 Sol", tag: "Recommended" },
+    { id: "gpt-6-luna",  name: "GPT-6 Luna",  tag: "Fast" },
+  ],
 };
 
 // Le modèle par défaut en tête : c'est le choix recommandé (aucune clé à
@@ -49,7 +63,7 @@ const FALLBACK_PROVIDER_MODELS = {
 // ne renvoie ce provider que lorsque DEFAULT_LLM_MODEL/API_KEY sont
 // configurés côté serveur, et il est absent du fallback statique. La clé
 // `thaink2` est l'identifiant apparié avec le backend, jamais un libellé.
-const PROVIDER_ORDER = ["thaink2", "anthropic", "openai", "mistral", "gemini", "deepseek", "groq"];
+const PROVIDER_ORDER = ["thaink2", "anthropic", "openai", "mistral", "gemini", "deepseek", "groq", "edenai", "azure_ai"];
 
 export const DEFAULT_LLM_PROVIDER = "thaink2";
 export const DEFAULT_LLM_MODEL_ID = "thaink2/default";
@@ -247,6 +261,11 @@ export default function ModelSelector({ value, onChange }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ---- Azure AI Foundry : l'URL du projet est obligatoire ---- */}
+      {providerKey === "azure_ai" && (
+        <p className="text-xs th-text-ghost -mt-2 pl-1">{t("azureAiHint")}</p>
       )}
 
       {/* ---- Custom model input ---- */}

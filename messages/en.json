@@ -2010,6 +2010,7 @@
     "stop": "Stop"
   },
   "ModelSelector": {
+    "azureAiHint": "Azure AI Foundry: enter your project URL below (https://<resource>.services.ai.azure.com/models). The model is your deployment name.",
     "backToList": "← Back to list",
     "customModelOption": "Custom model...",
     "customModelPlaceholder": "provider/model-name",
