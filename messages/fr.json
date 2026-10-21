@@ -3975,6 +3975,7 @@
     "runError_loop_items_not_list": "Boucle {node} : items vaut un {type}, pas une liste. Fais-le pointer vers une liste d’un nœud amont.",
     "runError_convert_failed": "La conversion {node} n’a pas pu lire son entrée comme {to}. Vérifie la sortie amont, ou choisis une autre conversion.",
     "runError_template_ref_invalid": "Le nœud {node} utilise une référence de gabarit que le moteur ne sait pas résoudre. Référence la sortie entière d’un nœud avec '{{'id'}}', ou un de ses champs réels (réf. {ref}).",
+    "runError_render_too_large": "Le nœud {node} : son gabarit devient trop grand une fois rendu (plus de {max} caractères). Référence moins de valeurs ou des valeurs plus petites, ou un champ plutôt qu’une sortie entière.",
     "replayTitle": "Rejeu",
     "replayPlay": "Rejouer le run",
     "replayPause": "Pause",

@@ -3975,6 +3975,7 @@
     "runError_loop_items_not_list": "Loop {node}: items resolved to {type}, not a list. Point it at a list from an upstream node.",
     "runError_convert_failed": "Convert {node} could not read its input as {to}. Check the upstream output, or pick another conversion.",
     "runError_template_ref_invalid": "Node {node} uses a template reference the engine can't resolve. Reference a node's whole output as '{{'id'}}', or one of its real fields (ref. {ref}).",
+    "runError_render_too_large": "Node {node}: its template becomes too large once rendered (over {max} characters). Reference fewer or smaller values, or select a field instead of a whole output.",
     "replayTitle": "Replay",
     "replayPlay": "Replay the run",
     "replayPause": "Pause",
