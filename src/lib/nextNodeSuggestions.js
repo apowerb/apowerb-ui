@@ -149,6 +149,20 @@ export function applySuggestion(nodes = [], edges = [], sourceNode, suggestion) 
 }
 
 /**
+ * A node added from the palette while `source` is selected hangs off it the
+ * way its chip would — same branch, same pre-filled config — so both ways of
+ * adding a node give the same result. Null when it can't: nothing selected,
+ * an Output (always last), no free slot left, or a trigger (always a start).
+ */
+export function paletteSuggestion(type, source, nodes = [], edges = []) {
+  if (!source || type === "trigger" || source.type === "output") return null;
+  const route = firstUnwiredRoute(source, edges);
+  const isRouting = declaredRoutesOf(source) !== null;
+  if (isRouting ? !route : edges.some((e) => e.source === source.id)) return null;
+  return { type, route, config: prefillFor(type, source, { nodes, edges }) };
+}
+
+/**
  * The server's answer as chips. The branch comes with the answer, computed
  * by the server the same way as here, never chosen by the model.
  */
