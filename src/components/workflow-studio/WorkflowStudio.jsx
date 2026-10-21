@@ -31,6 +31,7 @@ import {
 import { buildWorkflowFile, downloadWorkflowFile } from "@/lib/workflowFile";
 import { triggerSamplePayloadFromSchema, triggerPayloadInitialMode, triggerScheduleDetail } from "@/lib/workflowTriggers";
 import { createRunState, applyRunEvent, runStatusByNodeId } from "@/lib/workflowRunState";
+import { outputsByNodeId } from "@/lib/availableData";
 import { consumeWorkflowRun } from "@/lib/workflowSse";
 import { useUndoRedo } from "./hooks/useUndoRedo";
 import { useRunReplay } from "./hooks/useRunReplay";
@@ -304,6 +305,9 @@ export default function WorkflowStudio({ workflowId }) {
     }
   };
 
+  // What each node produced in the last test run (not a replay step): the
+  // inspector's "Available data" panel. Page memory only, never stored.
+  const runOutputs = useMemo(() => outputsByNodeId(liveRunState), [liveRunState]);
   const runStatusMap = useMemo(() => runStatusByNodeId(runState), [runState]);
   const runDurationById = useMemo(() => {
     const map = {};
@@ -882,6 +886,7 @@ export default function WorkflowStudio({ workflowId }) {
           onDeleteNode={deleteNode}
           onDeleteEdge={deleteEdge}
           onOpenLoopBody={(nodeId) => setBodyEditorNodeId(nodeId)}
+          runOutputs={runOutputs}
         />
       </div>
 
