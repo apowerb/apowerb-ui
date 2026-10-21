@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, Square, ChevronDown, ChevronUp, ChevronRight, Loader2, CheckCircle2, XCircle, Circle } from "lucide-react";
+import { Play, Square, ChevronDown, ChevronUp, ChevronRight, Loader2, CheckCircle2, XCircle, Circle, UserCheck } from "lucide-react";
 import { useTranslations } from "use-intl";
 import PayloadEditor from "./PayloadEditor";
 import ReplayControls from "./ReplayControls";
 import ChartRenderer from "@/components/bi/ChartRenderer";
 
-const STATUS_ICON = { running: Loader2, done: CheckCircle2, error: XCircle, pending: Circle, cancelled: XCircle };
-const STATUS_COLOR = { running: "text-purple-300", done: "text-blue-400", error: "text-red-400", pending: "th-text-ghost", cancelled: "text-amber-400" };
+const STATUS_ICON = { running: Loader2, done: CheckCircle2, error: XCircle, pending: Circle, cancelled: XCircle, awaiting: UserCheck };
+const STATUS_COLOR = { running: "text-purple-300", done: "text-blue-400", error: "text-red-400", pending: "th-text-ghost", cancelled: "text-amber-400", awaiting: "text-purple-400" };
 
 function StatusIcon({ status, size = 13 }) {
   const Icon = STATUS_ICON[status] || Circle;
@@ -183,6 +183,14 @@ const TRANSLATED_ERRORS = new Set([
   "output_type_mismatch",
   "agent_asked_question",
   "node_not_runnable",
+  // a human decision node refused before the run (phase 1).
+  "approval_question_missing",
+  "approval_mode_unknown",
+  "approval_choices_missing",
+  "approval_choice_reserved",
+  "approval_choice_duplicate",
+  "approval_text_route_missing",
+  "approval_nested",
 ]);
 
 function errorText(t, error) {
@@ -230,6 +238,7 @@ function IterationRow({ innerId, status, duration, output, error, route, input, 
 }
 
 function TimelineEntry({ entry, label, t }) {
+  const td = useTranslations("WorkflowDecision");
   const [open, setOpen] = useState(true);
   const iterationKeys = Object.keys(entry.iterations || {});
   return (
@@ -242,6 +251,8 @@ function TimelineEntry({ entry, label, t }) {
             {label && label !== entry.id && <span className="th-text-ghost font-mono text-[10px] truncate">{entry.id}</span>}
             {entry.duration != null && <span className="th-text-ghost text-[10px] shrink-0">{t("duration", { ms: entry.duration })}</span>}
           </div>
+          {entry.status === "awaiting" && <p className="text-[10px] text-purple-300 mt-0.5">{td("panelWaiting")}</p>}
+          {entry.replayed && <p className="text-[10px] th-text-ghost mt-0.5">{td("panelReplayed")}</p>}
           {entry.route && <p className="text-[10px] th-text-ghost mt-0.5">{t("routeTaken", { route: entry.route })}</p>}
           {entry.error && <p className="text-[10px] text-red-400 mt-0.5">{errorText(t, entry.error)}</p>}
           {entry.capped && (
@@ -296,9 +307,12 @@ export default function ExecutionPanel({
   replay,
   onRun,
   onCancel,
+  onOpenDecision,
   nodeLabels = {},
+  children,
 }) {
   const t = useTranslations("WorkflowExecutionPanel");
+  const td = useTranslations("WorkflowDecision");
 
   return (
     <div className={`shrink-0 border-t th-border-secondary th-bg-sidebar flex flex-col ${open ? "h-80" : "h-11"} transition-[height] duration-200`}>
@@ -342,6 +356,13 @@ export default function ExecutionPanel({
               )}
             </div>
             {replay && replay.total > 0 && !isRunning && <ReplayControls replay={replay} t={t} />}
+            {onOpenDecision && runState.status === "awaiting" && runState.pendingDecision && !replay?.active && (
+              <button type="button" onClick={onOpenDecision} className="mt-2 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-500/15 text-purple-200 hover:bg-purple-500/25 border border-purple-500/30">
+                <UserCheck size={12} />
+                {td("panelAnswer")}
+              </button>
+            )}
+            {children}
             {runState.status === "error" && runState.finalError && (
               <p className="mt-2 text-[11px] text-red-400">
                 {t("errorDetail")}: {errorText(t, runState.finalError)}

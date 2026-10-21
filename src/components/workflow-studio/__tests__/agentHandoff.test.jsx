@@ -99,11 +99,11 @@ describe("validation — an unwired or empty agent", () => {
     expect(messages(r).filter((m) => m.startsWith("agent1:nodeNotConnected"))).toEqual([]);
   });
 
-  it("does not add it to a node that never runs", () => {
-    const approval = { id: "approval1", type: "approval", config: {} };
+  it("adds it to a human decision too, now that it runs (was: never runs, no warning)", () => {
+    const approval = { id: "approval1", type: "approval", config: { question: "Ok ?", mode: "text" } };
     const r = graph([trigger, agent1, approval], wired);
-    expect(messages(r)).toContain("approval1:notRunnable:approval:error");
-    expect(messages(r).filter((m) => m.startsWith("approval1:nodeNotConnected"))).toEqual([]);
+    expect(messages(r)).toContain("approval1:nodeNotConnected:warning");
+    expect(messages(r).filter((m) => m.startsWith("approval1:notRunnable"))).toEqual([]);
   });
 
   it("blocks an agent node with no agent chosen", () => {

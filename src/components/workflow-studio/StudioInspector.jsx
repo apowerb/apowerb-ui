@@ -21,11 +21,13 @@ import {
   TRY_RETRIES_CAP,
   TRY_RETRY_DELAY_MS_CAP,
   CONDITION_ROUTES,
+  approvalRoutes,
   nodeIdRenameError,
   filterToolOptions,
   groupToolOptions,
 } from "@/lib/workflowGraph";
 import TriggerInspector from "./TriggerInspector";
+import ApprovalInspector from "./ApprovalInspector";
 import NodeUsageHelp from "./NodeUsageHelp";
 import { templateExamplesFor } from "@/lib/templateExamples";
 import { getTeamsWebhookStatus } from "@/lib/api";
@@ -142,7 +144,7 @@ function TemplateExamples({ kind, upstreamNodes, onPick, t }) {
  * value stays free text so a `{{node.output}}` template still fits, which
  * is why a tool's number/integer arguments use this instead of `type="number"`.
  */
-function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline, numeric, examples, t }) {
+export function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline, numeric, examples, t }) {
   const ref = useRef(null);
   const suggestions = upstreamNodes.flatMap((n) => templateSuggestionsFor(n).slice(0, 1).map((snippet) => ({ node: n, snippet })));
   const Comp = multiline ? "textarea" : "input";
@@ -1449,7 +1451,7 @@ export default function StudioInspector({
         </>
       )}
 
-      {node.type === "approval" && <p className="text-xs th-text-ghost">{t("soonHelp")}</p>}
+      {node.type === "approval" && <ApprovalInspector config={config} patch={patch} upstreamNodes={upstreamNodes} t={t} />}
 
       <DeleteButton onClick={() => onDeleteNode(node.id)} label={t("deleteNode")} />
     </div>
@@ -1473,6 +1475,9 @@ function routesOf(sourceNode) {
   if (sourceNode.type === "condition") {
     return CONDITION_ROUTES;
   }
+  if (sourceNode.type === "approval") {
+    return approvalRoutes(cfg) ?? []; // mode text: no route to pick
+  }
   return null;
 }
 
@@ -1482,5 +1487,6 @@ function routeOptionLabel(sourceNode, route, t) {
   if (sourceNode?.type === "condition") {
     return route === "true" ? t("conditionRouteTrue") : t("conditionRouteFalse");
   }
+  if (sourceNode?.type === "approval" && route === "text") return t("approvalRouteText");
   return route;
 }

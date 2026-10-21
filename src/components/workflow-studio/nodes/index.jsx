@@ -4,17 +4,17 @@ import { getToolCategoryLogo, isProviderLogo } from "@/components/icons/integrat
 import { Zap, Bot, Sparkles, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
-import { NODE_FAMILIES } from "@/lib/workflowGraph";
+import { NODE_FAMILIES, approvalRoutes, APPROVAL_TEXT_ROUTE } from "@/lib/workflowGraph";
 
 function RunFooter({ runStatus, runDuration }) {
   const t = useTranslations("WorkflowExecutionPanel");
   if (!runStatus) return null;
-  const Icon = runStatus === "done" ? CheckCircle2 : runStatus === "error" ? XCircle : Clock;
+  const Icon = runStatus === "done" ? CheckCircle2 : runStatus === "error" ? XCircle : runStatus === "awaiting" ? UserCheck : Clock;
   const color = runStatus === "done" ? "text-blue-400" : runStatus === "error" ? "text-red-400" : "text-purple-300";
   return (
     <div className={`flex items-center gap-1 mt-1.5 text-[10px] font-medium ${color}`}>
       <Icon size={10} className={runStatus === "running" ? "animate-spin" : ""} />
-      {t(runStatus === "running" ? "nodeRunning" : runStatus === "done" ? "nodeDone" : "nodeError")}
+      {t(runStatus === "running" ? "nodeRunning" : runStatus === "done" ? "nodeDone" : runStatus === "awaiting" ? "nodeAwaiting" : "nodeError")}
       {runDuration != null && runStatus !== "running" && (
         <span className="th-text-ghost">· {t("duration", { ms: runDuration })}</span>
       )}
@@ -193,14 +193,23 @@ export function LoopNode({ data, selected }) {
 
 export function ApprovalNode({ data, selected }) {
   const t = useTranslations("WorkflowPalette");
+  const td = useTranslations("WorkflowDecision");
+  const cfg = data.config || {};
+  // The routes to wire: the choices, plus the reserved `text` one in mode both.
+  const routes = (approvalRoutes(cfg) || []).map((value) => {
+    if (value === APPROVAL_TEXT_ROUTE) return { value, label: td("inspMode_text") };
+    return { value, label: (cfg.choices || []).find((c) => c.route === value)?.label || value };
+  });
   return (
     <NodeShell
       {...common(data, selected)}
       title={data.label || t("nodeApproval")}
       color={NODE_FAMILIES.approval.color}
       icon={UserCheck}
-      soon
-    />
+    >
+      <RouteChips routes={routes} taken={data.runRoute} />
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
   );
 }
 
