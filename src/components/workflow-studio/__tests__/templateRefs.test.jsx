@@ -58,3 +58,28 @@ describe("ArgsEditor upstream pastilles", () => {
     expect(patches.at(-1)).toEqual({ args: { q: "{{agent1}}" } });
   });
 });
+
+describe("agent input hint", () => {
+  const graph = (input) => ({
+    nodes: [
+      { id: "trigger1", type: "trigger", config: { kind: "manual" } },
+      { id: "agent1", type: "agent", config: { agent_id: "a1", ...(input !== undefined ? { input } : {}) } },
+    ],
+    edges: [{ source: "trigger1", target: "agent1" }],
+  });
+
+  it("says what an empty input sends: the previous node's raw output, without the original request", () => {
+    render(<Inspector graph={graph()} nodeId="agent1" onConfig={() => {}} />);
+    expect(screen.getByText(/only the raw output of the previous node, without the original request/i)).toBeInTheDocument();
+  });
+
+  it("treats a cleared input like an empty one", () => {
+    render(<Inspector graph={graph("  ")} nodeId="agent1" onConfig={() => {}} />);
+    expect(screen.getByText(/only the raw output of the previous node/i)).toBeInTheDocument();
+  });
+
+  it("drops the hint once the input is written", () => {
+    render(<Inspector graph={graph("{{trigger1.message}}")} nodeId="agent1" onConfig={() => {}} />);
+    expect(screen.queryByText(/only the raw output of the previous node/i)).toBeNull();
+  });
+});

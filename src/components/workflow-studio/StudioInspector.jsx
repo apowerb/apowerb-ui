@@ -1149,6 +1149,7 @@ export default function StudioInspector({
           </Field>
           <Field label={t("input")} help={t("inputHelp")}>
             <TemplateInput value={config.input} onChange={(v) => patch({ input: v })} upstreamNodes={upstreamNodes} multiline examples="agentInput" t={t} />
+            {!config.input?.trim() && <p className="mt-1 text-[10px] text-amber-300/90 leading-snug">{t("inputEmptyHint")}</p>}
           </Field>
           <OutputTypeField config={config} patch={patch} t={t} />
           <Field label={t("onQuestion")} help={t("onQuestionHelp")}>

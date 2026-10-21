@@ -37,7 +37,7 @@ import { useRunReplay } from "./hooks/useRunReplay";
 import { useToolSchemas } from "./hooks/useToolSchemas";
 import { useSuggestionAdoption } from "./hooks/useSuggestionAdoption";
 import StudioTopBar from "./StudioTopBar";
-import { suggestNextNodes, applySuggestion, aiSuggestionsFrom, mergeAiSuggestions } from "@/lib/nextNodeSuggestions";
+import { suggestNextNodes, applySuggestion, paletteSuggestion, aiSuggestionsFrom, mergeAiSuggestions } from "@/lib/nextNodeSuggestions";
 import StudioPalette from "./StudioPalette";
 import StudioCanvas from "./StudioCanvas";
 import StudioInspector from "./StudioInspector";
@@ -550,13 +550,26 @@ export default function WorkflowStudio({ workflowId }) {
 
   const [focusRequest, setFocusRequest] = useState(null);
 
+  // A palette click with a node selected hangs the new node off it, wired and
+  // pre-filled exactly like its next-step chip; otherwise it lands on its own.
   const addNodeCentered = useCallback(
     (type) => {
-      const position = findFreePosition(nodes, selection?.kind === "node" ? selection.node.id : undefined);
+      const source = liveSelection?.kind === "node" ? liveSelection.node : null;
+      const suggestion = paletteSuggestion(type, source, nodes, edges);
+      if (suggestion) {
+        const { nodes: nextNodes, edges: nextEdges, node } = applySuggestion(nodes, edges, source, suggestion);
+        setNodes(nextNodes);
+        setEdges(nextEdges);
+        pushHistory(nextNodes, nextEdges);
+        setSelection({ kind: "node", node });
+        setFocusRequest({ ...node.position, seq: Date.now() });
+        return;
+      }
+      const position = findFreePosition(nodes, source?.id);
       addNodeAt(type, position);
       setFocusRequest({ ...position, seq: Date.now() });
     },
-    [addNodeAt, nodes, selection],
+    [addNodeAt, nodes, edges, liveSelection, setNodes, setEdges, pushHistory],
   );
 
   // What could come after the selected node — rules only, recomputed from
