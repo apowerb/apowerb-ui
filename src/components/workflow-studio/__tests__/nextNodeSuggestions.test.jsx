@@ -11,6 +11,7 @@ import {
   suggestNextNodes,
   firstUnwiredRoute,
   prefillFor,
+  paletteSuggestion,
   applySuggestion,
   chipsPosition,
   visibleCanvasWidth,
@@ -65,6 +66,27 @@ describe("suggestNextNodes", () => {
     expect(prefillFor("notification", agent)).toEqual({ body: "{{agent1}}" });
     expect(prefillFor("rag", agent)).toEqual({ query: "{{agent1}}" });
     expect(prefillFor("condition", agent)).toEqual({});
+  });
+});
+
+describe("paletteSuggestion", () => {
+  it("hangs a palette node off the selected node, like its chip would", () => {
+    expect(paletteSuggestion("agent", trigger, [trigger], [])).toEqual({ type: "agent", route: null, config: { input: "{{trigger1}}" } });
+  });
+
+  it("takes the first free branch of a routing node", () => {
+    const router = { id: "router1", type: "router", config: { rules: [{ route: "urgent" }], default_route: "normal" } };
+    expect(paletteSuggestion("output", router, [router], [])).toEqual({ type: "output", route: "urgent", config: { value: "{{router1}}" } });
+  });
+
+  it("wires nothing when nothing is selected, the node already has its successor, or it is an Output", () => {
+    expect(paletteSuggestion("agent", null, [trigger], [])).toBeNull();
+    expect(paletteSuggestion("agent", trigger, [trigger, agent], [{ source: "trigger1", target: "agent1" }])).toBeNull();
+    expect(paletteSuggestion("agent", output, [output], [])).toBeNull();
+  });
+
+  it("never wires a trigger as a successor", () => {
+    expect(paletteSuggestion("trigger", agent, [agent], [])).toBeNull();
   });
 });
 

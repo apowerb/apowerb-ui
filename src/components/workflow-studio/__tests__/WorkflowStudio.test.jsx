@@ -168,6 +168,19 @@ describe("WorkflowStudio", () => {
     expect(screen.getByTestId("node-count")).toHaveTextContent("4");
   });
 
+  it("hangs a palette node off the selected node, wired and pre-filled like its chip", async () => {
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+
+    await user.click(screen.getByTestId("node-agentA"));
+    await user.click(screen.getByRole("button", { name: /^Agent$/ }));
+
+    expect(screen.getByTestId("node-count")).toHaveTextContent("4");
+    expect(screen.getByTestId("edge-agentA-agent1")).toBeTruthy();
+    expect(screen.getByDisplayValue(/\{\{agentA\}\}/)).toBeTruthy();
+  });
+
   it("labels a router edge with a declared route from the inspector, clearing the validation error", async () => {
     const user = userEvent.setup();
     render(<WorkflowStudio workflowId="wf1" />);
