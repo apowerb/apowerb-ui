@@ -1,4 +1,4 @@
-import { CONDITION_ROUTES, TRY_ROUTES, NODE_BOX, createNode, findFreePosition, graphToFlow } from "@/lib/workflowGraph";
+import { CONDITION_ROUTES, TRY_ROUTES, NODE_BOX, createNode, findFreePosition, getUpstreamNodeIds, graphToFlow } from "@/lib/workflowGraph";
 
 /**
  * What to offer after a node, so building a workflow never means staring at
@@ -12,7 +12,7 @@ import { CONDITION_ROUTES, TRY_ROUTES, NODE_BOX, createNode, findFreePosition, g
  */
 const AFTER = {
   trigger: ["agent", "classifier", "convert"],
-  agent: ["output", "condition", "notification"],
+  agent: ["agent", "output", "condition"],
   rag: ["agent", "output"],
   extract: ["condition", "output", "notification"],
   tool: ["convert", "output", "notification"],
@@ -65,11 +65,28 @@ function templateRef(node) {
 }
 
 /**
+ * What an agent placed after another agent reads: the original request, then
+ * the previous agent's answer. With the answer alone, the second agent never
+ * learns what was asked (real case: a forecasting agent fed only an
+ * analyst's summary asked "what should I forecast?"). The request is named
+ * only when a trigger really is upstream.
+ */
+function agentAfterAgentInput(sourceNode, nodes, edges) {
+  const upstream = new Set(getUpstreamNodeIds(sourceNode.id, edges));
+  const trigger = nodes.find((n) => n.type === "trigger" && upstream.has(n.id));
+  if (!trigger) return templateRef(sourceNode);
+  return `Original request:\n${templateRef(trigger)}\n\nPrevious step result:\n${templateRef(sourceNode)}`;
+}
+
+/**
  * The config a suggested node starts with, so the obvious field is already
  * filled: what it should read is almost always the node it hangs off.
  */
-export function prefillFor(type, sourceNode) {
+export function prefillFor(type, sourceNode, { nodes = [], edges = [] } = {}) {
   const ref = templateRef(sourceNode);
+  if (type === "agent" && sourceNode?.type === "agent") {
+    return { input: agentAfterAgentInput(sourceNode, nodes, edges) };
+  }
   switch (type) {
     case "output":
       return { value: ref };
@@ -108,7 +125,7 @@ export function suggestNextNodes(node, nodes = [], edges = []) {
   return types.slice(0, MAX_SUGGESTIONS).map((type) => ({
     type,
     route,
-    config: prefillFor(type, node),
+    config: prefillFor(type, node, { nodes, edges }),
   }));
 }
 

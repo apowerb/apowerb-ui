@@ -23,11 +23,11 @@ function splitNodeId(nodeId) {
 }
 
 function blankEntry(id) {
-  return { id, status: "pending", type: null, duration: null, output: null, error: null, route: null, iterations: {}, capped: null, input: null, inputTruncated: null, toolCalls: null };
+  return { id, status: "pending", type: null, duration: null, output: null, error: null, route: null, iterations: {}, capped: null, input: null, inputTruncated: null, toolCalls: null, asksQuestion: false };
 }
 
 function blankInner(innerId) {
-  return { innerId, status: "pending", type: null, duration: null, output: null, error: null, route: null, input: null, inputTruncated: null, toolCalls: null };
+  return { innerId, status: "pending", type: null, duration: null, output: null, error: null, route: null, input: null, inputTruncated: null, toolCalls: null, asksQuestion: false };
 }
 
 /** `applyRunEvent(state, evt) -> newState`. Never mutates `state`. */
@@ -139,6 +139,8 @@ function applyToEntry(entry, evt) {
       entry.status = "done";
       entry.output = evt.output;
       entry.duration = evt.duration_ms ?? null;
+      // The agent's reply ended on a question nobody in a run will answer.
+      entry.asksQuestion = evt.asks_question === true;
       break;
     case "node_error":
       entry.status = "error";

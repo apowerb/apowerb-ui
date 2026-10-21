@@ -33,6 +33,11 @@ function Disclosure({ label, children }) {
   );
 }
 
+function QuestionWarning({ show, t }) {
+  if (!show) return null;
+  return <p className="text-[10px] text-amber-400 mt-0.5">{t("asksQuestion")}</p>;
+}
+
 function OutputBlock({ value, t }) {
   if (value == null) return null;
   return (
@@ -138,7 +143,7 @@ function errorText(t, error) {
   return error.detail || t("statusError");
 }
 
-function IterationRow({ innerId, status, duration, output, error, route, input, inputTruncated, toolCalls, t }) {
+function IterationRow({ innerId, status, duration, output, error, route, input, inputTruncated, toolCalls, asksQuestion, t }) {
   return (
     <div className="flex items-start gap-1.5 py-1 pl-3 border-l th-border-secondary">
       <StatusIcon status={status} size={11} />
@@ -149,6 +154,7 @@ function IterationRow({ innerId, status, duration, output, error, route, input, 
         </div>
         {route && <p className="text-[10px] th-text-ghost">{t("routeTaken", { route })}</p>}
         {error && <p className="text-[10px] text-red-400">{errorText(t, error)}</p>}
+        <QuestionWarning show={asksQuestion} t={t} />
         <InputBlock value={input} truncated={inputTruncated} t={t} />
         <ToolCallsBlock calls={toolCalls} t={t} />
         <OutputBlock value={output} t={t} />
@@ -176,6 +182,7 @@ function TimelineEntry({ entry, t }) {
               {t("loopCapped", { max: entry.capped.max, remaining: entry.capped.remaining ?? "null" })}
             </p>
           )}
+          <QuestionWarning show={entry.asksQuestion} t={t} />
           <InputBlock value={entry.input} truncated={entry.inputTruncated} t={t} />
           <ToolCallsBlock calls={entry.toolCalls} t={t} />
           <OutputBlock value={entry.output} t={t} />

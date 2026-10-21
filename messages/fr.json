@@ -3378,7 +3378,8 @@
     "notFoundTitle": "Workflow introuvable",
     "notFoundBody": "Il a peut-être été supprimé.",
     "exportButton": "Exporter",
-    "exportTitle": "Télécharger ce workflow en fichier JSON"
+    "exportTitle": "Télécharger ce workflow en fichier JSON",
+    "warningCount": "{count, plural, one {Graphe valide · # avertissement} other {Graphe valide · # avertissements}}"
   },
   "WorkflowPalette": {
     "title": "Ajouter un nœud",
@@ -3977,7 +3978,8 @@
     "runError_subworkflow_not_found": "Le sous-workflow {workflow} référencé par {node} est introuvable (supprimé, ou pas à toi) : choisis un autre workflow dans le nœud.",
     "runError_single_trigger": "Un workflow n’a qu’un seul déclencheur ({triggers} trouvés) : garde-en un, supprime les autres, puis relance.",
     "runError_subworkflow_cycle": "Le sous-workflow {workflow} appelé depuis {node} rappellerait un workflow déjà en cours d'exécution : ce cycle n'est pas autorisé.",
-    "runError_subworkflow_too_deep": "Le sous-workflow {node} dépasse la profondeur d'imbrication maximale ({max}) : aplatis la chaîne d'appels."
+    "runError_subworkflow_too_deep": "Le sous-workflow {node} dépasse la profondeur d'imbrication maximale ({max}) : aplatis la chaîne d'appels.",
+    "asksQuestion": "Cet agent a fini par une question. Personne ne répond pendant un run : si une étape suit, elle reçoit la question comme entrée. Donne-lui dans son entrée ce qu'il demande, ou dis-lui dans ses instructions de répondre sans poser de question."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -4087,7 +4089,9 @@
     "setFieldKeyRequired": "Un champ a besoin d'une clé non vide",
     "setDuplicateKey": "Clé de champ en double « {value} »",
     "conditionNoRules": "Une condition a besoin d'au moins une règle",
-    "conditionDuplicateRoute": "La route « {value} » a déjà une connexion"
+    "conditionDuplicateRoute": "La route « {value} » a déjà une connexion",
+    "agentRequired": "Choisis l'agent que ce nœud exécute",
+    "nodeNotConnected": "Aucun lien n'arrive à ce nœud : il s'exécute sans rien recevoir. Tire un lien depuis l'étape qu'il doit lire."
   },
   "TeamsWebhookModal": {
     "title": "Configurer le webhook Teams",
