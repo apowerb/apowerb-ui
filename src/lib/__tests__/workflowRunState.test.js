@@ -106,4 +106,51 @@ describe("applyRunEvent — loop nodes", () => {
     const loop = state.timeline.find((e) => e.id === "loop1");
     expect(loop.iterations[0]).toHaveLength(1);
   });
+
+  it("keeps what a node received and the tools its agent called", () => {
+    const state = reduce([
+      { event: "node_start", node_id: "agent2", type: "agent" },
+      { event: "node_input", node_id: "agent2", input: '"Voici les chiffres"' },
+      {
+        event: "node_complete",
+        node_id: "agent2",
+        output: "prévision",
+        duration_ms: 5,
+        input: '"Voici les chiffres"',
+        tool_calls: [{ name: "tool_list_datasets", args: {}, result: "[]" }],
+      },
+    ]);
+    const entry = state.timeline.find((e) => e.id === "agent2");
+    expect(entry.input).toBe('"Voici les chiffres"');
+    expect(entry.toolCalls).toEqual([{ name: "tool_list_datasets", args: {}, result: "[]" }]);
+  });
+
+  it("shows the input as soon as node_input arrives, before the node finishes", () => {
+    const state = reduce([
+      { event: "node_start", node_id: "agent1" },
+      { event: "node_input", node_id: "agent1", input: "x".repeat(10), input_truncated: true, input_length: 30000 },
+    ]);
+    const entry = state.timeline.find((e) => e.id === "agent1");
+    expect(entry.status).toBe("running");
+    expect(entry.input).toBe("x".repeat(10));
+    expect(entry.inputTruncated).toEqual({ length: 30000 });
+  });
+
+  it("keeps the input of a failed node and of a loop's inner node", () => {
+    const state = reduce([
+      { event: "node_error", node_id: "agent1", code: "internal", input: "Analyse" },
+      { event: "node_input", node_id: "loop1.a", iteration: 1, input: { id: 3 } },
+    ]);
+    expect(state.timeline.find((e) => e.id === "agent1").input).toBe("Analyse");
+    expect(state.timeline.find((e) => e.id === "loop1").iterations[1][0].input).toEqual({ id: 3 });
+  });
+
+  it("does not erase a known input when a later event omits it", () => {
+    const state = reduce([
+      { event: "node_input", node_id: "t", input: { id: 1 } },
+      { event: "node_complete", node_id: "t", output: 1, duration_ms: 1 },
+    ]);
+    expect(state.timeline.find((e) => e.id === "t").input).toEqual({ id: 1 });
+  });
 });
+

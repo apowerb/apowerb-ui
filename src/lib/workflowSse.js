@@ -8,8 +8,8 @@
  *
  * Each frame is `data: {json}\n\n`. Following this codebase's existing SSE
  * convention (see `useWorkflowRunner.js`), the JSON payload carries its kind
- * in an `event` field: `run_started`, `node_start`, `node_complete`,
- * `node_error`, `route`, and exactly one terminal event per run —
+ * in an `event` field: `run_started`, `node_start`, `node_input` (what the
+ * node received), `node_complete`, `node_error`, `route`, and exactly one terminal event per run —
  * `done` | `error` | `cancelled`.
  */
 
