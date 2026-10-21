@@ -394,15 +394,16 @@ describe("validateGraphLocal", () => {
     expect(good.errors.some((e) => e.message.startsWith("templateRef"))).toBe(false);
   });
 
-  it("reports an approval node as a warning without failing validity", () => {
+  it("reports an approval node as an error", () => {
     const graph = {
       version: 1,
       nodes: [{ id: "approval1", type: "approval", config: {}, position: { x: 0, y: 0 } }],
       edges: [],
     };
     const result = validateGraphLocal(graph);
-    expect(result.valid).toBe(true);
-    expect(result.errors.some((e) => e.message === "notRunnable:approval" && e.level === "warning")).toBe(true);
+    // An error since 21/10: the engine refuses the whole run, so Publish is blocked too.
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.message === "notRunnable:approval" && e.level === undefined)).toBe(true);
     expect(isRunnableType("approval")).toBe(false);
     expect(isRunnableType("agent")).toBe(true);
   });

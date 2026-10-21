@@ -3379,7 +3379,8 @@
     "notFoundBody": "It may have been deleted.",
     "exportButton": "Export",
     "exportTitle": "Download this workflow as a JSON file",
-    "warningCount": "{count, plural, one {Graph valid · # warning} other {Graph valid · # warnings}}"
+    "warningCount": "{count, plural, one {Graph valid · # warning} other {Graph valid · # warnings}}",
+    "publishRefused": "Not published: {detail}"
   },
   "WorkflowPalette": {
     "title": "Add a node",
@@ -3884,7 +3885,16 @@
     "conditionMatchAny": "Any rule (OR)",
     "conditionRulesMin": "A condition needs at least one rule.",
     "conditionRouteTrue": "True",
-    "conditionRouteFalse": "False"
+    "conditionRouteFalse": "False",
+    "outputType": "Expected output",
+    "outputTypeHelp": "JSON: the run stops if the node answers in prose, so a later '{{'id.field'}}' never reads an empty value. Any: whatever it returns goes on.",
+    "outputType_any": "Any (text or JSON)",
+    "outputType_text": "Text",
+    "outputType_json": "JSON",
+    "onQuestion": "If the agent asks a question",
+    "onQuestionHelp": "No one answers during a run. Continue: the question goes to the next step as its input. Stop: the run fails and shows the question.",
+    "onQuestion_continue": "Continue",
+    "onQuestion_fail": "Stop the run"
   },
   "WorkflowExecutionPanel": {
     "title": "Test run",
@@ -3979,7 +3989,15 @@
     "runError_single_trigger": "A workflow has a single trigger ({triggers} found): keep one and delete the others, then run again.",
     "runError_subworkflow_cycle": "Sub-workflow {workflow} called from {node} would call back into a workflow already running: this cycle is not allowed.",
     "runError_subworkflow_too_deep": "Sub-workflow {node} exceeds the nesting depth limit ({max}): flatten the call chain.",
-    "asksQuestion": "This agent ended on a question. No one answers during a run: if a step follows, it receives the question as its input. Give the agent what it asks for in its input, or tell it in its instructions to answer without asking."
+    "asksQuestion": "This agent ended on a question. No one answers during a run: if a step follows, it receives the question as its input. Give the agent what it asks for in its input, or tell it in its instructions to answer without asking.",
+    "outputTypeText": "Text",
+    "outputTypeJson": "JSON",
+    "openDashboard": "Open the dashboard it created",
+    "artifactDataset": "Dataset {id}",
+    "toolReportedError": "The tool reported an error, and the flow went on (Continue on error): {message}",
+    "runError_output_type_mismatch": "Node {node} returned {actual, select, json {JSON} text {text} other {a {actual} value}} but expected {expected, select, json {JSON} other {text}}. Tell the agent in its instructions to answer in that form, or change “Expected output”.",
+    "runError_agent_asked_question": "Agent {node} asked a question instead of answering: “{question}”. No one answers during a run: give it what it asks for in its Input, or tell it in its instructions to answer without asking.",
+    "runError_node_not_runnable": "Node {node} ({type}) cannot run yet: a run cannot pause for a person to answer. For now, send a notification with a link to a second workflow started by a form trigger: the person fills the form, and the second workflow goes on."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -4017,7 +4035,7 @@
     "missingRoute": "This connection needs a route label",
     "unknownRoute": "Route “{value}” is not declared on this node",
     "classifierNeedsTwoRoutes": "A classifier needs at least 2 routes",
-    "notRunnable": "“{value}” nodes are not runnable yet",
+    "notRunnable": "“{value}” nodes cannot run yet: a run cannot pause for a person. Use a notification linking to a workflow started by a form trigger instead.",
     "templateSelfRef": "{value} refers to its own node",
     "templateUnknownNode": "{value} refers to a node that doesn't exist",
     "templateNotUpstream": "{value} refers to a node that isn't upstream of this one",

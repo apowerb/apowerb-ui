@@ -23,11 +23,22 @@ function splitNodeId(nodeId) {
 }
 
 function blankEntry(id) {
-  return { id, status: "pending", type: null, duration: null, output: null, error: null, route: null, iterations: {}, capped: null, input: null, inputTruncated: null, toolCalls: null, asksQuestion: false };
+  return { id, status: "pending", type: null, duration: null, output: null, error: null, route: null, iterations: {}, capped: null, input: null, inputTruncated: null, toolCalls: null, asksQuestion: false, artifacts: null, reportedError: null };
 }
 
 function blankInner(innerId) {
-  return { innerId, status: "pending", type: null, duration: null, output: null, error: null, route: null, input: null, inputTruncated: null, toolCalls: null, asksQuestion: false };
+  return { innerId, status: "pending", type: null, duration: null, output: null, error: null, route: null, input: null, inputTruncated: null, toolCalls: null, asksQuestion: false, artifacts: null, reportedError: null };
+}
+
+// A run that failed or was cancelled sends no node_complete for the nodes
+// still running: without this they would keep spinning in the panel.
+function settleRunning(timeline, status) {
+  for (const entry of timeline) {
+    if (entry.status === "running") entry.status = status;
+    for (const [k, list] of Object.entries(entry.iterations)) {
+      entry.iterations[k] = list.map((it) => (it.status === "running" ? { ...it, status } : it));
+    }
+  }
 }
 
 /** `applyRunEvent(state, evt) -> newState`. Never mutates `state`. */
@@ -92,10 +103,12 @@ export function applyRunEvent(state, evt) {
     case "error":
       status = "error";
       finalError = errorOf(evt);
+      settleRunning(timeline, "error");
       break;
 
     case "cancelled":
       status = "cancelled";
+      settleRunning(timeline, "cancelled");
       break;
 
     default:
@@ -112,6 +125,8 @@ export function applyRunEvent(state, evt) {
 function errorOf(evt) {
   const error = { code: evt.code ?? null, detail: evt.detail ?? "", ref: evt.ref ?? null };
   if (evt.params && typeof evt.params === "object") error.params = evt.params;
+  // invalid_graph: the rule the graph broke, translated like a run error.
+  if (evt.cause) error.cause = evt.cause;
   return error;
 }
 
@@ -141,6 +156,10 @@ function applyToEntry(entry, evt) {
       entry.duration = evt.duration_ms ?? null;
       // The agent's reply ended on a question nobody in a run will answer.
       entry.asksQuestion = evt.asks_question === true;
+      // Charts, dashboards… the node created, to show them where they were made.
+      entry.artifacts = Array.isArray(evt.artifacts) && evt.artifacts.length > 0 ? evt.artifacts : null;
+      // A tool in continue mode that reported an error: the flow went on anyway.
+      entry.reportedError = evt.reported_error ?? null;
       break;
     case "node_error":
       entry.status = "error";

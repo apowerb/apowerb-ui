@@ -3379,7 +3379,8 @@
     "notFoundBody": "Il a peut-être été supprimé.",
     "exportButton": "Exporter",
     "exportTitle": "Télécharger ce workflow en fichier JSON",
-    "warningCount": "{count, plural, one {Graphe valide · # avertissement} other {Graphe valide · # avertissements}}"
+    "warningCount": "{count, plural, one {Graphe valide · # avertissement} other {Graphe valide · # avertissements}}",
+    "publishRefused": "Non publié : {detail}"
   },
   "WorkflowPalette": {
     "title": "Ajouter un nœud",
@@ -3884,7 +3885,16 @@
     "conditionMatchAny": "Au moins une règle (OU)",
     "conditionRulesMin": "Une condition a besoin d'au moins une règle.",
     "conditionRouteTrue": "Vrai",
-    "conditionRouteFalse": "Faux"
+    "conditionRouteFalse": "Faux",
+    "outputType": "Sortie attendue",
+    "outputTypeHelp": "JSON : le run s'arrête si le nœud répond en texte, pour qu'un '{{'id.champ'}}' plus loin ne lise jamais une valeur vide. Libre : ce qu'il rend passe tel quel.",
+    "outputType_any": "Libre (texte ou JSON)",
+    "outputType_text": "Texte",
+    "outputType_json": "JSON",
+    "onQuestion": "Si l'agent pose une question",
+    "onQuestionHelp": "Personne ne répond pendant un run. Continuer : la question part vers l'étape suivante comme entrée. Arrêter : le run échoue et affiche la question.",
+    "onQuestion_continue": "Continuer",
+    "onQuestion_fail": "Arrêter le run"
   },
   "WorkflowExecutionPanel": {
     "title": "Test d'exécution",
@@ -3979,7 +3989,15 @@
     "runError_single_trigger": "Un workflow n’a qu’un seul déclencheur ({triggers} trouvés) : garde-en un, supprime les autres, puis relance.",
     "runError_subworkflow_cycle": "Le sous-workflow {workflow} appelé depuis {node} rappellerait un workflow déjà en cours d'exécution : ce cycle n'est pas autorisé.",
     "runError_subworkflow_too_deep": "Le sous-workflow {node} dépasse la profondeur d'imbrication maximale ({max}) : aplatis la chaîne d'appels.",
-    "asksQuestion": "Cet agent a fini par une question. Personne ne répond pendant un run : si une étape suit, elle reçoit la question comme entrée. Donne-lui dans son entrée ce qu'il demande, ou dis-lui dans ses instructions de répondre sans poser de question."
+    "asksQuestion": "Cet agent a fini par une question. Personne ne répond pendant un run : si une étape suit, elle reçoit la question comme entrée. Donne-lui dans son entrée ce qu'il demande, ou dis-lui dans ses instructions de répondre sans poser de question.",
+    "outputTypeText": "Texte",
+    "outputTypeJson": "JSON",
+    "openDashboard": "Ouvrir le tableau de bord créé",
+    "artifactDataset": "Dataset {id}",
+    "toolReportedError": "L'outil a signalé une erreur, et le flux a continué (Continuer en cas d'erreur) : {message}",
+    "runError_output_type_mismatch": "Le nœud {node} a rendu {actual, select, json {du JSON} text {du texte} other {une valeur {actual}}} alors que {expected, select, json {du JSON} other {du texte}} est attendu. Demande à l'agent, dans ses instructions, de répondre sous cette forme, ou change « Sortie attendue ».",
+    "runError_agent_asked_question": "L'agent {node} a posé une question au lieu de répondre : « {question} ». Personne ne répond pendant un run : donne-lui ce qu'il demande dans son Entrée, ou dis-lui dans ses instructions de répondre sans poser de question.",
+    "runError_node_not_runnable": "Le nœud {node} ({type}) ne peut pas encore s'exécuter : un run ne sait pas attendre la réponse d'une personne. En attendant, envoie une notification avec le lien d'un second workflow déclenché par formulaire : la personne remplit le formulaire, et le second workflow prend la suite."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -4017,7 +4035,7 @@
     "missingRoute": "Cette connexion a besoin d'une étiquette de route",
     "unknownRoute": "La route « {value} » n'est pas déclarée sur ce nœud",
     "classifierNeedsTwoRoutes": "Un classifieur a besoin d'au moins 2 routes",
-    "notRunnable": "Les nœuds « {value} » ne sont pas encore exécutables",
+    "notRunnable": "Les nœuds « {value} » ne peuvent pas encore s'exécuter : un run ne sait pas attendre une personne. Utilise plutôt une notification avec le lien d'un workflow déclenché par formulaire.",
     "templateSelfRef": "{value} se réfère à son propre nœud",
     "templateUnknownNode": "{value} référence un nœud qui n'existe pas",
     "templateNotUpstream": "{value} référence un nœud qui n'est pas en amont de celui-ci",

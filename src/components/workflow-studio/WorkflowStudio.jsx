@@ -129,6 +129,9 @@ export default function WorkflowStudio({ workflowId }) {
   const [conflict, setConflict] = useState(null);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  // Why the server refused to publish (its validation is stricter than the
+  // studio's): shown in the top bar instead of a bare "save error".
+  const [publishError, setPublishError] = useState(null);
   const [bodyEditorNodeId, setBodyEditorNodeId] = useState(null);
 
   const [agentOptions, setAgentOptions] = useState([]);
@@ -468,12 +471,17 @@ export default function WorkflowStudio({ workflowId }) {
 
   const handlePublish = useCallback(async () => {
     setPublishing(true);
+    setPublishError(null);
     try {
       await doSave({ status: "published" });
       // A trigger only activates once published — refetch its status panel.
       setTriggerRefreshKey((k) => k + 1);
-    } catch {
-      // surfaced via saveState/conflict already
+    } catch (err) {
+      // A conflict has its own banner; anything else is said here.
+      if (err?.status !== 409) {
+        const detail = typeof err?.detail === "string" ? err.detail : err?.detail?.message;
+        setPublishError(detail || err?.message || "");
+      }
     } finally {
       setPublishing(false);
     }
@@ -798,6 +806,7 @@ export default function WorkflowStudio({ workflowId }) {
         onPublish={handlePublish}
         onUnpublish={handleUnpublish}
         publishing={publishing}
+        publishError={publishError}
         conflict={conflict}
         onReloadConflict={handleReloadConflict}
       />
@@ -851,6 +860,7 @@ export default function WorkflowStudio({ workflowId }) {
             replay={replay}
             onRun={handleRun}
             onCancel={handleCancelRun}
+            nodeLabels={Object.fromEntries(nodes.map((n) => [n.id, n.data?.label || ""]))}
           />
         </div>
         <StudioInspector

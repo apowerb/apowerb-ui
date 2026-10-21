@@ -102,7 +102,7 @@ describe("validation — an unwired or empty agent", () => {
   it("does not add it to a node that never runs", () => {
     const approval = { id: "approval1", type: "approval", config: {} };
     const r = graph([trigger, agent1, approval], wired);
-    expect(messages(r)).toContain("approval1:notRunnable:approval:warning");
+    expect(messages(r)).toContain("approval1:notRunnable:approval:error");
     expect(messages(r).filter((m) => m.startsWith("approval1:nodeNotConnected"))).toEqual([]);
   });
 
