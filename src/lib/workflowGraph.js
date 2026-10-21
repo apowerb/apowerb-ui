@@ -81,9 +81,27 @@ export const NOTIFICATION_MAX_RECIPIENTS = 10;
 
 // Present in the palette but the backend's /run and /validate reject it —
 // kept in one place so the inspector, the palette badge and local
-// validation agree. `loop` used to be here too; the backend runs it now
-// (21/09), `approval` alone remains "soon".
-export const UNRUNNABLE_NODE_TYPES = new Set(["approval"]);
+// validation agree. `loop` left it when the backend ran it (21/09), `approval`
+// (human decision) when a run learned to pause for an answer (phase 1): empty
+// for now, kept so the next node still "soon" has one place to be declared.
+export const UNRUNNABLE_NODE_TYPES = new Set();
+
+/** A decision node's modes: answer by choice, by free text, or either. */
+export const APPROVAL_MODES = ["choices", "text", "both"];
+/** In mode `both`, the free-text answer follows this route; no choice may use the name. */
+export const APPROVAL_TEXT_ROUTE = "text";
+
+/**
+ * The routes an `approval` node's outgoing edges may carry: its choices
+ * (modes choices/both) plus the reserved `text` route in mode both. `null`
+ * in mode text — that node is not routed, like a plain node.
+ */
+export function approvalRoutes(config) {
+  const mode = config?.mode;
+  if (mode !== "choices" && mode !== "both") return null;
+  const routes = (config?.choices || []).map((c) => c?.route).filter(Boolean);
+  return mode === "both" ? [...routes, APPROVAL_TEXT_ROUTE] : routes;
+}
 
 export function isRunnableType(type) {
   return !UNRUNNABLE_NODE_TYPES.has(type);
@@ -186,6 +204,10 @@ function defaultConfig(type) {
       return { fields: [] };
     case "condition":
       return { rules: [], match: "all" };
+    case "approval":
+      // Mirrors the engine's required keys: a fresh node is valid-shaped but
+      // for the question, which only the author can write.
+      return { question: "", mode: "choices", choices: [{ route: "oui", label: "Oui" }, { route: "non", label: "Non" }] };
     default:
       return {};
   }
@@ -347,6 +369,8 @@ const FIXED_OUTPUT_FIELDS = {
   rag: ["passages", "query"],
   http: ["status", "body", "headers"],
   notification: ["sent", "channel"],
+  // The person's answer, as the engine stores it; `{{decision1.choice}}`.
+  approval: ["choice", "text", "answered_by", "answered_at"],
 };
 const ROUTING_NODE_TYPES = new Set(["router", "classifier", "condition", "try"]);
 
@@ -392,7 +416,58 @@ function declaredRoutes(node) {
   if (node.type === "condition") {
     return new Set(CONDITION_ROUTES);
   }
+  if (node.type === "approval") {
+    const routes = approvalRoutes(node.config);
+    return routes ? new Set(routes) : null; // mode text: not routed
+  }
   return null; // not a routing node
+}
+
+/**
+ * A human-decision node: a question, a known mode, choices with distinct
+ * routes none of which is the reserved `text`, and in mode both a wired
+ * `text` route (else a free answer would lead nowhere). Local mirror of the
+ * engine's `approval_*` refusals; `approvalNested` is checked by the loop/try
+ * body validators.
+ */
+function validateApprovalConfig(node, outgoing) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+
+  if (typeof cfg.question !== "string" || !cfg.question.trim()) push("approvalQuestionRequired");
+  if (!APPROVAL_MODES.includes(cfg.mode)) {
+    push(`approvalModeUnknown:${cfg.mode}`);
+    return errors;
+  }
+  if (cfg.mode === "text") return errors;
+
+  const choices = Array.isArray(cfg.choices) ? cfg.choices : [];
+  if (choices.length === 0) push("approvalChoicesMissing");
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const choice of choices) {
+    const route = String(choice?.route ?? "").trim();
+    if (!route) {
+      push("approvalChoiceRouteRequired");
+      continue;
+    }
+    if (route === APPROVAL_TEXT_ROUTE) push(`approvalChoiceReserved:${route}`);
+    if (seen.has(route)) duplicates.add(route);
+    seen.add(route);
+  }
+  for (const route of duplicates) push(`approvalChoiceDuplicate:${route}`);
+  if (cfg.mode === "both" && !outgoing.some((e) => e.route === APPROVAL_TEXT_ROUTE)) {
+    push("approvalTextRouteMissing");
+  }
+  return errors;
+}
+
+/** A decision cannot sit in a loop or try body: a body runs unattended, many times. */
+function nestedApprovalErrors(node, body) {
+  return (body?.nodes || [])
+    .filter((n) => n.type === "approval")
+    .map((n) => ({ nodeId: `${node.id}.${n.id}`, message: "approvalNested" }));
 }
 
 function validateSetConfig(node) {
@@ -454,6 +529,7 @@ function validateLoopConfig(node, options) {
   for (const e of bodyResult.errors) {
     errors.push({ ...e, nodeId: `${node.id}.${e.nodeId}` });
   }
+  errors.push(...nestedApprovalErrors(node, body));
   return errors;
 }
 
@@ -549,6 +625,7 @@ function validateTryConfig(node, options) {
   for (const e of bodyResult.errors) {
     errors.push({ ...e, nodeId: `${node.id}.${e.nodeId}` });
   }
+  errors.push(...nestedApprovalErrors(node, body));
   return errors;
 }
 
@@ -737,6 +814,9 @@ function validateGraphCore(graph, options = {}) {
           if (count > 1) errors.push({ nodeId: n.id, message: `conditionDuplicateRoute:${route}` });
         }
       }
+    }
+    if (n.type === "approval") {
+      errors.push(...validateApprovalConfig(n, edges.filter((e) => e.source === n.id)));
     }
     if (UNRUNNABLE_NODE_TYPES.has(n.type)) {
       // The engine refuses the whole run for it: an error, so Publish is

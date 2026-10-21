@@ -29,6 +29,8 @@ vi.mock("@/lib/api", () => ({
   createWorkflowDef,
   duplicateWorkflowDef,
   deleteWorkflowDef,
+  listAwaitingDecisions: () => Promise.resolve([]),
+  abandonWorkflowRun: () => Promise.resolve({}),
 }));
 
 const GRAPH = {

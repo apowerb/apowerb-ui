@@ -19,6 +19,7 @@ const RUN_STATUS_STYLES = {
   running: "border-purple-300 shadow-[0_0_24px_rgba(168,130,255,0.4)] animate-pulse",
   done: "border-blue-400 shadow-[0_0_18px_rgba(59,130,246,0.3)]",
   error: "border-red-400 shadow-[0_0_18px_rgba(239,68,68,0.35)]",
+  awaiting: "border-purple-400 shadow-[0_0_18px_rgba(168,85,247,0.35)]",
 };
 
 export default function NodeShell({

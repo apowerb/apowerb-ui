@@ -10,10 +10,12 @@
  * convention (see `useWorkflowRunner.js`), the JSON payload carries its kind
  * in an `event` field: `run_started`, `node_start`, `node_input` (what the
  * node received), `node_complete`, `node_error`, `route`, and exactly one terminal event per run —
- * `done` | `error` | `cancelled`.
+ * `done` | `error` | `cancelled` | `awaiting_input`.
  */
 
-export const TERMINAL_EVENTS = new Set(["done", "error", "cancelled"]);
+// `awaiting_input`: the run paused on a human decision; it ends this stream and
+// is continued by another one (`POST /api/workflows/runs/{id}/resume`).
+export const TERMINAL_EVENTS = new Set(["done", "error", "cancelled", "awaiting_input"]);
 
 export function isTerminalEvent(evt) {
   return !!evt && TERMINAL_EVENTS.has(evt.event);
@@ -67,7 +69,7 @@ export function parseSseChunk(buffer) {
 /**
  * Read a fetch Response's body as a workflow-run SSE stream, calling
  * `onEvent(evt)` for every frame in order. Resolves with the terminal event
- * (`done`/`error`/`cancelled`), or `null` if the stream closed without one
+ * (`done`/`error`/`cancelled`/`awaiting_input`), or `null` if the stream closed without one
  * (network drop — the caller should treat that as a failure).
  *
  * `signal` is only used to know the read loop was aborted on purpose (the

@@ -113,19 +113,32 @@ describe("test panel — what a node returned", () => {
     expect(screen.getByText(/returned a int value/i)).toBeInTheDocument();
   });
 
-  it("explains why an approval node stops the run, and what to do instead", () => {
-    panel(reduce([{ event: "error", code: "invalid_graph", cause: "node_not_runnable", params: { node: "h", type: "approval" }, detail: "x" }]));
-    expect(screen.getByText(/form trigger/i)).toBeInTheDocument();
+  it("explains why a human decision is refused, and what to do (was: not runnable, 21/10/26)", () => {
+    panel(reduce([{ event: "error", code: "invalid_graph", cause: "approval_text_route_missing", params: { node: "h" }, detail: "x" }]));
+    expect(screen.getByText(/nothing is connected to its “text” route/i)).toBeInTheDocument();
+  });
+
+  it.each([
+    ["approval_question_missing", /has no question/],
+    ["approval_mode_unknown", /unknown answer mode/],
+    ["approval_choices_missing", /offers no choice/],
+    ["approval_choice_reserved", /reserved for written answers/],
+    ["approval_choice_duplicate", /share the same route/],
+    ["approval_nested", /where nobody can answer/],
+  ])("words the engine's %s refusal", (cause, pattern) => {
+    panel(reduce([{ event: "error", code: "invalid_graph", cause, params: { node: "h" }, detail: "x" }]));
+    expect(screen.getByText(pattern)).toBeInTheDocument();
   });
 });
 
 describe("validation — approval", () => {
-  it("is an error, so it blocks Publish like it blocks the run", () => {
+  it("is no longer refused as not runnable; an unconfigured one is still blocked by its own checks", () => {
     const r = validateGraphLocal({
       nodes: [{ id: "t", type: "trigger", config: {} }, { id: "h", type: "approval", config: {} }],
       edges: [{ source: "t", target: "h" }],
     });
-    const e = r.errors.find((x) => x.message === "notRunnable:approval");
+    expect(r.errors.find((x) => x.message === "notRunnable:approval")).toBeUndefined();
+    const e = r.errors.find((x) => x.message === "approvalQuestionRequired");
     expect(e).toBeTruthy();
     expect(e.level).toBeUndefined();
   });

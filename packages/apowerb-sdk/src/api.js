@@ -1295,6 +1295,52 @@ export const renderWorkflowPreview = (body, { signal } = {}) =>
 export const cancelWorkflowRun = (workflowId) =>
   request(`/api/workflows/${workflowId}/cancel`, { method: "POST" });
 
+// --- Human decisions (an `approval` node pauses its run) ---------------------
+
+// Runs parked on an answer that I own or am assigned to:
+// [{run_id, workflow_id, workflow_name, node_id, question, mode, choices,
+//   assignee, owner_id, paused_at}].
+export const listAwaitingDecisions = () => request("/api/workflows/runs/awaiting");
+
+/**
+ * Answers a paused run and returns the raw Response (an SSE stream like
+ * `runWorkflowDef`'s: the replayed nodes, the answer, the rest of the run).
+ * Refusals come before the stream as JSON: 404 (unknown / not mine), 409
+ * `{code: "decision_already_answered"}`, 422 `{code: "decision_invalid_answer"}`
+ * — thrown with `err.status` and `err.detail`.
+ */
+export async function resumeWorkflowRun(runId, { choice, text } = {}, { signal } = {}) {
+  const body = {};
+  if (choice !== undefined) body.choice = choice;
+  if (text !== undefined) body.text = text;
+  const res = await fetch(apiUrl(`/api/workflows/runs/${encodeURIComponent(runId)}/resume`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) {
+    const raw = await res.text();
+    let detail;
+    try {
+      detail = JSON.parse(raw)?.detail;
+    } catch {
+      // corps non-JSON (page HTML d'un proxy 502/504) : jamais affiché tel quel
+    }
+    const err = new Error(
+      (typeof detail === "string" ? detail : detail && JSON.stringify(detail)) || `HTTP ${res.status}`,
+    );
+    err.status = res.status;
+    if (detail && typeof detail === "object") err.detail = detail;
+    throw err;
+  }
+  return res;
+}
+
+// Gives up a paused run: it becomes cancelled (204).
+export const abandonWorkflowRun = (runId) =>
+  request(`/api/workflows/runs/${encodeURIComponent(runId)}/abandon`, { method: "POST" });
+
 // --- Workflow triggers ---------------------------------------------------
 
 export const getWorkflowTriggerState = (workflowId) => request(`/api/workflows/${workflowId}/triggers`);

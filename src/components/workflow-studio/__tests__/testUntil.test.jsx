@@ -41,6 +41,8 @@ const api = vi.hoisted(() => ({
   sendWorkflowSuggestEvent: vi.fn(),
   getWorkflowNodeShapes: vi.fn(),
   getToolSchema: vi.fn(),
+  listAwaitingDecisions: () => Promise.resolve([]),
+  resumeWorkflowRun: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => api);
