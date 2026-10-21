@@ -1258,6 +1258,16 @@ export const sendWorkflowSuggestEvent = (body, { keepalive = false } = {}) =>
     ...(keepalive ? { keepalive: true } : {}),
   });
 
+// Forme connue de la sortie de chaque nœud du brouillon (clés et types,
+// jamais de valeurs), sans rien exécuter : configuration du graphe et forme
+// apprise de la dernière réponse de chaque outil. -> { shapes: {id: {source, shape}} }
+export const getWorkflowNodeShapes = (graph, { signal } = {}) =>
+  request("/api/workflows/defs/node-shapes", {
+    method: "POST",
+    body: JSON.stringify({ graph }),
+    signal,
+  });
+
 export const validateWorkflowGraph = (graph) =>
   request("/api/workflows/defs/validate", {
     method: "POST",
@@ -1313,8 +1323,11 @@ export const submitWorkflowForm = (token, values) =>
  * Lance un run et retourne la Response brute (flux SSE) : `request()` ne
  * convient pas ici, il attend un corps JSON complet. L'appelant
  * (`workflowSse.js`) lit `response.body` lui-même.
+ *
+ * `until` (« Tester jusqu'ici ») : seuls ce nœud et son amont s'exécutent ;
+ * l'événement `done` porte alors sa sortie, avec `until` et `partial`.
  */
-export async function runWorkflowDef(workflowId, payload, { signal } = {}) {
+export async function runWorkflowDef(workflowId, payload, { signal, until } = {}) {
   const headers = {
     "Content-Type": "application/json",
     ...getAuthHeaders(),
@@ -1322,7 +1335,7 @@ export async function runWorkflowDef(workflowId, payload, { signal } = {}) {
   const res = await fetch(apiUrl(`/api/workflows/defs/${workflowId}/run`), {
     method: "POST",
     headers,
-    body: JSON.stringify({ payload }),
+    body: JSON.stringify(until ? { payload, until } : { payload }),
     signal,
   });
   if (!res.ok) {

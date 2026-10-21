@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { useTranslations } from "use-intl";
+import { insertFieldPatch } from "@/lib/workflowShapes";
+import UpstreamShapeHint, { TestUntilButton } from "./UpstreamShapeHint";
 import { getToolCategoryLogo, isProviderLogo } from "@/components/icons/integrationLogos";
 import {
   getUpstreamNodeIds,
@@ -1035,6 +1037,11 @@ export default function StudioInspector({
   onDeleteNode,
   onDeleteEdge,
   onOpenLoopBody,
+  // "Test up to here" and the known output shape of each node (proactive
+  // Studio, step 2) — top-level canvas only: a loop body has neither.
+  upstreamShapes = {},
+  onTestUntil,
+  isRunning = false,
 }) {
   const t = useTranslations("WorkflowInspector");
 
@@ -1106,6 +1113,9 @@ export default function StudioInspector({
   const upstreamIds = getUpstreamNodeIds(node.id, edges);
   const upstreamNodes = upstreamIds.map((id) => nodes.find((n) => n.id === id)).filter(Boolean);
   const patch = (partial) => onPatchConfig(node.id, partial);
+  const directParents = [...new Set(edges.filter((e) => e.target === node.id).map((e) => e.source))]
+    .map((id) => nodes.find((n) => n.id === id))
+    .filter(Boolean);
 
   return (
     <div data-studio-inspector className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 overflow-y-auto h-full max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-2xl max-xl:bg-[var(--bg-modal)]">
@@ -1115,6 +1125,25 @@ export default function StudioInspector({
       <Field label={t("label")}>
         <TextInput value={node.data.label || ""} onChange={(e) => onChangeLabel(node.id, e.target.value)} placeholder={t("labelPlaceholder")} />
       </Field>
+      {onTestUntil && (
+        <>
+          <div className="mb-3">
+            <TestUntilButton onClick={() => onTestUntil(node.id)} disabled={isRunning} t={t} />
+          </div>
+          <UpstreamShapeHint
+            parents={directParents}
+            shapes={upstreamShapes}
+            canInsert={insertFieldPatch(node, "n", "") !== null}
+            onInsert={(sourceId, path) => {
+              const next = insertFieldPatch(node, sourceId, path);
+              if (next) patch(next);
+            }}
+            onTestUntil={onTestUntil}
+            isRunning={isRunning}
+            t={t}
+          />
+        </>
+      )}
 
       {node.type === "trigger" && (
         <>

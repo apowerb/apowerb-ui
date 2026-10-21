@@ -98,6 +98,8 @@ export function applyRunEvent(state, evt) {
     case "done":
       status = "done";
       finalOutput = evt.output;
+      // "Test up to here": the output is that node's, not the workflow's.
+      if (evt.partial && evt.until) return { status, timeline, finalOutput, finalError, partialUntil: evt.until };
       break;
 
     case "error":
