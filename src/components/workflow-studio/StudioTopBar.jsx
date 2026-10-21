@@ -21,6 +21,7 @@ export default function StudioTopBar({
   onPublish,
   onUnpublish,
   publishing,
+  publishError,
   conflict,
   onReloadConflict,
 }) {
@@ -41,7 +42,7 @@ export default function StudioTopBar({
   };
 
   return (
-    <div className="shrink-0">
+    <div className="relative shrink-0">
       <div className="h-14 px-4 flex items-center gap-3 border-b th-border-secondary th-bg-sidebar">
         <Link href="/workflows" title={t("backToList")} className="p-1.5 rounded-lg th-text-secondary hover:th-text hover:th-bg-surface-hover shrink-0">
           <ArrowLeft size={16} />
@@ -130,6 +131,11 @@ export default function StudioTopBar({
         )}
       </div>
 
+      {publishError != null && (
+        <p role="alert" className="absolute right-4 top-full mt-1 z-10 max-w-md px-3 py-2 rounded-lg text-[11px] bg-red-500/15 text-red-300 border border-red-500/30">
+          {t("publishRefused", { detail: publishError || "-" })}
+        </p>
+      )}
       {conflict && (
         <div className="px-4 py-2 flex items-center gap-2 bg-amber-500/10 border-b border-amber-500/30 text-amber-200">
           <AlertTriangle size={14} className="shrink-0" />

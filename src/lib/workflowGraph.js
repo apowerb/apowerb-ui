@@ -739,7 +739,9 @@ function validateGraphCore(graph, options = {}) {
       }
     }
     if (UNRUNNABLE_NODE_TYPES.has(n.type)) {
-      errors.push({ nodeId: n.id, message: `notRunnable:${n.type}`, level: "warning" });
+      // The engine refuses the whole run for it: an error, so Publish is
+      // blocked too instead of publishing a workflow that can never run.
+      errors.push({ nodeId: n.id, message: `notRunnable:${n.type}` });
     }
     if (n.type === "agent" && !n.config?.agent_id) {
       // The engine refuses the whole run for it; say so before Run.

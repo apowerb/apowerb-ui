@@ -936,6 +936,21 @@ function ExtraArgsSection({ args, schemaNames, acceptsKwargs, onChange, upstream
  * classic `ArgsEditor` whenever there's no usable schema — no tool picked
  * yet, still loading, or the fetch failed — so the node is always editable.
  */
+// What an agent or tool node must return. "any" keeps the old behaviour;
+// "json" stops the run when an agent answers in prose instead, so a later
+// `{{id.field}}` never silently reads nothing.
+const OUTPUT_TYPES = ["any", "text", "json"];
+
+function OutputTypeField({ config, patch, t }) {
+  return (
+    <Field label={t("outputType")} help={t("outputTypeHelp")}>
+      <SelectInput value={config.output_type || "any"} onChange={(e) => patch({ output_type: e.target.value === "any" ? undefined : e.target.value })}>
+        {OUTPUT_TYPES.map((v) => <option key={v} value={v}>{t(`outputType_${v}`)}</option>)}
+      </SelectInput>
+    </Field>
+  );
+}
+
 function ToolArgsSection({ config, patch, toolOptions, schemaEntry, ensureToolSchema, upstreamNodes, t }) {
   useEffect(() => {
     if (config.tool) ensureToolSchema(config.tool);
@@ -1135,6 +1150,13 @@ export default function StudioInspector({
           <Field label={t("input")} help={t("inputHelp")}>
             <TemplateInput value={config.input} onChange={(v) => patch({ input: v })} upstreamNodes={upstreamNodes} multiline examples="agentInput" t={t} />
           </Field>
+          <OutputTypeField config={config} patch={patch} t={t} />
+          <Field label={t("onQuestion")} help={t("onQuestionHelp")}>
+            <SelectInput value={config.on_question || "continue"} onChange={(e) => patch({ on_question: e.target.value === "continue" ? undefined : e.target.value })}>
+              <option value="continue">{t("onQuestion_continue")}</option>
+              <option value="fail">{t("onQuestion_fail")}</option>
+            </SelectInput>
+          </Field>
         </>
       )}
 
@@ -1149,6 +1171,7 @@ export default function StudioInspector({
           t={t}
         />
       )}
+      {node.type === "tool" && <OutputTypeField config={config} patch={patch} t={t} />}
 
       {node.type === "router" && (
         <RulesEditor rules={config.rules || []} defaultRoute={config.default_route} onChange={(v) => patch(v)} t={t} />

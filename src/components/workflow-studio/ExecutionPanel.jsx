@@ -5,6 +5,7 @@ import { Play, Square, ChevronDown, ChevronUp, ChevronRight, Loader2, CheckCircl
 import { useTranslations } from "use-intl";
 import PayloadEditor from "./PayloadEditor";
 import ReplayControls from "./ReplayControls";
+import ChartRenderer from "@/components/bi/ChartRenderer";
 
 const STATUS_ICON = { running: Loader2, done: CheckCircle2, error: XCircle, pending: Circle, cancelled: XCircle };
 const STATUS_COLOR = { running: "text-purple-300", done: "text-blue-400", error: "text-red-400", pending: "th-text-ghost", cancelled: "text-amber-400" };
@@ -20,8 +21,8 @@ function asText(value) {
   return typeof value === "string" ? value : JSON.stringify(value, null, 2);
 }
 
-function Disclosure({ label, children }) {
-  const [open, setOpen] = useState(false);
+function Disclosure({ label, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="mt-1">
       <button type="button" onClick={() => setOpen(!open)} className="text-[10px] font-medium th-text-ghost hover:th-text-faint flex items-center gap-0.5">
@@ -38,10 +39,29 @@ function QuestionWarning({ show, t }) {
   return <p className="text-[10px] text-amber-400 mt-0.5">{t("asksQuestion")}</p>;
 }
 
-function OutputBlock({ value, t }) {
+// Text or JSON: what the next node will read, and what `{{id.field}}` can
+// reach (a field exists only in a JSON output).
+function OutputType({ value, t }) {
+  const json = value !== null && typeof value === "object";
+  return (
+    <span data-testid="output-type" className="ml-1 px-1 rounded th-bg-surface th-text-faint font-mono">
+      {json ? t("outputTypeJson") : t("outputTypeText")}
+    </span>
+  );
+}
+
+function OutputBlock({ value, t, defaultOpen = false }) {
   if (value == null) return null;
   return (
-    <Disclosure label={(open) => (open ? t("hideOutput") : t("showOutput"))}>
+    <Disclosure
+      defaultOpen={defaultOpen}
+      label={(open) => (
+        <>
+          {open ? t("hideOutput") : t("showOutput")}
+          <OutputType value={value} t={t} />
+        </>
+      )}
+    >
       <pre className={PRE_CLASS}>{asText(value) || t("noOutput")}</pre>
     </Disclosure>
   );
@@ -70,7 +90,7 @@ function ToolCallsBlock({ calls, t }) {
             <p className="text-[10px] font-semibold font-mono th-text-secondary">{call.name}</p>
             <pre className={PRE_CLASS}>{asText(call.args ?? {})}</pre>
             {call.result != null ? (
-              <pre className={PRE_CLASS}>{call.result}</pre>
+              <pre className={PRE_CLASS}>{asText(call.result)}</pre>
             ) : (
               <p className="text-[10px] th-text-ghost">{t("toolNoResult")}</p>
             )}
@@ -80,6 +100,43 @@ function ToolCallsBlock({ calls, t }) {
       </ol>
     </Disclosure>
   );
+}
+
+// What a node created while it ran: a chart is drawn right here, a dashboard
+// or a dataset is linked. Without it an agent "talks about" a chart nobody
+// can see.
+function ArtifactsBlock({ artifacts, t }) {
+  if (!artifacts || artifacts.length === 0) return null;
+  return (
+    <div className="mt-1 space-y-1.5">
+      {artifacts.map((a, i) => {
+        const chartId = a.chart_id ?? a.forecast_chart_id;
+        if (chartId != null) {
+          return (
+            <div key={i} className="h-56 rounded-lg border th-border-secondary th-bg-elevated overflow-hidden p-1">
+              <ChartRenderer chartId={String(chartId)} />
+            </div>
+          );
+        }
+        if (a.dashboard_id != null) {
+          return (
+            <a key={i} href={`/bi/${a.dashboard_id}`} target="_blank" rel="noreferrer" className="block text-[10px] font-semibold text-brand underline">
+              {t("openDashboard")}
+            </a>
+          );
+        }
+        if (a.dataset_id != null) {
+          return <p key={i} className="text-[10px] th-text-faint">{t("artifactDataset", { id: String(a.dataset_id) })}</p>;
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
+function ReportedError({ message, t }) {
+  if (!message) return null;
+  return <p className="text-[10px] text-amber-400 mt-0.5">{t("toolReportedError", { message })}</p>;
 }
 
 // Codes the server sends for failures whose cause stays in its logs: the panel
@@ -122,11 +179,18 @@ const TRANSLATED_ERRORS = new Set([
   "subworkflow_too_deep",
   // refused before the run (validation), 22/09.
   "single_trigger",
+  // what a node promised to return (21/10).
+  "output_type_mismatch",
+  "agent_asked_question",
+  "node_not_runnable",
 ]);
 
 function errorText(t, error) {
   if (!error) return "";
   if (typeof error === "string") return error;
+  if (error.code === "invalid_graph" && TRANSLATED_ERRORS.has(error.cause)) {
+    error = { ...error, code: error.cause };
+  }
   if (error.code && TRANSLATED_ERRORS.has(error.code)) {
     const params = { ...error.params, ref: error.ref ?? "-" };
     // ICU's `select` needs a matched keyword, not the bare JS value — a
@@ -143,7 +207,7 @@ function errorText(t, error) {
   return error.detail || t("statusError");
 }
 
-function IterationRow({ innerId, status, duration, output, error, route, input, inputTruncated, toolCalls, asksQuestion, t }) {
+function IterationRow({ innerId, status, duration, output, error, route, input, inputTruncated, toolCalls, asksQuestion, artifacts, reportedError, t }) {
   return (
     <div className="flex items-start gap-1.5 py-1 pl-3 border-l th-border-secondary">
       <StatusIcon status={status} size={11} />
@@ -158,12 +222,14 @@ function IterationRow({ innerId, status, duration, output, error, route, input, 
         <InputBlock value={input} truncated={inputTruncated} t={t} />
         <ToolCallsBlock calls={toolCalls} t={t} />
         <OutputBlock value={output} t={t} />
+        <ArtifactsBlock artifacts={artifacts} t={t} />
+        <ReportedError message={reportedError} t={t} />
       </div>
     </div>
   );
 }
 
-function TimelineEntry({ entry, t }) {
+function TimelineEntry({ entry, label, t }) {
   const [open, setOpen] = useState(true);
   const iterationKeys = Object.keys(entry.iterations || {});
   return (
@@ -172,7 +238,8 @@ function TimelineEntry({ entry, t }) {
         <StatusIcon status={entry.status} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 text-xs">
-            <span className="font-semibold th-text truncate">{entry.id}</span>
+            <span className="font-semibold th-text truncate">{label || entry.id}</span>
+            {label && label !== entry.id && <span className="th-text-ghost font-mono text-[10px] truncate">{entry.id}</span>}
             {entry.duration != null && <span className="th-text-ghost text-[10px] shrink-0">{t("duration", { ms: entry.duration })}</span>}
           </div>
           {entry.route && <p className="text-[10px] th-text-ghost mt-0.5">{t("routeTaken", { route: entry.route })}</p>}
@@ -186,6 +253,8 @@ function TimelineEntry({ entry, t }) {
           <InputBlock value={entry.input} truncated={entry.inputTruncated} t={t} />
           <ToolCallsBlock calls={entry.toolCalls} t={t} />
           <OutputBlock value={entry.output} t={t} />
+          <ArtifactsBlock artifacts={entry.artifacts} t={t} />
+          <ReportedError message={entry.reportedError} t={t} />
           {iterationKeys.length > 0 && (
             <div className="mt-1.5">
               <button type="button" onClick={() => setOpen(!open)} className="text-[10px] font-semibold th-text-faint hover:th-text-secondary flex items-center gap-0.5 mb-1">
@@ -227,6 +296,7 @@ export default function ExecutionPanel({
   replay,
   onRun,
   onCancel,
+  nodeLabels = {},
 }) {
   const t = useTranslations("WorkflowExecutionPanel");
 
@@ -285,7 +355,7 @@ export default function ExecutionPanel({
             {runState.status === "done" && (
               <div className="mt-2">
                 <p className="text-[11px] font-semibold th-text-secondary mb-1">{t("finalOutput")}</p>
-                <OutputBlock value={runState.finalOutput} t={t} />
+                <OutputBlock value={runState.finalOutput} t={t} defaultOpen />
               </div>
             )}
           </div>
@@ -293,7 +363,7 @@ export default function ExecutionPanel({
             {runState.timeline.length === 0 ? (
               <p className="text-xs th-text-ghost text-center py-8">{t("statusIdle")}</p>
             ) : (
-              runState.timeline.map((entry) => <TimelineEntry key={entry.id} entry={entry} t={t} />)
+              runState.timeline.map((entry) => <TimelineEntry key={entry.id} entry={entry} label={nodeLabels[entry.id]} t={t} />)
             )}
           </div>
         </div>
