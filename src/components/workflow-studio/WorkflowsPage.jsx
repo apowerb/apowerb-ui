@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Search, Workflow as WorkflowIcon, Copy, Trash2, AlertTriangle, Loader2 } from "lucide-react";
 import { useTranslations, useFormatter, useNow } from "use-intl";
-import { Link } from "@/lib/navigation";
+import { Link, useRouter } from "@/lib/navigation";
 import { listWorkflowDefs, createWorkflowDef, duplicateWorkflowDef, deleteWorkflowDef } from "@/lib/api";
 import CreateWorkflowModal from "./CreateWorkflowModal";
 import PreviewBadge from "@/components/PreviewBadge";
@@ -88,6 +88,7 @@ function WorkflowCard({ workflow, onDuplicate, onDelete, duplicatingId, duplicat
 
 export default function WorkflowsPage() {
   const t = useTranslations("WorkflowsPage");
+  const router = useRouter();
   const [workflows, setWorkflows] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [query, setQuery] = useState("");
@@ -131,6 +132,7 @@ export default function WorkflowsPage() {
       const created = await createWorkflowDef({ name, description, graph });
       setShowCreate(false);
       setWorkflows((prev) => [toSummary(created), ...(prev || [])]);
+      router.push(`/workflows/${created.workflow_id}`);
     } catch (err) {
       setCreateError(err.message);
     } finally {
