@@ -3638,6 +3638,7 @@
     "availableDataHelp": "Ce que les nœuds précédents ont produit au dernier test. Clique sur une valeur pour l'insérer au curseur, ou glisse-la dans un champ.",
     "availableDataNoRun": "Lance un test pour voir les données.",
     "availableDataKnownFields": "Champs connus :",
+    "availableDataShapeFields": "Champs connus ({source}) :",
     "availableDataEmpty": "(vide)",
     "availableDataMore": "{count} de plus non affichés",
     "availableDataPickField": "Clique d'abord dans un champ, puis choisis une valeur.",

@@ -1204,18 +1204,21 @@ export default function StudioInspector({
           <div className="mb-3">
             <TestUntilButton onClick={() => onTestUntil(node.id)} disabled={isRunning} t={t} />
           </div>
-          <UpstreamShapeHint
-            parents={directParents}
-            shapes={upstreamShapes}
-            canInsert={insertFieldPatch(node, "n", "") !== null}
-            onInsert={(sourceId, path) => {
-              const next = insertFieldPatch(node, sourceId, path);
-              if (next) patch(next);
-            }}
-            onTestUntil={onTestUntil}
-            isRunning={isRunning}
-            t={t}
-          />
+          {/* Agent and tool nodes show these fields in "Available data". */}
+          {node.type !== "agent" && node.type !== "tool" && (
+            <UpstreamShapeHint
+              parents={directParents}
+              shapes={upstreamShapes}
+              canInsert={insertFieldPatch(node, "n", "") !== null}
+              onInsert={(sourceId, path) => {
+                const next = insertFieldPatch(node, sourceId, path);
+                if (next) patch(next);
+              }}
+              onTestUntil={onTestUntil}
+              isRunning={isRunning}
+              t={t}
+            />
+          )}
         </>
       )}
 
@@ -1257,7 +1260,10 @@ export default function StudioInspector({
           <AvailableDataPanel
             upstreamNodes={upstreamNodes}
             outputs={upstreamOutputs}
+            shapes={upstreamShapes}
             onInsert={(snippet) => insertSnippet(snippet, (s) => patch({ input: `${config.input || ""}${s}` }))}
+            onTestUntil={onTestUntil}
+            isRunning={isRunning}
             t={t}
           />
           <OutputTypeField config={config} patch={patch} t={t} />
@@ -1282,7 +1288,15 @@ export default function StudioInspector({
         />
       )}
       {node.type === "tool" && (
-        <AvailableDataPanel upstreamNodes={upstreamNodes} outputs={upstreamOutputs} onInsert={(snippet) => insertSnippet(snippet, null)} t={t} />
+        <AvailableDataPanel
+          upstreamNodes={upstreamNodes}
+          outputs={upstreamOutputs}
+          shapes={upstreamShapes}
+          onInsert={(snippet) => insertSnippet(snippet, null)}
+          onTestUntil={onTestUntil}
+          isRunning={isRunning}
+          t={t}
+        />
       )}
       {node.type === "tool" && <OutputTypeField config={config} patch={patch} t={t} />}
 

@@ -5,12 +5,16 @@ import { ChevronRight, ChevronDown, FileText } from "lucide-react";
 import { templateSuggestionsFor } from "@/lib/workflowGraph";
 import { shapeOf } from "@/lib/availableData";
 import { renderWorkflowPreview } from "@/lib/api";
+import { shapeFieldPaths, MAX_FIELD_CHIPS } from "@/lib/workflowShapes";
+import { TestUntilButton } from "./UpstreamShapeHint";
 
 const MAX_ROWS = 10;
 const MAX_COLUMNS = 8;
 const MAX_KEYS = 30;
 const MAX_TEXT = 600;
 const PREVIEW_DEBOUNCE_MS = 400;
+
+const SHAPE_SOURCE_KEY = { static: "shapeSourceStatic", learned: "shapeSourceLearned" };
 
 const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
@@ -180,13 +184,16 @@ function ValueView({ value, path, label, depth = 0, onInsert, t }) {
   }
 }
 
-function UpstreamNodeData({ node, outputs, onInsert, t }) {
+function UpstreamNodeData({ node, outputs, shapes, onInsert, onTestUntil, isRunning, t }) {
   const label = node.data?.label || node.id;
   const ran = Object.hasOwn(outputs, node.id);
   // Canvas nodes keep their config under `data`, as in templateExamples.
   const known = templateSuggestionsFor({ ...node, config: node.config ?? node.data?.config }).slice(1);
+  // Without a run: the shape the server knows (configuration or the tool's last answer).
+  const shape = ran ? null : shapes[node.id];
+  const paths = shape ? shapeFieldPaths(shape.shape).slice(0, MAX_FIELD_CHIPS) : [];
   return (
-    <div className="py-1.5 border-t th-border-secondary first:border-t-0">
+    <div data-testid={`upstream-${node.id}`} className="py-1.5 border-t th-border-secondary first:border-t-0">
       <Insertable path={node.id} onInsert={onInsert} className="flex items-baseline gap-1.5 px-1 mb-1">
         <span className="text-[11px] font-semibold th-text">{label}</span>
         <span className="text-[10px] font-mono th-text-ghost">{`{{${node.id}}}`}</span>
@@ -196,7 +203,23 @@ function UpstreamNodeData({ node, outputs, onInsert, t }) {
       ) : (
         <>
           <p className="text-[10px] th-text-ghost px-1">{t("availableDataNoRun")}</p>
-          {known.length > 0 && (
+          {shape ? (
+            <div className="flex flex-wrap items-center gap-1 mt-1 px-1">
+              <span className="text-[10px] th-text-ghost">
+                {t("availableDataShapeFields", { source: t(SHAPE_SOURCE_KEY[shape.source] || "shapeSourceStatic") })}
+              </span>
+              {paths.map((f) => (
+                <Insertable
+                  key={f.path}
+                  path={`${node.id}.${f.path}`}
+                  onInsert={onInsert}
+                  className="px-1.5 py-0.5 text-[10px] font-mono th-bg-elevated th-text-faint border th-border-secondary"
+                >
+                  {f.path} <span className="th-text-ghost">{f.type}</span>
+                </Insertable>
+              ))}
+            </div>
+          ) : known.length > 0 && (
             <div className="flex flex-wrap items-center gap-1 mt-1 px-1">
               <span className="text-[10px] th-text-ghost">{t("availableDataKnownFields")}</span>
               {known.map((snippet) => (
@@ -211,6 +234,11 @@ function UpstreamNodeData({ node, outputs, onInsert, t }) {
               ))}
             </div>
           )}
+          {!shape && onTestUntil && (
+            <div className="mt-1 px-1">
+              <TestUntilButton nodeLabel={label} onClick={() => onTestUntil(node.id)} disabled={isRunning} t={t} />
+            </div>
+          )}
         </>
       )}
     </div>
@@ -221,9 +249,11 @@ function UpstreamNodeData({ node, outputs, onInsert, t }) {
  * "Available data": what each upstream node produced in the last test run,
  * shaped (JSON tree, table, text, files), each value one click away from the
  * field being edited. `onInsert(snippet)` returns false when no field can
- * take it, so the panel asks to click inside one first.
+ * take it, so the panel asks to click inside one first. A node that has not
+ * run shows its known fields (`shapes`, `{id: {source, shape}}`), or else
+ * offers "Test up to here" (`onTestUntil`), which asks before running.
  */
-export default function AvailableDataPanel({ upstreamNodes, outputs = {}, onInsert, t }) {
+export default function AvailableDataPanel({ upstreamNodes, outputs = {}, shapes = {}, onInsert, onTestUntil, isRunning = false, t }) {
   const [needsField, setNeedsField] = useState(false);
   if (upstreamNodes.length === 0) return null;
   const insert = (snippet) => setNeedsField(onInsert(snippet) === false);
@@ -234,7 +264,16 @@ export default function AvailableDataPanel({ upstreamNodes, outputs = {}, onInse
       {needsField && <p className="mb-1 text-[10px] text-amber-400">{t("availableDataPickField")}</p>}
       <div className="max-h-80 overflow-y-auto">
         {upstreamNodes.map((node) => (
-          <UpstreamNodeData key={node.id} node={node} outputs={outputs} onInsert={insert} t={t} />
+          <UpstreamNodeData
+            key={node.id}
+            node={node}
+            outputs={outputs}
+            shapes={shapes}
+            onInsert={insert}
+            onTestUntil={onTestUntil}
+            isRunning={isRunning}
+            t={t}
+          />
         ))}
       </div>
     </section>

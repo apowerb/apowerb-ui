@@ -3638,6 +3638,7 @@
     "availableDataHelp": "What the previous nodes produced in the last test. Click a value to insert it at the cursor, or drag it into a field.",
     "availableDataNoRun": "Run a test to see the data.",
     "availableDataKnownFields": "Known fields:",
+    "availableDataShapeFields": "Known fields ({source}):",
     "availableDataEmpty": "(empty)",
     "availableDataMore": "{count} more not shown",
     "availableDataPickField": "Click inside a field first, then pick a value.",

@@ -93,6 +93,8 @@ async function openNode(user, id) {
 }
 
 const inspector = () => document.querySelector("[data-studio-inspector]");
+// Agent and tool nodes show the fields of the steps above in "Available data".
+const panelRow = (id) => within(screen.getByRole("region", { name: "Available data" })).getByTestId(`upstream-${id}`);
 
 describe("fields of the previous step", () => {
   it("proposes the learned fields of the tool above and puts one in the agent's input on click", async () => {
@@ -104,8 +106,7 @@ describe("fields of the previous step", () => {
 
     // The shapes are asked for after a short pause, once the graph is loaded.
     await within(inspector()).findByText(/from the tool's last run/i, {}, { timeout: 2000 });
-    const hint = inspector().querySelector('[data-upstream-node="lookup"]');
-    await user.click(within(hint).getByRole("button", { name: /customer\.email/ }));
+    await user.click(within(panelRow("lookup")).getByRole("button", { name: /customer\.email/ }));
 
     expect(within(inspector()).getByDisplayValue("{{lookup.customer.email}}")).toBeInTheDocument();
     // The server was asked about the draft on screen, positions left out.
@@ -118,7 +119,7 @@ describe("fields of the previous step", () => {
     const user = userEvent.setup();
     await openNode(user, "writer");
 
-    await user.click(await within(inspector()).findByRole("button", { name: "Test up to CRM lookup" }));
+    await user.click(await within(panelRow("lookup")).findByRole("button", { name: "Test up to CRM lookup" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("heading")).toHaveTextContent("Test up to CRM lookup?");
     expect(within(dialog).getByRole("listitem")).toHaveTextContent("CRM lookup (runs a tool)");
@@ -127,6 +128,31 @@ describe("fields of the previous step", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(api.runWorkflowDef).not.toHaveBeenCalled();
+  });
+});
+
+describe("nodes without the Available data panel", () => {
+  it("keep the fields of the previous step in their own block", async () => {
+    const withRouter = structuredClone(GRAPH);
+    withRouter.nodes.push({ id: "route", type: "router", label: "Route", config: { rules: [] }, position: { x: 600, y: 0 } });
+    withRouter.edges.push({ source: "lookup", target: "route" });
+    api.getWorkflowDef.mockResolvedValue({ workflow_id: "wf1", name: "W", description: "", status: "draft", version: 1, graph: withRouter });
+    api.getWorkflowNodeShapes.mockResolvedValue({
+      shapes: { lookup: { source: "learned", shape: { type: "object", fields: { status: { type: "string" } } } } },
+    });
+    const user = userEvent.setup();
+    await openNode(user, "route");
+
+    await within(inspector()).findByText(/from the tool's last run/i, {}, { timeout: 2000 });
+    expect(inspector().querySelector('[data-upstream-node="lookup"]')).not.toBeNull();
+    expect(screen.queryByRole("region", { name: "Available data" })).not.toBeInTheDocument();
+  });
+
+  it("agent and tool nodes have a single block", async () => {
+    const user = userEvent.setup();
+    await openNode(user, "writer");
+    expect(screen.getByRole("region", { name: "Available data" })).toBeInTheDocument();
+    expect(inspector().querySelector("[data-upstream-shapes]")).toBeNull();
   });
 });
 
@@ -153,11 +179,10 @@ describe("Test up to here", () => {
     expect(api.runWorkflowDef.mock.calls[0][2].until).toBe("lookup");
     expect(await screen.findByText("Output of CRM lookup (test up to here)")).toBeInTheDocument();
 
-    // The run's real output now feeds the hint of the step below.
+    // The run's real output now feeds "Available data" of the step below.
     await user.click(screen.getByTestId("node-writer"));
-    const hint = inspector().querySelector('[data-upstream-node="lookup"]');
-    expect(within(hint).getByText(/from this test/i)).toBeInTheDocument();
-    expect(within(hint).getByRole("button", { name: /customer\.email/ })).toBeInTheDocument();
+    expect(within(panelRow("lookup")).getByText("a@b.fr")).toBeInTheDocument();
+    expect(within(panelRow("lookup")).queryByRole("button", { name: /Test up to/ })).not.toBeInTheDocument();
   });
 
   it("saves an unsaved draft before testing, since the server runs the saved version", async () => {
