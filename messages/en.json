@@ -3378,7 +3378,8 @@
     "notFoundTitle": "Workflow not found",
     "notFoundBody": "It may have been deleted.",
     "exportButton": "Export",
-    "exportTitle": "Download this workflow as a JSON file"
+    "exportTitle": "Download this workflow as a JSON file",
+    "warningCount": "{count, plural, one {Graph valid · # warning} other {Graph valid · # warnings}}"
   },
   "WorkflowPalette": {
     "title": "Add a node",
@@ -3971,7 +3972,8 @@
     "runError_subworkflow_not_found": "Sub-workflow {workflow} referenced by {node} was not found (deleted, or not yours): pick another workflow in the node.",
     "runError_single_trigger": "A workflow has a single trigger ({triggers} found): keep one and delete the others, then run again.",
     "runError_subworkflow_cycle": "Sub-workflow {workflow} called from {node} would call back into a workflow already running: this cycle is not allowed.",
-    "runError_subworkflow_too_deep": "Sub-workflow {node} exceeds the nesting depth limit ({max}): flatten the call chain."
+    "runError_subworkflow_too_deep": "Sub-workflow {node} exceeds the nesting depth limit ({max}): flatten the call chain.",
+    "asksQuestion": "This agent ended on a question. No one answers during a run: if a step follows, it receives the question as its input. Give the agent what it asks for in its input, or tell it in its instructions to answer without asking."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -4081,7 +4083,9 @@
     "setFieldKeyRequired": "A field needs a non-empty key",
     "setDuplicateKey": "Duplicate field key “{value}”",
     "conditionNoRules": "A condition needs at least one rule",
-    "conditionDuplicateRoute": "Route “{value}” already has a connection"
+    "conditionDuplicateRoute": "Route “{value}” already has a connection",
+    "agentRequired": "Choose the agent this node runs",
+    "nodeNotConnected": "Nothing leads to this node: it runs without receiving anything. Draw a link from the step it should read."
   },
   "TeamsWebhookModal": {
     "title": "Configure Teams webhook",

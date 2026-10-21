@@ -108,7 +108,7 @@ function baseGraph() {
     nodes: [
       { id: "trigger1", type: "trigger", label: "Start", config: { kind: "manual" }, position: { x: 0, y: 0 } },
       { id: "router1", type: "router", label: "Route", config: { rules: [{ route: "ok", field: "{{trigger1.payload.x}}", op: "eq", value: 1 }], default_route: "" }, position: { x: 200, y: 0 } },
-      { id: "agentA", type: "agent", label: "Agent A", config: { agent_id: "" }, position: { x: 400, y: 0 } },
+      { id: "agentA", type: "agent", label: "Agent A", config: { agent_id: "a1" }, position: { x: 400, y: 0 } },
     ],
     edges: [
       { source: "trigger1", target: "router1" },
@@ -512,7 +512,7 @@ describe("model suggestions", () => {
 
     await waitFor(() => expect(screen.getByTestId("suggest-output").textContent).toBe("output (ai)"));
     const chips = screen.getAllByTestId(/^suggest-/).map((b) => b.textContent);
-    expect(chips).toEqual(["output (ai)", "notification (ai)", "condition"]);
+    expect(chips).toEqual(["output (ai)", "notification (ai)", "agent", "condition"]);
 
     await user.click(screen.getByTestId("suggest-output"));
     expect(screen.getByTestId("edge-agentA-output1")).toBeTruthy();

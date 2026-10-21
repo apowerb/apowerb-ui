@@ -741,6 +741,15 @@ function validateGraphCore(graph, options = {}) {
     if (UNRUNNABLE_NODE_TYPES.has(n.type)) {
       errors.push({ nodeId: n.id, message: `notRunnable:${n.type}`, level: "warning" });
     }
+    if (n.type === "agent" && !n.config?.agent_id) {
+      // The engine refuses the whole run for it; say so before Run.
+      errors.push({ nodeId: n.id, message: "agentRequired" });
+    }
+    if (triggers.length > 0 && n.type !== "trigger" && isRunnableType(n.type) && !edges.some((e) => e.target === n.id)) {
+      // Nothing leads to it: it still runs, but receives nothing to work on.
+      // Without a trigger (a bare fragment), the entry nodes are not known.
+      errors.push({ nodeId: n.id, message: "nodeNotConnected", level: "warning" });
+    }
     if (n.type === "loop") {
       errors.push(...validateLoopConfig(n, options));
     }

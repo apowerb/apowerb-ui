@@ -33,6 +33,11 @@ function OutputBlock({ value, t }) {
   );
 }
 
+function QuestionWarning({ show, t }) {
+  if (!show) return null;
+  return <p className="text-[10px] text-amber-400 mt-0.5">{t("asksQuestion")}</p>;
+}
+
 // Codes the server sends for failures whose cause stays in its logs: the panel
 // words them itself, with the reference to quote. Other codes (the studio's
 // own written errors) are shown as the server wrote them.
@@ -94,7 +99,7 @@ function errorText(t, error) {
   return error.detail || t("statusError");
 }
 
-function IterationRow({ innerId, status, duration, output, error, route, t }) {
+function IterationRow({ innerId, status, duration, output, error, route, asksQuestion, t }) {
   return (
     <div className="flex items-start gap-1.5 py-1 pl-3 border-l th-border-secondary">
       <StatusIcon status={status} size={11} />
@@ -105,6 +110,7 @@ function IterationRow({ innerId, status, duration, output, error, route, t }) {
         </div>
         {route && <p className="text-[10px] th-text-ghost">{t("routeTaken", { route })}</p>}
         {error && <p className="text-[10px] text-red-400">{errorText(t, error)}</p>}
+        <QuestionWarning show={asksQuestion} t={t} />
         <OutputBlock value={output} t={t} />
       </div>
     </div>
@@ -130,6 +136,7 @@ function TimelineEntry({ entry, t }) {
               {t("loopCapped", { max: entry.capped.max, remaining: entry.capped.remaining ?? "null" })}
             </p>
           )}
+          <QuestionWarning show={entry.asksQuestion} t={t} />
           <OutputBlock value={entry.output} t={t} />
           {iterationKeys.length > 0 && (
             <div className="mt-1.5">

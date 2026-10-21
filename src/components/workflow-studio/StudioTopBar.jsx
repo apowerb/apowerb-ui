@@ -30,6 +30,7 @@ export default function StudioTopBar({
   const [showValidation, setShowValidation] = useState(false);
 
   const errorCount = (validation?.errors || []).filter((e) => e.level !== "warning").length;
+  const warningCount = (validation?.errors || []).length - errorCount;
   const isPublished = status === "published";
 
   const commitName = () => {
@@ -88,7 +89,7 @@ export default function StudioTopBar({
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${errorCount > 0 ? "border-red-500/40 text-red-300 hover:bg-red-500/10" : "th-border-secondary th-text-secondary hover:th-bg-surface-hover"}`}
           >
             {errorCount > 0 ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
-            {t("validCount", { count: errorCount })}
+            {errorCount === 0 && warningCount > 0 ? t("warningCount", { count: warningCount }) : t("validCount", { count: errorCount })}
           </button>
           {showValidation && (
             <ValidationPopoverContent errors={validation?.errors || []} onClose={() => setShowValidation(false)} />
