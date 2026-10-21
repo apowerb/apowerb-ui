@@ -161,6 +161,8 @@ const TRANSLATED_ERRORS = new Set([
   "loop_items_not_list",
   "convert_failed",
   "template_ref_invalid",
+  // a template that grows past the engine limit once rendered (21/10).
+  "render_too_large",
   // http / notification nodes (LOT 3, 21/09).
   "http_url_refused",
   "http_response_too_large",

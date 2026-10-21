@@ -3,10 +3,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import WorkflowsPage from "@/components/workflow-studio/WorkflowsPage";
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+
 vi.mock("@/lib/navigation", () => ({
   Link: ({ href, children, ...rest }) => <a href={href} {...rest}>{children}</a>,
   usePathname: () => "/workflows",
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push, replace: vi.fn() }),
 }));
 
 const { listWorkflowDefs, createWorkflowDef, duplicateWorkflowDef, deleteWorkflowDef } = vi.hoisted(() => ({
@@ -102,6 +104,8 @@ describe("WorkflowsPage", () => {
 
     expect(await screen.findByText("New flow")).toBeInTheDocument();
     expect(screen.getByText("1 node")).toBeInTheDocument();
+    // The editor opens on the new workflow: building it is the next step.
+    expect(push).toHaveBeenCalledWith("/workflows/wf9");
   });
 
   it("submits the create dialog with Enter from the name field", async () => {
