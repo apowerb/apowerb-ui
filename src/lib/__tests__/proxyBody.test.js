@@ -153,3 +153,41 @@ describe("proxyToBackend redirect handling", () => {
     expect(urls).toEqual(["http://localhost:8000/api/users"]);
   });
 });
+
+/**
+ * The Studio's Test panel stayed on "No test run yet" for 30 to 60 s, then
+ * received the whole run in one block (agent-dev, 21/10/2026). The backend
+ * asks proxies not to buffer the stream, but this proxy dropped every header
+ * except Content-Type, so nginx in front of Next buffered it.
+ */
+describe("proxyToBackend event streams", () => {
+  function stream(contentType) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response("data: {}\n\n", {
+          status: 200,
+          headers: { "Content-Type": contentType, "X-Accel-Buffering": "no" },
+        }),
+      ),
+    );
+  }
+
+  it("tells nginx and compressors not to hold back an event stream", async () => {
+    stream("text/event-stream; charset=utf-8");
+    const res = await proxyToBackend(
+      new Request("http://front/api/workflows/defs/x/run", { method: "POST", body: "{}" }),
+      "/api/workflows/defs/x/run",
+    );
+    expect(res.headers.get("X-Accel-Buffering")).toBe("no");
+    expect(res.headers.get("Cache-Control")).toContain("no-transform");
+    expect(res.headers.get("Cache-Control")).toContain("no-cache");
+  });
+
+  it("leaves ordinary JSON responses alone", async () => {
+    stream("application/json");
+    const res = await proxyToBackend(new Request("http://front/api/agents"), "/api/agents");
+    expect(res.headers.get("X-Accel-Buffering")).toBeNull();
+    expect(res.headers.get("Cache-Control")).toBeNull();
+  });
+});

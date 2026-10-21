@@ -31,8 +31,10 @@ export async function POST(request) {
         status: response.status,
         headers: {
           "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
+          "Cache-Control": "no-cache, no-transform",
           Connection: "keep-alive",
+          // Without it nginx buffers the stream (see src/lib/proxy.js).
+          "X-Accel-Buffering": "no",
         },
       });
     }

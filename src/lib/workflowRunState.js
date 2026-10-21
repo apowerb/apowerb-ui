@@ -23,11 +23,11 @@ function splitNodeId(nodeId) {
 }
 
 function blankEntry(id) {
-  return { id, status: "pending", type: null, duration: null, output: null, error: null, route: null, iterations: {}, capped: null };
+  return { id, status: "pending", type: null, duration: null, output: null, error: null, route: null, iterations: {}, capped: null, input: null, inputTruncated: null, toolCalls: null };
 }
 
 function blankInner(innerId) {
-  return { innerId, status: "pending", type: null, duration: null, output: null, error: null, route: null };
+  return { innerId, status: "pending", type: null, duration: null, output: null, error: null, route: null, input: null, inputTruncated: null, toolCalls: null };
 }
 
 /** `applyRunEvent(state, evt) -> newState`. Never mutates `state`. */
@@ -55,6 +55,7 @@ export function applyRunEvent(state, evt) {
       break;
 
     case "node_start":
+    case "node_input":
     case "node_complete":
     case "node_error":
     case "route": {
@@ -114,7 +115,21 @@ function errorOf(evt) {
   return error;
 }
 
+/**
+ * What a node received (`node_input`, repeated on `node_complete` /
+ * `node_error`) and, for an agent, the tools it called. An event without the
+ * field keeps what an earlier one brought.
+ */
+function applyTrace(entry, evt) {
+  if (evt.input !== undefined) {
+    entry.input = evt.input;
+    entry.inputTruncated = evt.input_truncated ? { length: evt.input_length ?? null } : null;
+  }
+  if (Array.isArray(evt.tool_calls)) entry.toolCalls = evt.tool_calls;
+}
+
 function applyToEntry(entry, evt) {
+  applyTrace(entry, evt);
   switch (evt.event) {
     case "node_start":
       entry.status = "running";
