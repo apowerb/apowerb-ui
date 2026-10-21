@@ -14,21 +14,21 @@ function StatusIcon({ status, size = 13 }) {
   return <Icon size={size} className={`${STATUS_COLOR[status] || "th-text-ghost"} ${status === "running" ? "animate-spin" : ""}`} />;
 }
 
-function OutputBlock({ value, t }) {
+const PRE_CLASS = "mt-1 p-2 rounded-lg th-bg-elevated border th-border-secondary text-[10px] font-mono th-text-secondary overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap break-words";
+
+function asText(value) {
+  return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+}
+
+function Disclosure({ label, children }) {
   const [open, setOpen] = useState(false);
-  if (value == null) return null;
-  const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
   return (
     <div className="mt-1">
       <button type="button" onClick={() => setOpen(!open)} className="text-[10px] font-medium th-text-ghost hover:th-text-faint flex items-center gap-0.5">
         <ChevronRight size={10} className={open ? "rotate-90" : ""} />
-        {open ? t("hideOutput") : t("showOutput")}
+        {label(open)}
       </button>
-      {open && (
-        <pre className="mt-1 p-2 rounded-lg th-bg-elevated border th-border-secondary text-[10px] font-mono th-text-secondary overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
-          {text || t("noOutput")}
-        </pre>
-      )}
+      {open && children}
     </div>
   );
 }
@@ -36,6 +36,50 @@ function OutputBlock({ value, t }) {
 function QuestionWarning({ show, t }) {
   if (!show) return null;
   return <p className="text-[10px] text-amber-400 mt-0.5">{t("asksQuestion")}</p>;
+}
+
+function OutputBlock({ value, t }) {
+  if (value == null) return null;
+  return (
+    <Disclosure label={(open) => (open ? t("hideOutput") : t("showOutput"))}>
+      <pre className={PRE_CLASS}>{asText(value) || t("noOutput")}</pre>
+    </Disclosure>
+  );
+}
+
+// What the node received: the rendered Input of an agent, the arguments of a
+// tool. An empty Input sends only the previous node's output, without the
+// original request, and this is where the user can see it.
+function InputBlock({ value, truncated, t }) {
+  if (value == null) return null;
+  return (
+    <Disclosure label={(open) => (open ? t("hideInput") : t("showInput"))}>
+      <pre className={PRE_CLASS}>{asText(value) || t("noOutput")}</pre>
+      {truncated && truncated.length != null && <p className="mt-0.5 text-[10px] th-text-ghost">{t("inputTruncated", { length: truncated.length })}</p>}
+    </Disclosure>
+  );
+}
+
+function ToolCallsBlock({ calls, t }) {
+  if (!calls || calls.length === 0) return null;
+  return (
+    <Disclosure label={() => t("toolCalls", { count: calls.length })}>
+      <ol className="mt-1 space-y-1.5">
+        {calls.map((call, i) => (
+          <li key={i} className="pl-2 border-l th-border-secondary">
+            <p className="text-[10px] font-semibold font-mono th-text-secondary">{call.name}</p>
+            <pre className={PRE_CLASS}>{asText(call.args ?? {})}</pre>
+            {call.result != null ? (
+              <pre className={PRE_CLASS}>{call.result}</pre>
+            ) : (
+              <p className="text-[10px] th-text-ghost">{t("toolNoResult")}</p>
+            )}
+            {(call.args_truncated || call.result_truncated) && <p className="text-[10px] th-text-ghost">{t("toolCallTruncated")}</p>}
+          </li>
+        ))}
+      </ol>
+    </Disclosure>
+  );
 }
 
 // Codes the server sends for failures whose cause stays in its logs: the panel
@@ -99,7 +143,7 @@ function errorText(t, error) {
   return error.detail || t("statusError");
 }
 
-function IterationRow({ innerId, status, duration, output, error, route, asksQuestion, t }) {
+function IterationRow({ innerId, status, duration, output, error, route, input, inputTruncated, toolCalls, asksQuestion, t }) {
   return (
     <div className="flex items-start gap-1.5 py-1 pl-3 border-l th-border-secondary">
       <StatusIcon status={status} size={11} />
@@ -111,6 +155,8 @@ function IterationRow({ innerId, status, duration, output, error, route, asksQue
         {route && <p className="text-[10px] th-text-ghost">{t("routeTaken", { route })}</p>}
         {error && <p className="text-[10px] text-red-400">{errorText(t, error)}</p>}
         <QuestionWarning show={asksQuestion} t={t} />
+        <InputBlock value={input} truncated={inputTruncated} t={t} />
+        <ToolCallsBlock calls={toolCalls} t={t} />
         <OutputBlock value={output} t={t} />
       </div>
     </div>
@@ -137,6 +183,8 @@ function TimelineEntry({ entry, t }) {
             </p>
           )}
           <QuestionWarning show={entry.asksQuestion} t={t} />
+          <InputBlock value={entry.input} truncated={entry.inputTruncated} t={t} />
+          <ToolCallsBlock calls={entry.toolCalls} t={t} />
           <OutputBlock value={entry.output} t={t} />
           {iterationKeys.length > 0 && (
             <div className="mt-1.5">

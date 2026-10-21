@@ -107,6 +107,16 @@ export async function proxyToBackend(request, backendPath, options = {}) {
     const ct = backendRes.headers.get("content-type");
     if (ct) responseHeaders.set("Content-Type", ct);
 
+    // An event stream must reach the browser event by event. The backend
+    // already sends these headers, but only Content-Type was forwarded, so
+    // nginx in front of Next held the whole run back until the end (the
+    // Studio's Test panel showed nothing for 30 to 60 s). `no-transform` also
+    // keeps compression from buffering it.
+    if (ct && ct.startsWith("text/event-stream")) {
+      responseHeaders.set("Cache-Control", "no-cache, no-transform");
+      responseHeaders.set("X-Accel-Buffering", "no");
+    }
+
     // Forward Set-Cookie headers (important for refresh token cookies)
     const setCookies = backendRes.headers.getSetCookie?.() || [];
     for (const sc of setCookies) {
