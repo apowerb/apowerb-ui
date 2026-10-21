@@ -1281,6 +1281,17 @@ export const validateWorkflowGraph = (graph) =>
 export const getToolSchema = (tool, { signal } = {}) =>
   request(`/api/workflows/tools/schema?tool=${encodeURIComponent(tool)}`, { signal });
 
+// A template rendered by the engine with the outputs of the studio's last
+// test run (`{template, outputs, node_id}` -> `{rendered}`); nothing runs.
+// A path through a plain-text output is a 422 with
+// `err.detail = {code: "template_ref_invalid", params, message}`.
+export const renderWorkflowPreview = (body, { signal } = {}) =>
+  request("/api/workflows/render-preview", {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal,
+  });
+
 export const cancelWorkflowRun = (workflowId) =>
   request(`/api/workflows/${workflowId}/cancel`, { method: "POST" });
 

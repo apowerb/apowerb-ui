@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Plus, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { insertFieldPatch } from "@/lib/workflowShapes";
@@ -30,6 +30,8 @@ import {
 import TriggerInspector from "./TriggerInspector";
 import NodeUsageHelp from "./NodeUsageHelp";
 import { templateExamplesFor } from "@/lib/templateExamples";
+import { missingRefs } from "@/lib/availableData";
+import AvailableDataPanel, { InputPreview } from "./AvailableDataPanel";
 import { getTeamsWebhookStatus } from "@/lib/api";
 import { Link } from "@/lib/navigation";
 
@@ -95,6 +97,40 @@ function insertAtCursor(ref, value, onChange, snippet) {
 }
 
 /**
+ * Shared by every template field of the inspected node: the outputs its
+ * upstream nodes produced in the last test run (for the orange warning) and
+ * `setActive`, so the field last focused receives what the "Available data"
+ * panel inserts.
+ */
+const TemplateFieldContext = createContext({ outputs: {}, setActive: () => {} });
+
+/** Registers a field as the panel's insertion target when it gets the focus. */
+function useActiveTemplateField(ref, value, onChange) {
+  const { setActive } = useContext(TemplateFieldContext);
+  const latest = useRef({ value, onChange });
+  useEffect(() => {
+    latest.current = { value, onChange };
+  });
+  return () => setActive({ ref, latest });
+}
+
+/** References the last test run would not resolve, in orange under the field. */
+function MissingRefsWarning({ value, t }) {
+  const { outputs } = useContext(TemplateFieldContext);
+  const missing = missingRefs(value, outputs);
+  if (missing.length === 0) return null;
+  return (
+    <div className="mt-1">
+      {missing.map((ref) => (
+        <p key={ref.raw} className="text-[10px] text-amber-400">
+          {t(ref.scalar ? "templateRefThroughText" : "templateRefMissing", { ref: ref.raw, node: ref.nodeId })}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/**
  * "Examples" menu of a template field: ready-made values built from the
  * nearest upstream node (see lib/templateExamples). Picking one fills an
  * empty field, or is appended after the text already there.
@@ -146,6 +182,7 @@ function TemplateExamples({ kind, upstreamNodes, onPick, t }) {
  */
 function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline, numeric, examples, t }) {
   const ref = useRef(null);
+  const activate = useActiveTemplateField(ref, value, onChange);
   const suggestions = upstreamNodes.flatMap((n) => templateSuggestionsFor(n).slice(0, 1).map((snippet) => ({ node: n, snippet })));
   const Comp = multiline ? "textarea" : "input";
   return (
@@ -154,11 +191,13 @@ function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline,
         ref={ref}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={activate}
         placeholder={placeholder}
         rows={multiline ? 3 : undefined}
         inputMode={!multiline && numeric ? "decimal" : undefined}
         className="w-full px-2.5 py-1.5 text-xs font-mono rounded-lg th-bg-surface border th-border-secondary th-text placeholder:th-text-ghost focus:outline-none focus:ring-1 focus:ring-brand resize-y"
       />
+      <MissingRefsWarning value={value} t={t} />
       {suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1">
           {suggestions.map(({ node, snippet }) => (
@@ -186,6 +225,21 @@ function TemplateInput({ value, onChange, placeholder, upstreamNodes, multiline,
         <p className="mt-1 text-[10px] th-text-ghost">{t("upstreamValuesEmpty")}</p>
       )}
     </div>
+  );
+}
+
+function ArgValueInput({ value, onChange, placeholder }) {
+  const ref = useRef(null);
+  const activate = useActiveTemplateField(ref, value, onChange);
+  return (
+    <input
+      ref={ref}
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={activate}
+      placeholder={placeholder}
+      className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text"
+    />
   );
 }
 
@@ -640,11 +694,12 @@ function ArgsEditor({ args, onChange, upstreamNodes, t, titleKey = "args" }) {
           <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
             <div className="flex gap-1.5 items-center">
               <input value={key} onChange={(e) => update(key, e.target.value, value)} placeholder={t("argKey")} className="w-1/3 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
-              <input value={value ?? ""} onChange={(e) => updateValue(key, e.target.value)} placeholder={t("argValue")} className="flex-1 min-w-0 px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text" />
+              <ArgValueInput value={value} onChange={(v) => updateValue(key, v)} placeholder={t("argValue")} />
               <button type="button" onClick={() => remove(key)} title={t("removeArg")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
                 <Trash2 size={12} />
               </button>
             </div>
+            <MissingRefsWarning value={value} t={t} />
             {upstreamNodes.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {upstreamNodes.map((n) => (
@@ -1042,8 +1097,12 @@ export default function StudioInspector({
   upstreamShapes = {},
   onTestUntil,
   isRunning = false,
+  runOutputs = {},
 }) {
   const t = useTranslations("WorkflowInspector");
+  // Field the "Available data" panel inserts into: the template field last
+  // focused, while it is still on screen.
+  const activeFieldRef = useRef(null);
 
   // Reused across the early returns below, so declared unconditionally
   // (rules of hooks) rather than inside the `node.type === "notification"`
@@ -1116,8 +1175,23 @@ export default function StudioInspector({
   const directParents = [...new Set(edges.filter((e) => e.target === node.id).map((e) => e.source))]
     .map((id) => nodes.find((n) => n.id === id))
     .filter(Boolean);
+  // Last test run, kept in page memory only (outputs can hold client data).
+  const upstreamOutputs = Object.fromEntries(upstreamIds.filter((id) => Object.hasOwn(runOutputs, id)).map((id) => [id, runOutputs[id]]));
+  const fieldContext = { outputs: upstreamOutputs, setActive: (field) => (activeFieldRef.current = field) };
+  // `fallback(snippet)` when no field is focused; false = nothing inserted.
+  const insertSnippet = (snippet, fallback) => {
+    const field = activeFieldRef.current;
+    if (field?.ref.current?.isConnected) {
+      insertAtCursor(field.ref, field.latest.current.value, field.latest.current.onChange, snippet);
+      return true;
+    }
+    if (!fallback) return false;
+    fallback(snippet);
+    return true;
+  };
 
   return (
+    <TemplateFieldContext.Provider value={fieldContext}>
     <div data-studio-inspector className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 overflow-y-auto h-full max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-2xl max-xl:bg-[var(--bg-modal)]">
       <h3 className="text-sm font-bold th-text mb-3">{t("title")}</h3>
       <NodeUsageHelp key={node.type} type={node.type} id={node.id} />
@@ -1179,6 +1253,13 @@ export default function StudioInspector({
           <Field label={t("input")} help={t("inputHelp")}>
             <TemplateInput value={config.input} onChange={(v) => patch({ input: v })} upstreamNodes={upstreamNodes} multiline examples="agentInput" t={t} />
           </Field>
+          <InputPreview template={config.input} nodeId={node.id} outputs={upstreamOutputs} t={t} />
+          <AvailableDataPanel
+            upstreamNodes={upstreamNodes}
+            outputs={upstreamOutputs}
+            onInsert={(snippet) => insertSnippet(snippet, (s) => patch({ input: `${config.input || ""}${s}` }))}
+            t={t}
+          />
           <OutputTypeField config={config} patch={patch} t={t} />
           <Field label={t("onQuestion")} help={t("onQuestionHelp")}>
             <SelectInput value={config.on_question || "continue"} onChange={(e) => patch({ on_question: e.target.value === "continue" ? undefined : e.target.value })}>
@@ -1199,6 +1280,9 @@ export default function StudioInspector({
           upstreamNodes={upstreamNodes}
           t={t}
         />
+      )}
+      {node.type === "tool" && (
+        <AvailableDataPanel upstreamNodes={upstreamNodes} outputs={upstreamOutputs} onInsert={(snippet) => insertSnippet(snippet, null)} t={t} />
       )}
       {node.type === "tool" && <OutputTypeField config={config} patch={patch} t={t} />}
 
@@ -1481,6 +1565,7 @@ export default function StudioInspector({
 
       <DeleteButton onClick={() => onDeleteNode(node.id)} label={t("deleteNode")} />
     </div>
+    </TemplateFieldContext.Provider>
   );
 }
 
