@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import BrandIcon from "@/components/brand/BrandIcon";
 
 // Clé du provider mutualisé. Dupliquée ici plutôt qu'importée de
@@ -30,6 +32,8 @@ const PROVIDERS = {
   together:  { name: "Together",  color: "#6366F1", bg: "rgba(99,102,241,0.15)" },
   azure:     { name: "Azure",     color: "#0078D4", bg: "rgba(0,120,212,0.15)" },
   bedrock:   { name: "Bedrock",   color: "#FF9900", bg: "rgba(255,153,0,0.15)" },
+  edenai:    { name: "Eden AI",   color: "#2DD4BF", bg: "rgba(45,212,191,0.15)" },
+  azure_ai:  { name: "Azure AI Foundry", color: "#0078D4", bg: "rgba(0,120,212,0.15)" },
 };
 
 // ---------------------------------------------------------------------------
@@ -77,12 +81,51 @@ function GoogleSvg({ size }) {
   );
 }
 
+// Eden AI : trois disques séparés par un liseré transparent, redessinés
+// d'après le favicon d'edenai.co (la marque n'est publiée qu'en PNG). Les
+// liserés sont des masques ; useId les rend uniques quand plusieurs icônes
+// sont sur la page, sinon toutes reprendraient le masque de la première.
+function EdenAISvg({ size }) {
+  const id = useId();
+  return (
+    <svg width={size} height={size} viewBox="0 0 180 180" fill="currentColor">
+      <defs>
+        <mask id={`${id}-a`}>
+          <rect width="180" height="180" fill="#fff" />
+          <circle cx="128" cy="108" r="45" fill="#000" />
+        </mask>
+        <mask id={`${id}-b`}>
+          <rect width="180" height="180" fill="#fff" />
+          <circle cx="128" cy="108" r="45" fill="#000" />
+          <circle cx="78" cy="57" r="65" fill="#000" />
+        </mask>
+      </defs>
+      <circle cx="78" cy="57" r="57" mask={`url(#${id}-a)`} />
+      <circle cx="70" cy="126" r="52" mask={`url(#${id}-b)`} />
+      <circle cx="128" cy="108" r="34" />
+    </svg>
+  );
+}
+
+// Azure AI Foundry : logo monochrome de @lobehub/icons (licence MIT).
+function AzureAISvg({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd">
+      <path clipRule="evenodd" fillOpacity=".5" d="M16.233 0c.713 0 1.345.551 1.572 1.329.227.778 1.555 5.59 1.555 5.59v9.562h-4.813L14.645 0h1.588z" />
+      <path d="M23.298 7.47c0-.34-.275-.6-.6-.6h-2.835a3.617 3.617 0 00-3.614 3.615v5.996h3.436a3.617 3.617 0 003.613-3.614V7.47z" />
+      <path clipRule="evenodd" d="M16.233 0a.982.982 0 00-.989.989l-.097 18.198A4.814 4.814 0 0110.334 24H1.6a.597.597 0 01-.567-.794l7-19.981A4.819 4.819 0 0112.57 0h3.679-.016z" />
+    </svg>
+  );
+}
+
 const SVG_MAP = {
   anthropic: AnthropicSvg,
   openai: OpenAISvg,
   mistral: MistralSvg,
   google: GoogleSvg,
   gemini: GoogleSvg,
+  edenai: EdenAISvg,
+  azure_ai: AzureAISvg,
 };
 
 // ---------------------------------------------------------------------------
