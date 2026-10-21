@@ -17,6 +17,10 @@ import {
   NOTIFICATION_MAX_RECIPIENTS,
   isHttpHeaderForbidden,
   EXTRACT_FIELD_TYPES,
+  CLASSIFIER_ENGINES,
+  UNCERTAIN_ROUTE,
+  JEV_MIN_CONFIDENCE_DEFAULT,
+  DB_WRITE_CONNECTION_PATTERN,
   RAG_TOP_K_MIN,
   RAG_TOP_K_MAX,
   TRY_ROUTES,
@@ -609,6 +613,80 @@ function RoutesEditor({ routes, onChange, t }) {
         {t("addRoute")}
       </button>
       {routes.length < 2 && <p className="mt-1.5 text-[10px] text-amber-400">{t("routesMin")}</p>}
+    </div>
+  );
+}
+
+/**
+ * Decimal input that keeps what is typed ("0." on the way to "0.9") and only
+ * reports parsed numbers; an empty box reports `undefined` (key removed).
+ */
+function DecimalInput({ value, onCommit, ...props }) {
+  const [draft, setDraft] = useState(value == null ? "" : String(value));
+  return (
+    <TextInput
+      {...props}
+      type="text"
+      inputMode="decimal"
+      value={draft}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        if (raw.trim() === "") return onCommit(undefined);
+        const n = Number(raw.replace(",", "."));
+        if (Number.isFinite(n)) onCommit(n);
+      }}
+    />
+  );
+}
+
+/** Column -> value template rows of a db_write node; order is kept, a clashing column name is ignored. */
+function DbWriteValuesEditor({ values, onChange, t }) {
+  const entries = Object.entries(values || {});
+  const commit = (next) => onChange(Object.fromEntries(next));
+  const rename = (i, key) => {
+    if (entries.some(([k], idx) => idx !== i && k === key)) return;
+    commit(entries.map((e, idx) => (idx === i ? [key, e[1]] : e)));
+  };
+  const setValue = (i, value) => commit(entries.map((e, idx) => (idx === i ? [e[0], value] : e)));
+  const add = () => {
+    let name = "column";
+    for (let n = 2; entries.some(([k]) => k === name); n += 1) name = `column${n}`;
+    commit([...entries, [name, ""]]);
+  };
+  return (
+    <div className="mb-3">
+      <span className="block text-[11px] font-semibold th-text-secondary mb-1.5">{t("dbWriteValues")}</span>
+      <div className="flex flex-col gap-2">
+        {entries.map(([col, val], i) => (
+          <div key={i} className="p-2 rounded-lg th-bg-surface border th-border-secondary flex flex-col gap-1.5">
+            <div className="flex gap-1.5">
+              <input
+                value={col}
+                onChange={(e) => rename(i, e.target.value)}
+                placeholder={t("dbWriteColumnPlaceholder")}
+                aria-label={t("dbWriteColumn")}
+                className="flex-1 min-w-0 px-2 py-1 text-[11px] font-semibold rounded-md th-bg-elevated border th-border-secondary th-text"
+              />
+              <button type="button" onClick={() => commit(entries.filter((_, idx) => idx !== i))} title={t("removeDbWriteColumn")} aria-label={t("removeDbWriteColumn")} className="p-1 rounded-md text-red-400 hover:bg-red-500/10 shrink-0">
+                <Trash2 size={12} />
+              </button>
+            </div>
+            <input
+              value={typeof val === "string" ? val : JSON.stringify(val)}
+              onChange={(e) => setValue(i, e.target.value)}
+              placeholder={t("dbWriteValuePlaceholder")}
+              aria-label={t("dbWriteValue")}
+              className="px-2 py-1 text-[11px] font-mono rounded-md th-bg-elevated border th-border-secondary th-text"
+            />
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={add} className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg th-bg-surface hover:th-bg-surface-hover th-text-secondary border th-border-secondary">
+        <Plus size={12} />
+        {t("addDbWriteColumn")}
+      </button>
+      <p className="mt-1.5 text-[10px] th-text-ghost">{t("dbWriteValuesHelp")}</p>
     </div>
   );
 }
@@ -1309,17 +1387,44 @@ export default function StudioInspector({
 
       {node.type === "classifier" && (
         <>
-          <Field label={t("agentLabel")} help={t("classifierAgentHelp")}>
-            {agentOptions.length === 0 ? (
-              <p className="text-xs th-text-ghost">{t("agentNone")}</p>
-            ) : (
-              <SelectInput value={config.agent_id || ""} onChange={(e) => patch({ agent_id: e.target.value })}>
-                <option value="">{t("agentPlaceholder")}</option>
-                {agentOptions.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-              </SelectInput>
-            )}
+          <Field label={t("classifierEngine")} help={t(config.engine === "jev" ? "classifierEngineHelp_jev" : "classifierEngineHelp_agent")}>
+            <SelectInput
+              value={config.engine || "agent"}
+              onChange={(e) => patch({ engine: e.target.value === "agent" ? undefined : e.target.value })}
+            >
+              {CLASSIFIER_ENGINES.map((engine) => <option key={engine} value={engine}>{t(`classifierEngine_${engine}`)}</option>)}
+            </SelectInput>
           </Field>
+          {config.engine === "jev" ? (
+            <>
+              <Field label={t("classifierText")} help={t("classifierTextHelp")}>
+                <TemplateInput value={config.text} onChange={(v) => patch({ text: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+              </Field>
+              <Field label={t("classifierMinConfidence")} help={t("classifierMinConfidenceHelp", { route: UNCERTAIN_ROUTE })}>
+                <DecimalInput
+                  key={node.id}
+                  value={config.min_confidence ?? JEV_MIN_CONFIDENCE_DEFAULT}
+                  onCommit={(v) => patch({ min_confidence: v })}
+                />
+              </Field>
+              <Field label={t("classifierInstructions")}>
+                <TemplateInput value={config.instructions} onChange={(v) => patch({ instructions: v || undefined })} upstreamNodes={upstreamNodes} multiline t={t} />
+              </Field>
+            </>
+          ) : (
+            <Field label={t("agentLabel")} help={t("classifierAgentHelp")}>
+              {agentOptions.length === 0 ? (
+                <p className="text-xs th-text-ghost">{t("agentNone")}</p>
+              ) : (
+                <SelectInput value={config.agent_id || ""} onChange={(e) => patch({ agent_id: e.target.value })}>
+                  <option value="">{t("agentPlaceholder")}</option>
+                  {agentOptions.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                </SelectInput>
+              )}
+            </Field>
+          )}
           <RoutesEditor routes={config.routes || []} onChange={(routes) => patch({ routes })} t={t} />
+          {config.engine === "jev" && <p className="mt-1.5 text-[10px] th-text-ghost">{t("classifierUncertainHelp", { route: UNCERTAIN_ROUTE })}</p>}
         </>
       )}
 
@@ -1389,6 +1494,35 @@ export default function StudioInspector({
           </Field>
           <ExtractFieldsEditor fields={config.fields || []} onChange={(fields) => patch({ fields })} t={t} />
           <p className="mt-1.5 text-[10px] th-text-ghost">{t("extractFieldsHelp", { id: node.id })}</p>
+        </>
+      )}
+
+      {node.type === "document" && (
+        <>
+          <Field label={t("documentFiles")} help={t("documentFilesHelp")}>
+            <TemplateInput value={config.files} onChange={(v) => patch({ files: v })} placeholder={t("documentFilesPlaceholder")} upstreamNodes={upstreamNodes} t={t} />
+          </Field>
+          <p className="mt-1.5 text-[10px] th-text-ghost">{t("documentOutputHelp", { id: node.id })}</p>
+        </>
+      )}
+
+      {node.type === "db_write" && (
+        <>
+          <Field label={t("dbWriteConnection")} help={t("dbWriteConnectionHelp")}>
+            <TextInput
+              list={`dbwrite-connections-${node.id}`}
+              value={config.connection || ""}
+              onChange={(e) => patch({ connection: e.target.value })}
+              placeholder="tool_config0"
+            />
+            <datalist id={`dbwrite-connections-${node.id}`}>
+              {toolOptions.filter((o) => DB_WRITE_CONNECTION_PATTERN.test(o.value)).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </datalist>
+          </Field>
+          <Field label={t("dbWriteTable")} help={t("dbWriteTableHelp")}>
+            <TextInput value={config.table || ""} onChange={(e) => patch({ table: e.target.value })} placeholder="documents_recus" />
+          </Field>
+          <DbWriteValuesEditor values={config.values || {}} onChange={(values) => patch({ values })} t={t} />
         </>
       )}
 
@@ -1595,7 +1729,8 @@ function routesOf(sourceNode) {
     return [...routes];
   }
   if (sourceNode.type === "classifier") {
-    return (cfg.routes || []).map((r) => r.route).filter(Boolean);
+    const routes = (cfg.routes || []).map((r) => r.route).filter(Boolean);
+    return cfg.engine === "jev" ? [...routes, UNCERTAIN_ROUTE] : routes;
   }
   if (sourceNode.type === "try") {
     return TRY_ROUTES;
@@ -1616,5 +1751,8 @@ function routeOptionLabel(sourceNode, route, t) {
     return route === "true" ? t("conditionRouteTrue") : t("conditionRouteFalse");
   }
   if (sourceNode?.type === "approval" && route === "text") return t("approvalRouteText");
+  if (sourceNode?.type === "classifier" && route === UNCERTAIN_ROUTE && sourceNode.data?.config?.engine === "jev") {
+    return t("classifierRouteUncertain");
+  }
   return route;
 }

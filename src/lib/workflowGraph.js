@@ -30,6 +30,8 @@ export const NODE_TYPES = [
   "http",
   "notification",
   "extract",
+  "document",
+  "db_write",
   "rag",
   "set",
   "condition",
@@ -51,6 +53,17 @@ export const EXTRACT_FIELD_TYPES = ["string", "number", "boolean", "list", "obje
 export const EXTRACT_FIELD_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 export const EXTRACT_FIELDS_MIN = 1;
 export const EXTRACT_FIELDS_MAX = 30;
+
+/** Classifier engines; mirrors the backend's _CLASSIFIER_ENGINES. */
+export const CLASSIFIER_ENGINES = ["agent", "jev"];
+/** The route a Jev classifier takes when it hesitates; implicit, never user-declared. */
+export const UNCERTAIN_ROUTE = "uncertain";
+export const JEV_MIN_CONFIDENCE_DEFAULT = 0.7;
+
+/** db_write limits and identifier rules; mirror the backend's MAX_DB_WRITE_COLUMNS, _SQL_IDENT, _TOOL_CONFIG_REF. */
+export const DB_WRITE_MAX_COLUMNS = 50;
+export const DB_WRITE_CONNECTION_PATTERN = /^tool_config\d+$/;
+export const SQL_IDENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
 
 export const RAG_TOP_K_DEFAULT = 5;
 export const RAG_TOP_K_MIN = 1;
@@ -148,6 +161,11 @@ export const NODE_FAMILIES = {
   // rag alone would be one node wide and split the palette for no reason.
   extract: { family: "intelligence", color: "violet" },
   rag: { family: "intelligence", color: "blue" },
+  // document reads attachments with OCR / Document Intelligence (an AI
+  // service, no agent); db_write inserts one row through a registered
+  // database connection — a plain tool.
+  document: { family: "intelligence", color: "blue" },
+  db_write: { family: "tools", color: "emerald" },
   set: { family: "tools", color: "emerald" },
   condition: { family: "logic", color: "blue" },
 };
@@ -200,6 +218,10 @@ function defaultConfig(type) {
       return { agent_id: "", input: "", fields: [] };
     case "rag":
       return { agent_id: "", query: "", top_k: RAG_TOP_K_DEFAULT };
+    case "document":
+      return { files: "" };
+    case "db_write":
+      return { connection: "", table: "", values: {} };
     case "set":
       return { fields: [] };
     case "condition":
@@ -371,6 +393,8 @@ const FIXED_OUTPUT_FIELDS = {
   notification: ["sent", "channel"],
   // The person's answer, as the engine stores it; `{{decision1.choice}}`.
   approval: ["choice", "text", "answered_by", "answered_at"],
+  document: ["documents", "text", "count"],
+  db_write: ["table", "inserted"],
 };
 const ROUTING_NODE_TYPES = new Set(["router", "classifier", "condition", "try"]);
 
@@ -408,7 +432,9 @@ function declaredRoutes(node) {
     return routes;
   }
   if (node.type === "classifier") {
-    return new Set((node.config?.routes || []).map((r) => r.route).filter(Boolean));
+    const routes = new Set((node.config?.routes || []).map((r) => r.route).filter(Boolean));
+    if (node.config?.engine === "jev") routes.add(UNCERTAIN_ROUTE); // implicit, as on the backend
+    return routes;
   }
   if (node.type === "try") {
     return new Set(TRY_ROUTES); // fixed "ok"/"error" — not configurable, unlike router/classifier
@@ -662,6 +688,53 @@ function validateExtractConfig(node) {
   return errors;
 }
 
+function validateClassifierConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+  if (cfg.engine !== "jev") return errors;
+
+  for (const r of cfg.routes || []) {
+    if (r?.route === UNCERTAIN_ROUTE) push("classifierUncertainReserved");
+    if (typeof r?.description !== "string" || !r.description.trim()) {
+      push(`classifierRouteDescriptionRequired:${r?.route ?? ""}`);
+    }
+  }
+  const mc = cfg.min_confidence ?? JEV_MIN_CONFIDENCE_DEFAULT;
+  if (typeof mc !== "number" || !(mc > 0 && mc <= 1)) push("classifierMinConfidence");
+  return errors;
+}
+
+function validateDocumentConfig(node) {
+  const files = node.config?.files;
+  if (typeof files !== "string" || !files.trim()) return [{ nodeId: node.id, message: "documentFilesRequired" }];
+  return [];
+}
+
+function validateDbWriteConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+
+  if (typeof cfg.connection !== "string" || !DB_WRITE_CONNECTION_PATTERN.test(cfg.connection)) {
+    push("dbWriteConnectionInvalid");
+  }
+  const parts = typeof cfg.table === "string" ? cfg.table.split(".") : [];
+  if (parts.length < 1 || parts.length > 2 || !parts.every((p) => SQL_IDENT_PATTERN.test(p))) {
+    push(`dbWriteTableInvalid:${cfg.table ?? ""}`);
+  }
+  const values = cfg.values;
+  const columns = values && typeof values === "object" && !Array.isArray(values) ? Object.keys(values) : null;
+  if (!columns || columns.length < 1 || columns.length > DB_WRITE_MAX_COLUMNS) {
+    push("dbWriteValuesRequired");
+  } else {
+    for (const col of columns) {
+      if (!SQL_IDENT_PATTERN.test(col)) push(`dbWriteColumnInvalid:${col}`);
+    }
+  }
+  return errors;
+}
+
 function validateRagConfig(node) {
   const errors = [];
   const cfg = node.config || {};
@@ -869,6 +942,15 @@ function validateGraphCore(graph, options = {}) {
     }
     if (n.type === "rag") {
       errors.push(...validateRagConfig(n));
+    }
+    if (n.type === "classifier") {
+      errors.push(...validateClassifierConfig(n));
+    }
+    if (n.type === "document") {
+      errors.push(...validateDocumentConfig(n));
+    }
+    if (n.type === "db_write") {
+      errors.push(...validateDbWriteConfig(n));
     }
     if (n.type === "subworkflow") {
       const targetId = n.config?.workflow_id;

@@ -1,10 +1,10 @@
 "use client";
 
 import { getToolCategoryLogo, isProviderLogo } from "@/components/icons/integrationLogos";
-import { Zap, Bot, Sparkles, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell } from "lucide-react";
+import { Zap, Bot, Sparkles, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell, FileText, DatabaseZap } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
-import { NODE_FAMILIES, approvalRoutes, APPROVAL_TEXT_ROUTE } from "@/lib/workflowGraph";
+import { NODE_FAMILIES, approvalRoutes, APPROVAL_TEXT_ROUTE, UNCERTAIN_ROUTE } from "@/lib/workflowGraph";
 
 function RunFooter({ runStatus, runDuration }) {
   const t = useTranslations("WorkflowExecutionPanel");
@@ -130,7 +130,11 @@ export function RouterNode({ data, selected }) {
 
 export function ClassifierNode({ data, selected }) {
   const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  const isJev = data.config?.engine === "jev";
   const routes = (data.config?.routes || []).map((r) => r.route).filter(Boolean);
+  // A Jev classifier always has a branch for the cases it cannot decide.
+  if (isJev) routes.push({ value: UNCERTAIN_ROUTE, label: tn("routeUncertain") });
   return (
     <NodeShell
       {...common(data, selected)}
@@ -138,6 +142,11 @@ export function ClassifierNode({ data, selected }) {
       color={NODE_FAMILIES.classifier.color}
       icon={Sparkles}
     >
+      {isJev && (
+        <span className="inline-block mr-1 px-1.5 py-0.5 text-[10px] font-semibold rounded-md border bg-violet-500/10 text-violet-300 border-violet-500/20">
+          {tn("engineJevBadge")}
+        </span>
+      )}
       <RouteChips routes={routes} taken={data.runRoute} />
       <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
     </NodeShell>
@@ -336,6 +345,38 @@ export function ExtractNode({ data, selected }) {
   );
 }
 
+export function DocumentNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeDocument")}
+      subtitle={tn("documentSubtitle")}
+      color={NODE_FAMILIES.document.color}
+      icon={FileText}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function DbWriteNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const table = data.config?.table;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeDb_write")}
+      subtitle={table || undefined}
+      color={NODE_FAMILIES.db_write.color}
+      icon={DatabaseZap}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
 export function SetNode({ data, selected }) {
   const t = useTranslations("WorkflowPalette");
   return (
@@ -426,6 +467,8 @@ export const studioNodeTypes = {
   notification: NotificationNode,
   extract: ExtractNode,
   rag: RagNode,
+  document: DocumentNode,
+  db_write: DbWriteNode,
   set: SetNode,
   condition: ConditionNode,
   approval: ApprovalNode,
