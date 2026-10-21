@@ -3562,6 +3562,7 @@
     "agentNone": "Aucun agent — crées-en un dans Agents d'abord.",
     "input": "Entrée (gabarit)",
     "inputHelp": "Texte libre ou JSON. Insère une valeur d'un nœud en amont ci-dessous.",
+    "inputEmptyHint": "Vide, l'agent ne reçoit que la sortie brute du nœud précédent, sans la demande d'origine. Insère ci-dessous la valeur du déclencheur pour lui transmettre aussi la demande.",
     "toolLabel": "Outil",
     "toolPlaceholder": "Choisir un outil…",
     "toolNone": "Aucun outil — configures-en un dans la Boîte à outils d'abord.",

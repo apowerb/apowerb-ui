@@ -3562,6 +3562,7 @@
     "agentNone": "No agents yet — create one in Agents first.",
     "input": "Input (template)",
     "inputHelp": "Plain text or JSON. Insert a value from an upstream node below.",
+    "inputEmptyHint": "Left empty, the agent receives only the raw output of the previous node, without the original request. Insert the trigger's value below to pass the request on too.",
     "toolLabel": "Tool",
     "toolPlaceholder": "Select a tool…",
     "toolNone": "No tools yet — configure one in Tool Box first.",
