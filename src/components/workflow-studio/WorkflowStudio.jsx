@@ -37,6 +37,9 @@ import { useUndoRedo } from "./hooks/useUndoRedo";
 import { useRunReplay } from "./hooks/useRunReplay";
 import { useToolSchemas } from "./hooks/useToolSchemas";
 import { useSuggestionAdoption } from "./hooks/useSuggestionAdoption";
+import { useNodeShapes } from "./hooks/useNodeShapes";
+import { knownShapes, effectfulNodesUpTo } from "@/lib/workflowShapes";
+import TestUntilConfirm from "./TestUntilConfirm";
 import StudioTopBar from "./StudioTopBar";
 import { suggestNextNodes, applySuggestion, paletteSuggestion, aiSuggestionsFrom, mergeAiSuggestions } from "@/lib/nextNodeSuggestions";
 import StudioPalette from "./StudioPalette";
@@ -64,6 +67,17 @@ function runRequestErrorEvent(err) {
 }
 
 const AUTOSAVE_DELAY_MS = 1000;
+
+// The Test panel's first payload: what the trigger declares, else null.
+// agent_tool / form declare their own payload shape (input_schema / fields):
+// that beats a hand-written sample_payload, the only option for the others.
+function samplePayloadText(nodes) {
+  const cfg = nodes.find((n) => n.type === "trigger")?.data?.config;
+  const schemaPayload = cfg && triggerSamplePayloadFromSchema(cfg);
+  if (schemaPayload) return JSON.stringify(schemaPayload, null, 2);
+  if (cfg?.sample_payload) return JSON.stringify(cfg.sample_payload, null, 2);
+  return null;
+}
 
 // `ti` is the "WorkflowInspector" translator — kept as a plain argument
 // (rather than a hook call in here) because this runs inside a `useMemo`,
@@ -276,17 +290,8 @@ export default function WorkflowStudio({ workflowId }) {
 
   useEffect(() => {
     if (prefilledPayloadRef.current || !testOpen) return;
-    const trigger = nodes.find((n) => n.type === "trigger");
-    const cfg = trigger?.data?.config;
-    // agent_tool / form declare their own payload shape (input_schema /
-    // fields): that beats a hand-written sample_payload, which is the only
-    // option left for every other kind.
-    const schemaPayload = cfg && triggerSamplePayloadFromSchema(cfg);
-    if (schemaPayload) {
-      setPayloadText(JSON.stringify(schemaPayload, null, 2));
-    } else if (cfg?.sample_payload) {
-      setPayloadText(JSON.stringify(cfg.sample_payload, null, 2));
-    }
+    const sample = samplePayloadText(nodes);
+    if (sample) setPayloadText(sample);
     prefilledPayloadRef.current = true;
   }, [testOpen, nodes]);
 
@@ -320,11 +325,15 @@ export default function WorkflowStudio({ workflowId }) {
     return map;
   }, [runState]);
 
-  const handleRun = useCallback(async () => {
+  // A run teaches the server the shape of each tool's answer: bumped when a
+  // run ends so the inspector asks for the shapes again.
+  const [runsFinished, setRunsFinished] = useState(0);
+
+  const startRun = useCallback(async ({ until, beforeRun, text = payloadText } = {}) => {
     if (payloadError) return;
     let payload = {};
     try {
-      payload = payloadText.trim() ? JSON.parse(payloadText) : {};
+      payload = text.trim() ? JSON.parse(text) : {};
     } catch {
       return;
     }
@@ -334,7 +343,8 @@ export default function WorkflowStudio({ workflowId }) {
     const controller = new AbortController();
     runAbortRef.current = controller;
     try {
-      const response = await runWorkflowDef(workflowId, payload, { signal: controller.signal });
+      if (beforeRun) await beforeRun();
+      const response = await runWorkflowDef(workflowId, payload, { signal: controller.signal, until });
       await consumeWorkflowRun(response, {
         signal: controller.signal,
         onEvent: (evt) => {
@@ -351,8 +361,11 @@ export default function WorkflowStudio({ workflowId }) {
     } finally {
       setIsRunning(false);
       runAbortRef.current = null;
+      setRunsFinished((n) => n + 1);
     }
   }, [workflowId, payloadText, payloadError]);
+
+  const handleRun = useCallback(() => startRun(), [startRun]);
 
   const handleCancelRun = useCallback(() => {
     runAbortRef.current?.abort();
@@ -424,6 +437,39 @@ export default function WorkflowStudio({ workflowId }) {
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, workflowMeta?.name, loadState]);
+
+  // --- "Test up to here" and known output shapes (proactive Studio, step 2) --
+  const serverShapes = useNodeShapes(nodes, edges, runsFinished);
+  const upstreamShapes = useMemo(() => knownShapes(serverShapes, runState), [serverShapes, runState]);
+  // The node a "Test up to here" was asked for, waiting for confirmation:
+  // nothing runs before the person has seen which steps have an effect.
+  const [testUntilId, setTestUntilId] = useState(null);
+  const testUntilEffects = useMemo(
+    () => (testUntilId ? effectfulNodesUpTo(testUntilId, nodes, edges) : []),
+    [testUntilId, nodes, edges],
+  );
+  const confirmTestUntil = useCallback(() => {
+    const until = testUntilId;
+    setTestUntilId(null);
+    setTestOpen(true);
+    // The panel may never have been opened: its sample payload is not in
+    // `payloadText` yet, and the run starts before the next render.
+    let text = payloadText;
+    if (!prefilledPayloadRef.current) {
+      text = samplePayloadText(nodes) ?? payloadText;
+      setPayloadText(text);
+      prefilledPayloadRef.current = true;
+    }
+    // The server runs the saved version: a node wired a second ago must be
+    // saved before it can be tested.
+    const beforeRun = async () => {
+      const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) });
+      if (snapshot === lastSavedSnapshotRef.current) return;
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      await doSave();
+    };
+    startRun({ until, beforeRun, text });
+  }, [testUntilId, payloadText, workflowMeta?.name, nodes, edges, doSave, startRun]);
 
   const currentSnapshot = useMemo(
     () => JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) }),
@@ -899,9 +945,21 @@ export default function WorkflowStudio({ workflowId }) {
           onDeleteNode={deleteNode}
           onDeleteEdge={deleteEdge}
           onOpenLoopBody={(nodeId) => setBodyEditorNodeId(nodeId)}
+          upstreamShapes={upstreamShapes}
+          onTestUntil={setTestUntilId}
+          isRunning={isRunning}
           runOutputs={runOutputs}
         />
       </div>
+
+      {testUntilId && (
+        <TestUntilConfirm
+          nodeLabel={nodes.find((n) => n.id === testUntilId)?.data?.label || testUntilId}
+          effects={testUntilEffects}
+          onConfirm={confirmTestUntil}
+          onCancel={() => setTestUntilId(null)}
+        />
+      )}
 
       {versionsOpen && (
         <VersionsDrawer

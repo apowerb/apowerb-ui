@@ -185,6 +185,9 @@ const TRANSLATED_ERRORS = new Set([
   "output_type_mismatch",
   "agent_asked_question",
   "node_not_runnable",
+  // "Test up to here" (21/10).
+  "until_unknown_node",
+  "until_not_reached",
 ]);
 
 function errorText(t, error) {
@@ -356,7 +359,11 @@ export default function ExecutionPanel({
             )}
             {runState.status === "done" && (
               <div className="mt-2">
-                <p className="text-[11px] font-semibold th-text-secondary mb-1">{t("finalOutput")}</p>
+                <p className="text-[11px] font-semibold th-text-secondary mb-1">
+                  {runState.partialUntil
+                    ? t("partialOutput", { node: nodeLabels[runState.partialUntil] || runState.partialUntil })
+                    : t("finalOutput")}
+                </p>
                 <OutputBlock value={runState.finalOutput} t={t} defaultOpen />
               </div>
             )}

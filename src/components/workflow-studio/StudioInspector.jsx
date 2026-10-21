@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Plus, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { useTranslations } from "use-intl";
+import { insertFieldPatch } from "@/lib/workflowShapes";
+import UpstreamShapeHint, { TestUntilButton } from "./UpstreamShapeHint";
 import { getToolCategoryLogo, isProviderLogo } from "@/components/icons/integrationLogos";
 import {
   getUpstreamNodeIds,
@@ -1090,6 +1092,11 @@ export default function StudioInspector({
   onDeleteNode,
   onDeleteEdge,
   onOpenLoopBody,
+  // "Test up to here" and the known output shape of each node (proactive
+  // Studio, step 2) — top-level canvas only: a loop body has neither.
+  upstreamShapes = {},
+  onTestUntil,
+  isRunning = false,
   runOutputs = {},
 }) {
   const t = useTranslations("WorkflowInspector");
@@ -1165,6 +1172,9 @@ export default function StudioInspector({
   const upstreamIds = getUpstreamNodeIds(node.id, edges);
   const upstreamNodes = upstreamIds.map((id) => nodes.find((n) => n.id === id)).filter(Boolean);
   const patch = (partial) => onPatchConfig(node.id, partial);
+  const directParents = [...new Set(edges.filter((e) => e.target === node.id).map((e) => e.source))]
+    .map((id) => nodes.find((n) => n.id === id))
+    .filter(Boolean);
   // Last test run, kept in page memory only (outputs can hold client data).
   const upstreamOutputs = Object.fromEntries(upstreamIds.filter((id) => Object.hasOwn(runOutputs, id)).map((id) => [id, runOutputs[id]]));
   const fieldContext = { outputs: upstreamOutputs, setActive: (field) => (activeFieldRef.current = field) };
@@ -1189,6 +1199,28 @@ export default function StudioInspector({
       <Field label={t("label")}>
         <TextInput value={node.data.label || ""} onChange={(e) => onChangeLabel(node.id, e.target.value)} placeholder={t("labelPlaceholder")} />
       </Field>
+      {onTestUntil && (
+        <>
+          <div className="mb-3">
+            <TestUntilButton onClick={() => onTestUntil(node.id)} disabled={isRunning} t={t} />
+          </div>
+          {/* Agent and tool nodes show these fields in "Available data". */}
+          {node.type !== "agent" && node.type !== "tool" && (
+            <UpstreamShapeHint
+              parents={directParents}
+              shapes={upstreamShapes}
+              canInsert={insertFieldPatch(node, "n", "") !== null}
+              onInsert={(sourceId, path) => {
+                const next = insertFieldPatch(node, sourceId, path);
+                if (next) patch(next);
+              }}
+              onTestUntil={onTestUntil}
+              isRunning={isRunning}
+              t={t}
+            />
+          )}
+        </>
+      )}
 
       {node.type === "trigger" && (
         <>
@@ -1229,7 +1261,10 @@ export default function StudioInspector({
           <AvailableDataPanel
             upstreamNodes={upstreamNodes}
             outputs={upstreamOutputs}
+            shapes={upstreamShapes}
             onInsert={(snippet) => insertSnippet(snippet, (s) => patch({ input: `${config.input || ""}${s}` }))}
+            onTestUntil={onTestUntil}
+            isRunning={isRunning}
             t={t}
           />
           <OutputTypeField config={config} patch={patch} t={t} />
@@ -1254,7 +1289,15 @@ export default function StudioInspector({
         />
       )}
       {node.type === "tool" && (
-        <AvailableDataPanel upstreamNodes={upstreamNodes} outputs={upstreamOutputs} onInsert={(snippet) => insertSnippet(snippet, null)} t={t} />
+        <AvailableDataPanel
+          upstreamNodes={upstreamNodes}
+          outputs={upstreamOutputs}
+          shapes={upstreamShapes}
+          onInsert={(snippet) => insertSnippet(snippet, null)}
+          onTestUntil={onTestUntil}
+          isRunning={isRunning}
+          t={t}
+        />
       )}
       {node.type === "tool" && <OutputTypeField config={config} patch={patch} t={t} />}
 
