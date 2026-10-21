@@ -100,6 +100,9 @@ vi.mock("@/lib/api", () => ({
   getPublicConfig,
   suggestNextWorkflowNode,
   sendWorkflowSuggestEvent,
+  listAwaitingDecisions: () => Promise.resolve([]),
+  resumeWorkflowRun: vi.fn(),
+  abandonWorkflowRun: () => Promise.resolve({}),
 }));
 
 function baseGraph() {

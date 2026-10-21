@@ -13,7 +13,7 @@
  */
 
 export function createRunState() {
-  return { status: "idle", timeline: [], finalOutput: null, finalError: null };
+  return { status: "idle", timeline: [], finalOutput: null, finalError: null, pendingDecision: null };
 }
 
 function splitNodeId(nodeId) {
@@ -23,7 +23,7 @@ function splitNodeId(nodeId) {
 }
 
 function blankEntry(id) {
-  return { id, status: "pending", type: null, duration: null, output: null, error: null, route: null, iterations: {}, capped: null, input: null, inputTruncated: null, toolCalls: null, asksQuestion: false, artifacts: null, reportedError: null };
+  return { id, status: "pending", type: null, duration: null, output: null, error: null, route: null, iterations: {}, capped: null, input: null, inputTruncated: null, toolCalls: null, asksQuestion: false, artifacts: null, reportedError: null, replayed: false };
 }
 
 function blankInner(innerId) {
@@ -59,10 +59,12 @@ export function applyRunEvent(state, evt) {
   let status = state.status;
   let finalOutput = state.finalOutput;
   let finalError = state.finalError;
+  let pendingDecision = state.pendingDecision ?? null;
 
   switch (evt.event) {
     case "run_started":
       status = "running";
+      pendingDecision = null;
       break;
 
     case "node_start":
@@ -95,8 +97,25 @@ export function applyRunEvent(state, evt) {
       break;
     }
 
+    case "awaiting_input": {
+      // The run is parked on a person's answer: not running, not over. The
+      // decision node stays "awaiting" until a resume stream completes it.
+      status = "awaiting";
+      pendingDecision = {
+        runId: evt.run_id ?? null,
+        nodeId: evt.node_id,
+        question: evt.question ?? "",
+        mode: evt.mode,
+        choices: Array.isArray(evt.choices) ? evt.choices : [],
+        assignee: evt.assignee ?? null,
+      };
+      getOrCreate(evt.node_id).status = "awaiting";
+      break;
+    }
+
     case "done":
       status = "done";
+      pendingDecision = null;
       finalOutput = evt.output;
       // "Test up to here": the output is that node's, not the workflow's.
       if (evt.partial && evt.until) return { status, timeline, finalOutput, finalError, partialUntil: evt.until };
@@ -104,12 +123,14 @@ export function applyRunEvent(state, evt) {
 
     case "error":
       status = "error";
+      pendingDecision = null;
       finalError = errorOf(evt);
       settleRunning(timeline, "error");
       break;
 
     case "cancelled":
       status = "cancelled";
+      pendingDecision = null;
       settleRunning(timeline, "cancelled");
       break;
 
@@ -117,7 +138,7 @@ export function applyRunEvent(state, evt) {
       break;
   }
 
-  return { status, timeline, finalOutput, finalError };
+  return { status, timeline, finalOutput, finalError, pendingDecision };
 }
 
 /**
@@ -147,6 +168,9 @@ function applyTrace(entry, evt) {
 
 function applyToEntry(entry, evt) {
   applyTrace(entry, evt);
+  // A node the engine re-emits on resume, to rebuild the run: already done
+  // before the person answered.
+  if (evt.replayed === true) entry.replayed = true;
   switch (evt.event) {
     case "node_start":
       entry.status = "running";

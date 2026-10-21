@@ -27,6 +27,7 @@ import {
   duplicateNode,
   autoLayout,
   renameNodeId,
+  approvalRoutes,
 } from "@/lib/workflowGraph";
 import { buildWorkflowFile, downloadWorkflowFile } from "@/lib/workflowFile";
 import { triggerSamplePayloadFromSchema, triggerPayloadInitialMode, triggerScheduleDetail } from "@/lib/workflowTriggers";
@@ -46,6 +47,9 @@ import StudioPalette from "./StudioPalette";
 import StudioCanvas from "./StudioCanvas";
 import StudioInspector from "./StudioInspector";
 import ExecutionPanel from "./ExecutionPanel";
+import DecisionModal from "./DecisionModal";
+import AwaitingDecisionsList from "./AwaitingDecisionsList";
+import { useHumanDecision } from "./hooks/useHumanDecision";
 import VersionsDrawer from "./VersionsDrawer";
 import LoopBodyEditor from "./LoopBodyEditor";
 
@@ -372,6 +376,17 @@ export default function WorkflowStudio({ workflowId }) {
     cancelWorkflowRun(workflowId).catch(() => {});
     setRunState((s) => applyRunEvent(s, { event: "cancelled" }));
   }, [workflowId]);
+
+  // Human decision: the dialog, the resumption of a parked run in this panel.
+  const openTestPanel = useCallback(() => setTestOpen(true), []);
+  const humanDecision = useHumanDecision({
+    liveRunState,
+    setRunState,
+    setRunEvents,
+    setIsRunning,
+    runAbortRef,
+    onResumed: openTestPanel,
+  });
 
   // Exporter ce qui est a l'ecran, pas la derniere version enregistree :
   // l autosave peut ne pas avoir encore tire.
@@ -818,7 +833,7 @@ export default function WorkflowStudio({ workflowId }) {
     () =>
       edges.map((e) => {
         const sourceNode = nodes.find((n) => n.id === e.source);
-        const isRouting = sourceNode && (sourceNode.type === "router" || sourceNode.type === "classifier" || sourceNode.type === "condition");
+        const isRouting = sourceNode && (sourceNode.type === "router" || sourceNode.type === "classifier" || sourceNode.type === "condition" || (sourceNode.type === "approval" && !!approvalRoutes(sourceNode.data?.config)));
         return {
           ...e,
           selected: selection?.kind === "edge" && selection.edge.id === e.id,
@@ -923,8 +938,16 @@ export default function WorkflowStudio({ workflowId }) {
             replay={replay}
             onRun={handleRun}
             onCancel={handleCancelRun}
+            onOpenDecision={humanDecision.reopen}
             nodeLabels={Object.fromEntries(nodes.map((n) => [n.id, n.data?.label || ""]))}
-          />
+          >
+            <AwaitingDecisionsList
+              workflowId={workflowId}
+              onAnswer={humanDecision.answer}
+              onAbandoned={humanDecision.abandoned}
+              refreshKey={humanDecision.refreshKey}
+            />
+          </ExecutionPanel>
         </div>
         <StudioInspector
           selection={liveSelection}
@@ -958,6 +981,13 @@ export default function WorkflowStudio({ workflowId }) {
           effects={testUntilEffects}
           onConfirm={confirmTestUntil}
           onCancel={() => setTestUntilId(null)}
+        />
+      )}
+      {humanDecision.decision && (
+        <DecisionModal
+          decision={humanDecision.decision}
+          onAnswer={(body) => humanDecision.answer(humanDecision.decision, body)}
+          onClose={humanDecision.close}
         />
       )}
 

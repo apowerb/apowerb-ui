@@ -7,7 +7,7 @@ import fr from "../../../messages/fr.json";
 // ({{noeud.chemin}}, {item, index, previous}) doit être échappée, sinon le
 // message échoue et l'UI affiche la clé brute (mesuré sur la pile e2e, 21/09).
 const NAMESPACES = ["LoopBodyEditor", "LoopConfigBlock", "WorkflowCanvas", "WorkflowExecutionPanel",
-  "WorkflowInspector", "WorkflowNode", "WorkflowPalette", "WorkflowPanel", "WorkflowStudio",
+  "WorkflowDecision", "WorkflowInspector", "WorkflowNode", "WorkflowPalette", "WorkflowPanel", "WorkflowStudio",
   "WorkflowValidation", "WorkflowVersions", "WorkflowsPage"];
 
 function entries(obj, prefix = "") {

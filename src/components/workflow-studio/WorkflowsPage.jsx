@@ -6,6 +6,7 @@ import { useTranslations, useFormatter, useNow } from "use-intl";
 import { Link, useRouter } from "@/lib/navigation";
 import { listWorkflowDefs, createWorkflowDef, duplicateWorkflowDef, deleteWorkflowDef } from "@/lib/api";
 import CreateWorkflowModal from "./CreateWorkflowModal";
+import AwaitingDecisionsList from "./AwaitingDecisionsList";
 import PreviewBadge from "@/components/PreviewBadge";
 
 // POST et duplicate renvoient le workflow complet (graphe compris) ; la liste,
@@ -198,6 +199,8 @@ export default function WorkflowsPage() {
             className="w-full pl-9 pr-3 py-2 text-sm rounded-xl th-bg-surface border th-border-secondary th-text placeholder:th-text-ghost focus:outline-none focus:ring-1 focus:ring-brand"
           />
         </div>
+
+        <AwaitingDecisionsList hideWhenEmpty className="mb-6" />
 
         {loadError && (
           <div className="flex items-center gap-2 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 mb-5">
