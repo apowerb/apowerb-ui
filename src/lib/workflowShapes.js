@@ -100,6 +100,28 @@ export function effectfulNodesUpTo(nodeId, nodes, edges) {
     .map((n) => ({ id: n.id, type: n.type, label: n.data?.label || n.id }));
 }
 
+/**
+ * The nodes a "Resume here" on `nodeId` would really run that have an effect:
+ * that node and every node below it — up to `until` when the failed run was a
+ * "Test up to here". The nodes above it are replayed, not run.
+ */
+export function effectfulNodesFrom(nodeId, nodes, edges, until = null) {
+  const ids = new Set([nodeId]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const e of edges) {
+      if (ids.has(e.source) && !ids.has(e.target)) {
+        ids.add(e.target);
+        grew = true;
+      }
+    }
+  }
+  const bound = until ? ancestorIdsOf(until, edges) : null;
+  return nodes
+    .filter((n) => ids.has(n.id) && (!bound || bound.has(n.id)) && EFFECT_NODE_TYPES.has(n.type))
+    .map((n) => ({ id: n.id, type: n.type, label: n.data?.label || n.id }));
+}
+
 const INPUT_FIELD = {
   agent: "input",
   extract: "input",

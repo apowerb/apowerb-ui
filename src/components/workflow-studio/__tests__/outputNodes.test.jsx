@@ -18,7 +18,7 @@ import StudioPalette from "@/components/workflow-studio/StudioPalette";
 import ExecutionPanel, { errorText } from "@/components/workflow-studio/ExecutionPanel";
 import { FileNode, FileSaveNode } from "@/components/workflow-studio/nodes/index.jsx";
 import { suggestNextNodes, prefillFor } from "@/lib/nextNodeSuggestions";
-import { effectfulNodesUpTo } from "@/lib/workflowShapes";
+import { effectfulNodesUpTo, effectfulNodesFrom } from "@/lib/workflowShapes";
 import { applyRunEvent, createRunState } from "@/lib/workflowRunState";
 import { createNode, graphToFlow, validateGraphLocal, NODE_TYPES, NODE_FAMILIES, FILE_FORMATS } from "@/lib/workflowGraph";
 
@@ -134,6 +134,15 @@ describe("Test up to here", () => {
     const flow = graphToFlow(GRAPH);
     const types = effectfulNodesUpTo("mail", flow.nodes, flow.edges).map((e) => e.type);
     expect(types).toEqual(expect.arrayContaining(["file", "file_save", "notification"]));
+  });
+
+  it("asks before a Resume here that would produce or drop files again", () => {
+    const flow = graphToFlow(GRAPH);
+    const from = (id) => effectfulNodesFrom(id, flow.nodes, flow.edges).map((e) => e.id);
+    // Failed on the spreadsheet: it and everything below runs again.
+    expect(from("tableau")).toEqual(["tableau", "rapport", "depot", "mail"]);
+    // Failed on the drop: the files above are replayed, not produced again.
+    expect(from("depot")).toEqual(["depot", "mail"]);
   });
 });
 

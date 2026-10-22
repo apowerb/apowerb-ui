@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, Square, ChevronDown, ChevronUp, ChevronRight, Loader2, CheckCircle2, XCircle, Circle, UserCheck, Download } from "lucide-react";
+import { Play, Square, ChevronDown, ChevronUp, ChevronRight, Loader2, CheckCircle2, XCircle, Circle, UserCheck, RotateCcw, Download } from "lucide-react";
 import { useTranslations } from "use-intl";
 import PayloadEditor from "./PayloadEditor";
 import ReplayControls from "./ReplayControls";
@@ -305,7 +305,7 @@ function IterationRow({ innerId, status, duration, output, error, route, input, 
   );
 }
 
-function TimelineEntry({ entry, label, t }) {
+function TimelineEntry({ entry, label, t, retryOf, onRetryHere }) {
   const td = useTranslations("WorkflowDecision");
   const [open, setOpen] = useState(true);
   const iterationKeys = Object.keys(entry.iterations || {});
@@ -320,9 +320,19 @@ function TimelineEntry({ entry, label, t }) {
             {entry.duration != null && <span className="th-text-ghost text-[10px] shrink-0">{t("duration", { ms: entry.duration })}</span>}
           </div>
           {entry.status === "awaiting" && <p className="text-[10px] text-purple-300 mt-0.5">{td("panelWaiting")}</p>}
-          {entry.replayed && <p className="text-[10px] th-text-ghost mt-0.5">{td("panelReplayed")}</p>}
+          {entry.replayed && <p className="text-[10px] th-text-ghost mt-0.5">{retryOf ? t("replayedBeforeFailure") : td("panelReplayed")}</p>}
           {entry.route && <p className="text-[10px] th-text-ghost mt-0.5">{t("routeTaken", { route: entry.route })}</p>}
           {entry.error && <p className="text-[10px] text-red-400 mt-0.5">{errorText(t, entry.error)}</p>}
+          {onRetryHere && (
+            <button
+              type="button"
+              onClick={() => onRetryHere(entry.id)}
+              className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-red-500/15 text-red-200 hover:bg-red-500/25 border border-red-500/30"
+            >
+              <RotateCcw size={10} />
+              {t("retryHere")}
+            </button>
+          )}
           {entry.capped && (
             <p className="text-[10px] text-amber-400 mt-0.5">
               {t("loopCapped", { max: entry.capped.max, remaining: entry.capped.remaining ?? "null" })}
@@ -376,6 +386,7 @@ export default function ExecutionPanel({
   onRun,
   onCancel,
   onOpenDecision,
+  onRetryHere,
   nodeLabels = {},
   children,
 }) {
@@ -456,7 +467,22 @@ export default function ExecutionPanel({
             {runState.timeline.length === 0 ? (
               <p className="text-xs th-text-ghost text-center py-8">{t("statusIdle")}</p>
             ) : (
-              runState.timeline.map((entry) => <TimelineEntry key={entry.id} entry={entry} label={nodeLabels[entry.id]} t={t} />)
+              runState.timeline.map((entry) => (
+                <TimelineEntry
+                  key={entry.id}
+                  entry={entry}
+                  label={nodeLabels[entry.id]}
+                  t={t}
+                  retryOf={runState.retryOf}
+                  // Only on the step the engine can resume at, on the run as it is
+                  // now (not a replay step, not while something runs).
+                  onRetryHere={
+                    onRetryHere && !isRunning && !replay?.active && runState.status === "error" && runState.retryFrom === entry.id
+                      ? onRetryHere
+                      : undefined
+                  }
+                />
+              ))
             )}
           </div>
         </div>

@@ -4,6 +4,7 @@ import {
   shapeFieldPaths,
   knownShapes,
   effectfulNodesUpTo,
+  effectfulNodesFrom,
   insertFieldPatch,
 } from "@/lib/workflowShapes";
 
@@ -100,3 +101,28 @@ describe("insertFieldPatch — composing the downstream input on click", () => {
     expect(insertFieldPatch(node("r", "router"), "lookup", "id")).toBeNull();
   });
 });
+
+describe("effectfulNodesFrom — what a Resume here really runs", () => {
+  const nodes = [
+    node("t", "trigger"),
+    node("look", "tool", {}, "Lookup"),
+    node("w", "agent", {}, "Writer"),
+    node("mail", "notification", {}, "Mail"),
+    node("db", "db_write", {}, "Save"),
+  ];
+  const edges = [
+    { source: "t", target: "look" },
+    { source: "look", target: "w" },
+    { source: "w", target: "mail" },
+    { source: "mail", target: "db" },
+  ];
+
+  it("lists the failed step and every step below it, never the ones above", () => {
+    expect(effectfulNodesFrom("w", nodes, edges).map((n) => n.id)).toEqual(["w", "mail", "db"]);
+  });
+
+  it("stops at the step a Test up to here stopped at", () => {
+    expect(effectfulNodesFrom("w", nodes, edges, "mail").map((n) => n.id)).toEqual(["w", "mail"]);
+  });
+});
+

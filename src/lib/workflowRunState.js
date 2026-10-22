@@ -10,10 +10,15 @@
  * container's own timeline entry instead of flattening them into the
  * top-level list, so the execution panel can render "iteration 0 / 1 / 2 …"
  * (or "attempt 0 / 1 …") sub-rows.
+ *
+ * "Resume here": `runId` is the run on screen (from `run_started`),
+ * `retryFrom` the node a failed run can be resumed at (its `error` said
+ * `retryable`), and `retryOf` is set on a resumed run (`retry_started`): its
+ * `replayed` nodes were done before the failure.
  */
 
 export function createRunState() {
-  return { status: "idle", timeline: [], finalOutput: null, finalError: null, pendingDecision: null };
+  return { status: "idle", timeline: [], finalOutput: null, finalError: null, pendingDecision: null, runId: null, retryFrom: null, retryOf: null };
 }
 
 function splitNodeId(nodeId) {
@@ -60,11 +65,19 @@ export function applyRunEvent(state, evt) {
   let finalOutput = state.finalOutput;
   let finalError = state.finalError;
   let pendingDecision = state.pendingDecision ?? null;
+  let runId = state.runId ?? null;
+  let retryFrom = null;
+  let retryOf = state.retryOf ?? null;
 
   switch (evt.event) {
     case "run_started":
       status = "running";
       pendingDecision = null;
+      runId = evt.wid ?? evt.run_id ?? null;
+      break;
+
+    case "retry_started":
+      retryOf = { runId: evt.replay_of ?? null, nodeId: evt.node_id ?? null };
       break;
 
     case "node_start":
@@ -118,7 +131,7 @@ export function applyRunEvent(state, evt) {
       pendingDecision = null;
       finalOutput = evt.output;
       // "Test up to here": the output is that node's, not the workflow's.
-      if (evt.partial && evt.until) return { status, timeline, finalOutput, finalError, partialUntil: evt.until };
+      if (evt.partial && evt.until) return { status, timeline, finalOutput, finalError, runId, retryFrom, retryOf, partialUntil: evt.until };
       break;
 
     case "error":
@@ -126,6 +139,7 @@ export function applyRunEvent(state, evt) {
       pendingDecision = null;
       finalError = errorOf(evt);
       settleRunning(timeline, "error");
+      if (evt.retryable === true && evt.failed_node) retryFrom = evt.failed_node;
       break;
 
     case "cancelled":
@@ -138,7 +152,7 @@ export function applyRunEvent(state, evt) {
       break;
   }
 
-  return { status, timeline, finalOutput, finalError, pendingDecision };
+  return { status, timeline, finalOutput, finalError, pendingDecision, runId, retryFrom, retryOf };
 }
 
 /**
