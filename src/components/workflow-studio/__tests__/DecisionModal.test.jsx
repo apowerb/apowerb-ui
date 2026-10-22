@@ -120,6 +120,12 @@ describe("DecisionModal — refusals", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/expired/i);
   });
 
+  it("409 decision_state_unreadable: says the saved run can no longer be read", async () => {
+    const { user } = setup(decision(), { onAnswer: refuse(409, "decision_state_unreadable") });
+    await user.click(screen.getByRole("button", { name: "Oui" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/can no longer be read/i);
+  });
+
   it("409 decision_already_answered: says so and stops offering answers", async () => {
     const { user } = setup(decision(), { onAnswer: refuse(409, "decision_already_answered") });
     await user.click(screen.getByRole("button", { name: "Oui" }));

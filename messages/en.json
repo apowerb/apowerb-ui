@@ -4249,6 +4249,7 @@
     "inspOutputHelp": "The answer is available as '{{'id.choice'}}' and '{{'id.text'}}'.",
     "expires": "Expires {when}",
     "error_decision_expired": "This decision expired: nobody answered in time, so the run was closed.",
+    "error_decision_state_unreadable": "This decision can no longer be read (the server's encryption key changed), so the run was closed.",
     "inspExpiry": "Expires after (hours)",
     "inspExpiryHelp": "Past this delay the run is closed as failed. Empty: {hours} hours (one week). At most {max}."
   },

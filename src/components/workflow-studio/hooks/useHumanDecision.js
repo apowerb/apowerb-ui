@@ -18,13 +18,13 @@ const keyOf = (d) => (d ? `${d.runId}:${d.nodeId}` : null);
  *   stream is accepted the test panel is reset and fed with the same reducer
  *   as a normal run (replayed nodes, the answer, the rest of the run).
  */
-export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setIsRunning, runAbortRef, onResumed }) {
+export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setIsRunning, liveRunRef, onResumed }) {
   const [manual, setManual] = useState(null);
   const [dismissed, setDismissed] = useState(null);
   const [resumes, setResumes] = useState(0);
-  // A resumption is never cut from here: the engine would cancel a run whose
-  // answer is already given. A replaced stream (another answer) or one that
-  // outlives the studio is only no longer listened to.
+  // A resumption is never cut from here: leaving its stream does not stop it
+  // on the engine. A replaced stream (another answer) or one that outlives the
+  // studio is only no longer listened to; Stop cancels it by its run id.
   const generationRef = useRef(0);
   const mountedRef = useRef(true);
 
@@ -73,8 +73,7 @@ export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setI
       setDismissed(keyOf(target));
       const generation = ++generationRef.current;
       const listened = () => mountedRef.current && generationRef.current === generation;
-      // Stop (the panel's button) reaches the latest stream.
-      runAbortRef.current = controller;
+      liveRunRef.current = { runId: target.runId, detached: true };
       setRunState(createRunState());
       setRunEvents([]);
       setIsRunning(true);
@@ -94,13 +93,12 @@ export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setI
           setRunState((s) => applyRunEvent(s, evt));
         })
         .finally(() => {
-          if (runAbortRef.current === controller) runAbortRef.current = null;
           if (!listened()) return;
           setIsRunning(false);
           setResumes((n) => n + 1);
         });
     },
-    [onResumed, runAbortRef, setIsRunning, setRunEvents, setRunState],
+    [liveRunRef, onResumed, setIsRunning, setRunEvents, setRunState],
   );
 
   // A run given up from the list: if it is the one on screen, it is over.

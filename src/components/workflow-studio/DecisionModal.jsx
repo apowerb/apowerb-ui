@@ -5,7 +5,7 @@ import { Loader2, UserCheck } from "lucide-react";
 import { useTranslations } from "use-intl";
 
 // The refusals the engine codes before any stream (`err.detail.code`).
-const CODED_ERRORS = new Set(["decision_already_answered", "decision_invalid_answer", "decision_expired"]);
+const CODED_ERRORS = new Set(["decision_already_answered", "decision_invalid_answer", "decision_expired", "decision_state_unreadable"]);
 
 function errorMessage(t, err) {
   const code = err?.detail?.code;

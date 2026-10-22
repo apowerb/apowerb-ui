@@ -109,6 +109,22 @@ beforeEach(() => {
 });
 afterEach(() => window.history.replaceState({}, "", "/"));
 
+// A stream the test feeds and ends itself: a run still going on the engine.
+function openStream(events) {
+  let ctl;
+  const body = new ReadableStream({
+    start(c) {
+      ctl = c;
+      for (const e of events) c.enqueue(enc.encode(`data: ${JSON.stringify(e)}\n\n`));
+    },
+  });
+  return {
+    response: { ok: true, status: 200, body },
+    push: (...events) => events.forEach((e) => ctl.enqueue(enc.encode(`data: ${JSON.stringify(e)}\n\n`))),
+    end: () => ctl.close(),
+  };
+}
+
 async function runUntilParked(user) {
   api.runWorkflowDef.mockResolvedValueOnce(sse(FIRST_RUN));
   api.listAwaitingDecisions.mockResolvedValue([ROW]);
@@ -199,5 +215,58 @@ describe("a decision reopened after the tab was closed", () => {
     expect(within(list).queryByText("Ailleurs ?")).toBeNull();
     await user.click(within(list).getByRole("button", { name: "Reply" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+describe("Stop", () => {
+  async function resumeAndKeepRunning(user) {
+    const dialog = await runUntilParked(user);
+    const live = openStream(RESUMED.slice(0, 7));
+    api.resumeWorkflowRun.mockResolvedValueOnce(live.response);
+    await user.click(within(dialog).getByRole("button", { name: "Oui" }));
+    await waitFor(() => expect(screen.getByTestId("status-out1")).toHaveTextContent("running"));
+    return live;
+  }
+
+  it("during a resumption cancels the resumed run by its id, not the workflow's", async () => {
+    const user = userEvent.setup();
+    const live = await resumeAndKeepRunning(user);
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(api.cancelWorkflowRun).toHaveBeenCalledTimes(1);
+    expect(api.cancelWorkflowRun).toHaveBeenCalledWith("r1");
+    await waitFor(() => expect(screen.getAllByText("Cancelled").length).toBeGreaterThan(0));
+    live.push({ event: "cancelled" });
+    live.end();
+  });
+
+  it("during a resumption, a refused cancel (404: already over) does not show the run cancelled", async () => {
+    const user = userEvent.setup();
+    const live = await resumeAndKeepRunning(user);
+    api.cancelWorkflowRun.mockRejectedValueOnce(Object.assign(new Error("Unknown workflow id"), { status: 404 }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(api.cancelWorkflowRun).toHaveBeenCalledWith("r1"));
+    expect(screen.queryByText("Cancelled")).toBeNull();
+    // The resumption was not cut from here: its end still shows.
+    live.push(...RESUMED.slice(7));
+    live.end();
+    await waitFor(() => expect(screen.getByTestId("status-out1")).toHaveTextContent("done"));
+    expect(screen.queryByText("Cancelled")).toBeNull();
+  });
+
+  it("on a first run cancels by the run id the engine announced", async () => {
+    const user = userEvent.setup();
+    const live = openStream([
+      { event: "run_started", wid: "r9" },
+      { event: "node_start", node_id: "trigger1", type: "trigger" },
+    ]);
+    api.runWorkflowDef.mockResolvedValueOnce(live.response);
+    render(<WorkflowStudio workflowId="wf1" />);
+    await waitFor(() => expect(screen.getByTestId("node-count")).toHaveTextContent("3"));
+    await user.click(screen.getByRole("button", { name: /^Test run/ }));
+    await user.click(screen.getByRole("button", { name: /^Run$/ }));
+    await waitFor(() => expect(screen.getByTestId("status-trigger1")).toHaveTextContent("running"));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(api.cancelWorkflowRun).toHaveBeenCalledWith("r9");
+    expect(screen.getAllByText("Cancelled").length).toBeGreaterThan(0);
   });
 });

@@ -4249,6 +4249,7 @@
     "inspOutputHelp": "La réponse est disponible en '{{'id.choice'}}' et '{{'id.text'}}'.",
     "expires": "Expire le {when}",
     "error_decision_expired": "Cette décision a expiré : personne n'a répondu à temps, le run a été clos.",
+    "error_decision_state_unreadable": "Cette décision ne se lit plus (la clé de chiffrement du serveur a changé), le run a été clos.",
     "inspExpiry": "Expire après (heures)",
     "inspExpiryHelp": "Passé ce délai, le run est clos en échec. Vide : {hours} heures (une semaine). Au plus {max}."
   },

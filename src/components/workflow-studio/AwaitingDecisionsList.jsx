@@ -27,6 +27,9 @@ export function decisionFromRow(row) {
 
 // The engine writes "2026-10-21 10:00:00.123456" (server time): Safari only
 // reads it as ISO with milliseconds.
+// A run closed with no answer possible: the server says why.
+const CLOSED_CODES = new Set(["decision_expired", "decision_state_unreadable"]);
+
 function parseWhen(value) {
   if (!value) return null;
   const iso = String(value).replace(" ", "T").replace(/(\.\d{3})\d+/, "$1");
@@ -57,7 +60,8 @@ function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, canAbandon, 
       await abandonWorkflowRun(item.runId);
       onAbandoned(item);
     } catch (err) {
-      setError(err?.detail?.code === "decision_expired" ? t("error_decision_expired") : err?.message || "-");
+      const code = err?.detail?.code;
+      setError(CLOSED_CODES.has(code) ? t(`error_${code}`) : err?.message || "-");
       setBusy(false);
     }
   };

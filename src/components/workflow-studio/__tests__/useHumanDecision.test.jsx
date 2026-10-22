@@ -48,8 +48,8 @@ function useHarness(extra = {}) {
   const [liveRunState, setRunState] = useState(() => AWAITING.reduce(applyRunEvent, createRunState()));
   const [runEvents, setRunEvents] = useState(AWAITING);
   const [isRunning, setIsRunning] = useState(false);
-  const runAbortRef = useRef(null);
-  const decision = useHumanDecision({ workflowId: "w1", liveRunState, setRunState, setRunEvents, setIsRunning, runAbortRef, onResumed, ...extra });
+  const liveRunRef = useRef(null);
+  const decision = useHumanDecision({ workflowId: "w1", liveRunState, setRunState, setRunEvents, setIsRunning, liveRunRef, onResumed, ...extra });
   return { ...decision, liveRunState, runEvents, isRunning, setRunState };
 }
 
