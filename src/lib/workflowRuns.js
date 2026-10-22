@@ -64,7 +64,12 @@ export function runFailedNode(run) {
   return dot === -1 ? [nodeId, null] : [nodeId.slice(0, dot), nodeId.slice(dot + 1)];
 }
 
-/** The engine writes "2026-10-21 10:00:00.123456" (server time): Safari only reads ISO with milliseconds. */
+/**
+ * A time sent by the engine. It sends ISO UTC ("2026-10-21T08:00:00.123+00:00"):
+ * the offset is kept, so the browser shows its own local time. An older engine
+ * sent "2026-10-21 10:00:00.123456" without zone, read as local time. Safari only
+ * reads ISO with milliseconds, hence the cut.
+ */
 export function parseRunDate(value) {
   if (!value) return null;
   const iso = String(value).replace(" ", "T").replace(/(\.\d{3})\d+/, "$1");

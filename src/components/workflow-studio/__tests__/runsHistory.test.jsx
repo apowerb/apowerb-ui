@@ -57,8 +57,8 @@ const FAILED = {
   workflow_id: "wf1",
   trigger_kind: "schedule",
   status: "error",
-  created_at: "2026-10-22 09:00:00.000000",
-  finished_at: "2026-10-22 09:00:12.400000",
+  created_at: "2026-10-22T09:00:00.000+00:00",
+  finished_at: "2026-10-22T09:00:12.400+00:00",
   duration_ms: 12400,
   error_message: "HTTP http1 timed out",
   error: { code: "http_timeout", params: { node: "http1", seconds: "10" }, node_id: "http1" },
@@ -211,6 +211,20 @@ describe("Runs in the studio", () => {
     expect(await screen.findByTestId("status-http1")).toHaveTextContent("error");
     expect(screen.getAllByText(/timed out after 10s/).length).toBeGreaterThan(0);
     expect(screen.getByRole("group", { name: /Replay/i })).toBeInTheDocument();
+  });
+
+  it("keeps the drawer and the canvas as they were when a run has no kept steps", async () => {
+    setupStudio();
+    api.getWorkflowRunTrace.mockResolvedValue({ events: [], truncated: false, available: false });
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await user.click(await screen.findByRole("button", { name: "Runs" }));
+    const drawer = await screen.findByRole("dialog", { name: "Runs" });
+    await user.click(await within(drawer).findByRole("button", { name: /Open run r2/ }));
+
+    expect(await within(drawer).findByText(/recorded before its steps were kept/)).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Runs" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /Replay/i })).not.toBeInTheDocument();
   });
 
   it("opens the drawer straight from ?runs=1, read by the page", async () => {

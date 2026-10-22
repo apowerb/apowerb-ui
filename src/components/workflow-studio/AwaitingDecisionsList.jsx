@@ -6,6 +6,7 @@ import { useTranslations, useFormatter } from "use-intl";
 import { Link } from "@/lib/navigation";
 import { listAwaitingDecisions, abandonWorkflowRun } from "@/lib/api";
 import DecisionModal from "./DecisionModal";
+import { parseRunDate } from "@/lib/workflowRuns";
 
 /** A row of `GET /api/workflows/runs/awaiting`, as the modal and the run state name it. */
 export function decisionFromRow(row) {
@@ -25,17 +26,8 @@ export function decisionFromRow(row) {
   };
 }
 
-// The engine writes "2026-10-21 10:00:00.123456" (server time): Safari only
-// reads it as ISO with milliseconds.
 // A run closed with no answer possible: the server says why.
 const CLOSED_CODES = new Set(["decision_expired", "decision_state_unreadable"]);
-
-function parseWhen(value) {
-  if (!value) return null;
-  const iso = String(value).replace(" ", "T").replace(/(\.\d{3})\d+/, "$1");
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
 
 // Owner of the run? `userEmail` undefined: the studio, which only the owner
 // opens. Otherwise the server's `mine` says it (an older server sent the
@@ -67,8 +59,8 @@ function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, canAbandon, 
   };
 
   const short = (date) => (date ? format.dateTime(date, { dateStyle: "short", timeStyle: "short" }) : null);
-  const when = short(parseWhen(item.pausedAt));
-  const until = short(parseWhen(item.expiresAt));
+  const when = short(parseRunDate(item.pausedAt));
+  const until = short(parseRunDate(item.expiresAt));
   const replyClass = "px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-linear-to-r from-brand to-brand-secondary text-white hover:opacity-90";
 
   return (

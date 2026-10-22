@@ -80,6 +80,10 @@ describe("a row's trigger and failure", () => {
 
   it("reads the engine's timestamps", () => {
     expect(parseRunDate("2026-10-21 10:00:00.123456").toISOString()).toMatch(/^2026-10-21T/);
+    // The engine's UTC offset wins over the browser's zone.
+    expect(parseRunDate("2026-10-21T08:00:00.123+00:00").toISOString()).toBe("2026-10-21T08:00:00.123Z");
+    expect(parseRunDate("2026-10-21T08:00:00.123456+00:00").toISOString()).toBe("2026-10-21T08:00:00.123Z");
+    expect(parseRunDate("2026-10-21T10:00:00.000+02:00").toISOString()).toBe("2026-10-21T08:00:00.000Z");
     expect(parseRunDate(null)).toBeNull();
     expect(parseRunDate("nope")).toBeNull();
   });
