@@ -796,7 +796,8 @@ function validateFileSaveConfig(node) {
   if (!FILE_SAVE_PROVIDERS.includes(cfg.provider)) push(`fileSaveProviderUnknown:${cfg.provider ?? ""}`);
   if (typeof cfg.file !== "string" || !cfg.file.trim()) push("fileSaveFileRequired");
   if (!fileFolderValid(cfg.folder)) push("fileSaveFolderInvalid");
-  const conflict = cfg.conflict ?? "rename";
+  // Empty means rename, like the engine (`cfg.get("conflict") or "rename"`).
+  const conflict = cfg.conflict || "rename";
   if (!FILE_SAVE_CONFLICTS.includes(conflict)) push(`fileSaveConflictUnknown:${conflict}`);
   return errors;
 }

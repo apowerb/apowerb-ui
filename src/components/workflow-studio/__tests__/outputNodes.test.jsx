@@ -98,6 +98,13 @@ describe("graph model: file, file_save, email attachments", () => {
     expect(messagesOf(withNode("depot", { folder: `Rapports/{{${"t".repeat(250)}}}` }))).not.toContain("fileSaveFolderInvalid");
     expect(messagesOf(withNode("depot", { folder: "x".repeat(201) }))).toContain("fileSaveFolderInvalid");
     expect(messagesOf(withNode("depot", { conflict: null }))).toEqual([]);
+    expect(messagesOf(withNode("depot", { conflict: "" }))).toEqual([]);
+  });
+
+  it("refuses control characters in a folder, like the engine", () => {
+    expect(messagesOf(withNode("depot", { folder: "Rapports\u0007" }))).toContain("fileSaveFolderInvalid");
+    expect(messagesOf(withNode("depot", { folder: "Rapports\nmois" }))).toContain("fileSaveFolderInvalid");
+    expect(messagesOf(withNode("depot", { folder: "Rapports/2026" }))).not.toContain("fileSaveFolderInvalid");
   });
 
   it("only lets an email carry attachments", () => {
@@ -135,6 +142,8 @@ const ENGINE_CODES = [
   "file_empty",
   "file_text_too_long",
   "file_too_many_rows",
+  "file_too_many_columns",
+  "file_too_many_cells",
   "file_too_large",
   "file_build_failed",
   "file_run_limit",

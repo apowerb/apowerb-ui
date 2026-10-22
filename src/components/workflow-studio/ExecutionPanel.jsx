@@ -201,6 +201,8 @@ const TRANSLATED_ERRORS = new Set([
   "file_empty",
   "file_text_too_long",
   "file_too_many_rows",
+  "file_too_many_columns",
+  "file_too_many_cells",
   "file_too_large",
   "file_build_failed",
   "file_run_limit",

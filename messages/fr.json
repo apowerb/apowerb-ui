@@ -4165,7 +4165,9 @@
     "runError_notification_attachments_too_large": "Notification {node} : pièces jointes trop lourdes ({max} octets au plus en tout).",
     "runError_notification_attachments_email_only": "Notification {node} : seul un email peut porter des pièces jointes.",
     "runError_file_empty": "Créer un fichier {node} : le contenu est vide, il n'y a rien à mettre dans le fichier.",
-    "runError_file_text_too_long": "Créer un fichier {node} : texte trop long pour un fichier {format} ({max} caractères au plus)."
+    "runError_file_text_too_long": "Créer un fichier {node} : texte trop long pour un fichier {format} ({max} caractères au plus).",
+    "runError_file_too_many_columns": "Créer un fichier {node} : trop de colonnes ({max} au plus). Des lignes aux clés toutes différentes ajoutent chacune des colonnes.",
+    "runError_file_too_many_cells": "Créer un fichier {node} : trop de cellules ({max} au plus, lignes × colonnes)."
   },
   "WorkflowVersions": {
     "title": "Versions",
