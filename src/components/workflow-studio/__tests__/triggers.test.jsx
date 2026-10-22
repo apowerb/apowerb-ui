@@ -221,7 +221,8 @@ describe("validation contre-examples, wired end to end into the graph", () => {
     };
     for (const kind of TRIGGER_KINDS) {
       const { errors } = validateGraphLocal(triggerGraph(valid[kind]), { currentWorkflowId: "wf1" });
-      expect(errors, `kind=${kind}`).toEqual([]);
+      // An automatic trigger alone also warns that nothing handles a failure.
+      expect(errors.filter((e) => e.message !== "noErrorHandling"), `kind=${kind}`).toEqual([]);
     }
   });
 });

@@ -311,7 +311,7 @@ describe("validateGraphLocal", () => {
     const graph = {
       version: 1,
       nodes: [
-        { id: "agentA", type: "agent", config: { agent_id: "agent1" }, position: { x: 0, y: 0 } },
+        { id: "agentA", type: "agent", config: { agent_id: "agent1", output_type: "json" }, position: { x: 0, y: 0 } },
         { id: "agentB", type: "agent", config: { agent_id: "agent2", input: "{{agentA.montant}}" }, position: { x: 200, y: 0 } },
       ],
       edges: [{ source: "agentA", target: "agentB" }],

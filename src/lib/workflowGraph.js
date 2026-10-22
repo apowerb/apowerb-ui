@@ -660,6 +660,9 @@ function validateTryConfig(node, options) {
     errors.push({ ...e, nodeId: `${node.id}.${e.nodeId}` });
   }
   errors.push(...nestedApprovalErrors(node, body));
+  if (!body.nodes.some((n) => FALLIBLE_NODE_TYPES.has(n.type))) {
+    push("tryNothingToCatch", { level: "warning" });
+  }
   return errors;
 }
 
@@ -794,25 +797,62 @@ function validateToolArgs(node, options) {
  * date); `options.currentWorkflowId` also stops a `workflow_done` trigger
  * from listening to its own workflow. Both default to safe values.
  */
+/**
+ * `options.failureListeners`: the published workflows that run when this one
+ * fails (`GET /triggers` → `failure_listeners`); `options.failureAlert`: a
+ * failure alert is set on this workflow. Either one silences
+ * `noErrorHandling`.
+ */
 export function validateGraphLocal(graph, options = {}) {
-  return validateGraphCore(graph, options);
+  const result = validateGraphCore(graph, options);
+  // Whole-workflow warnings: not for a Try or Loop body, which validateGraphCore
+  // also walks with its own trigger.
+  const errors = [...result.errors, ...errorHandlingWarnings(graph, options)];
+  return { valid: errors.every((e) => e.level === "warning"), errors };
 }
+
+// Triggers that start a run with nobody watching the Test panel: a failure
+// there goes unseen unless something catches or reports it.
+const AUTOMATIC_TRIGGER_KINDS = new Set(["webhook", "schedule", "email", "agent_tool", "form", "file", "workflow_done"]);
+
+function errorHandlingWarnings(graph, options) {
+  const nodes = graph?.nodes || [];
+  const trigger = nodes.find((n) => n.type === "trigger");
+  if (!trigger || !AUTOMATIC_TRIGGER_KINDS.has(trigger.config?.kind)) return [];
+  if (nodes.some((n) => n.type === "try")) return [];
+  if ((options.failureListeners || []).length > 0) return [];
+  // Extension point for the failure alert setting (error handling v1): the
+  // caller passes `failureAlert` once the workflow can carry one.
+  if (options.failureAlert) return [];
+  return [{ nodeId: trigger.id, message: "noErrorHandling", level: "warning" }];
+}
+
+// Nodes that can fail at run time: calling a model, a tool, the web, another
+// workflow, or turning data into another shape. A Try around nothing else
+// (set, merge, output…) has nothing to catch.
+const FALLIBLE_NODE_TYPES = new Set([
+  "agent", "tool", "http", "rag", "subworkflow", "notification", "db_write", "document",
+  "extract", "classifier", "convert", "loop", "try",
+]);
 
 /**
  * A `{{refNode.path}}` issue worth flagging locally, or `null` when it's
- * fine. The engine JSON-parses an agent's reply when it can, so a real
- * field path on an agent (`{{agentA.montant}}`) is legitimate and not
- * flagged — only the legacy `{{id.output}}` pastille form is, and only as
- * a non-blocking warning, since it still resolves for a JSON-replying
- * agent. A routing node's taken route is never stored, so `.route` on a
- * router/classifier/condition/try is a hard error, as is a path a
- * known-output node (set, extract, rag, http, notification) never writes.
+ * fine. The engine JSON-parses an agent's reply when it can, so a field path
+ * on an agent (`{{agentA.montant}}`) resolves only when the agent answers in
+ * JSON: without "Expected output: JSON" it is a non-blocking warning, like
+ * the legacy `{{id.output}}` pastille form. A routing node's taken route is
+ * never stored, so `.route` on a router/classifier/condition/try is a hard
+ * error, as is a path a known-output node (set, extract, rag, http,
+ * notification) never writes.
  */
 function templateRefIssue(refNode, path) {
   if (!refNode) return null; // unknown node — already reported as templateUnknownNode
   const firstSegment = path.split(".")[0];
   if (refNode.type === "agent" && firstSegment === "output") {
     return { code: "templateRefLegacyOutput", level: "warning" };
+  }
+  if (refNode.type === "agent" && firstSegment && refNode.config?.output_type !== "json") {
+    return { code: "templateRefAgentNotJson", level: "warning" };
   }
   // The trigger's output IS its payload: the legacy `{{trigger.payload}}`
   // pastille looks up a "payload" key inside it and renders "" — unless the

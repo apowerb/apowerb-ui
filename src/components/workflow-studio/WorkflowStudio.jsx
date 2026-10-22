@@ -16,6 +16,8 @@ import {
   getPublicConfig,
   suggestNextWorkflowNode,
   sendWorkflowSuggestEvent,
+  getWorkflowTriggerState,
+  getWorkflowRunTrace,
 } from "@/lib/api";
 import { toolLeafName } from "@/components/tools-manager/toolsManagerUtils";
 import {
@@ -51,6 +53,7 @@ import DecisionModal from "./DecisionModal";
 import AwaitingDecisionsList from "./AwaitingDecisionsList";
 import { useHumanDecision } from "./hooks/useHumanDecision";
 import VersionsDrawer from "./VersionsDrawer";
+import RunsDrawer from "./RunsDrawer";
 import LoopBodyEditor from "./LoopBodyEditor";
 
 const GATEWAY_STATUSES = new Set([502, 503, 504]);
@@ -147,6 +150,10 @@ export default function WorkflowStudio({ workflowId }) {
   const [saveState, setSaveState] = useState("idle");
   const [conflict, setConflict] = useState(null);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  // The Runs drawer; `?runs=1` (the Workflows page's link) opens it at once.
+  const [runsOpen, setRunsOpen] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("runs") === "1",
+  );
   const [publishing, setPublishing] = useState(false);
   // Why the server refused to publish (its validation is stricter than the
   // studio's): shown in the top bar instead of a bare "save error".
@@ -265,9 +272,19 @@ export default function WorkflowStudio({ workflowId }) {
   }, [workflowId]);
 
   // --- validation ------------------------------------------------------------
+  // The published workflows that take over when this one fails: with one, an
+  // automatic trigger without a Try is not "unhandled".
+  const [failureListeners, setFailureListeners] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    getWorkflowTriggerState(workflowId)
+      .then((state) => { if (!cancelled) setFailureListeners(Array.isArray(state?.failure_listeners) ? state.failure_listeners : []); })
+      .catch(() => { if (!cancelled) setFailureListeners([]); });
+    return () => { cancelled = true; };
+  }, [workflowId, triggerRefreshKey]);
   const validation = useMemo(
-    () => validateGraphLocal(flowToGraph(nodes, edges), { toolSchemas, currentWorkflowId: workflowId, now: new Date() }),
-    [nodes, edges, toolSchemas, workflowId],
+    () => validateGraphLocal(flowToGraph(nodes, edges), { toolSchemas, currentWorkflowId: workflowId, now: new Date(), failureListeners }),
+    [nodes, edges, toolSchemas, workflowId, failureListeners],
   );
   const errorsByNode = useMemo(() => {
     const map = {};
@@ -289,6 +306,24 @@ export default function WorkflowStudio({ workflowId }) {
   const [runEvents, setRunEvents] = useState([]);
   const replay = useRunReplay(runEvents);
   const runState = replay.state || liveRunState;
+  // A run opened from the history: once its events are the recording, the
+  // replay shows how it ended (and can step through it from the start).
+  const seekToEndRef = useRef(false);
+  useEffect(() => {
+    if (!seekToEndRef.current) return;
+    seekToEndRef.current = false;
+    replay.seek(runEvents.length);
+  }, [runEvents, replay]);
+  const openHistoryRun = useCallback(async (run) => {
+    const trace = await getWorkflowRunTrace(run.run_id);
+    if (!trace?.available || !Array.isArray(trace.events) || trace.events.length === 0) {
+      throw Object.assign(new Error("trace unavailable"), { code: "trace_unavailable" });
+    }
+    seekToEndRef.current = true;
+    setRunEvents(trace.events);
+    setTestOpen(true);
+    setRunsOpen(false);
+  }, []);
   const runAbortRef = useRef(null);
   // The run on screen: its id (from `run_started`, or the answered decision's
   // run) and whether it outlives its stream (a resumption, detached on the
@@ -897,6 +932,7 @@ export default function WorkflowStudio({ workflowId }) {
         saveState={shownSaveState}
         validation={validation}
         onOpenVersions={() => setVersionsOpen(true)}
+        onOpenRuns={() => setRunsOpen(true)}
         onExport={handleExport}
         testOpen={testOpen}
         onToggleTest={() => setTestOpen((v) => !v)}
@@ -1017,6 +1053,15 @@ export default function WorkflowStudio({ workflowId }) {
           published={workflowMeta.status === "published"}
           onClose={() => setVersionsOpen(false)}
           onRestored={handleRestored}
+        />
+      )}
+
+      {runsOpen && (
+        <RunsDrawer
+          workflowId={workflowId}
+          nodeLabels={Object.fromEntries(nodes.map((n) => [n.id, n.data?.label || ""]))}
+          onClose={() => setRunsOpen(false)}
+          onOpenRun={openHistoryRun}
         />
       )}
 

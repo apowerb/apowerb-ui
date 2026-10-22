@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, AlertTriangle, CheckCircle2, Download, Loader2, History, Play, Rocket, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Download, Loader2, History, ListChecks, Play, Rocket, RotateCcw, X } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { Link } from "@/lib/navigation";
 import { parseValidationMessage } from "@/lib/workflowGraph";
@@ -15,6 +15,7 @@ export default function StudioTopBar({
   saveState,
   validation,
   onOpenVersions,
+  onOpenRuns,
   onExport,
   testOpen,
   onToggleTest,
@@ -87,9 +88,9 @@ export default function StudioTopBar({
           <button
             type="button"
             onClick={() => setShowValidation((v) => !v)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${errorCount > 0 ? "border-red-500/40 text-red-300 hover:bg-red-500/10" : "th-border-secondary th-text-secondary hover:th-bg-surface-hover"}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${errorCount > 0 ? "border-red-500/40 text-red-300 hover:bg-red-500/10" : warningCount > 0 ? "border-amber-500/40 text-amber-300 hover:bg-amber-500/10" : "th-border-secondary th-text-secondary hover:th-bg-surface-hover"}`}
           >
-            {errorCount > 0 ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
+            {errorCount > 0 || warningCount > 0 ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
             {errorCount === 0 && warningCount > 0 ? t("warningCount", { count: warningCount }) : t("validCount", { count: errorCount })}
           </button>
           {showValidation && (
@@ -101,6 +102,13 @@ export default function StudioTopBar({
           <History size={13} />
           {t("versionsButton")}
         </button>
+
+        {onOpenRuns && (
+          <button type="button" onClick={onOpenRuns} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium th-text-secondary hover:th-bg-surface-hover border th-border-secondary">
+            <ListChecks size={13} />
+            {t("runsButton")}
+          </button>
+        )}
 
         <button type="button" onClick={onExport} title={t("exportTitle")} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium th-text-secondary hover:th-bg-surface-hover border th-border-secondary">
           <Download size={13} />
@@ -180,7 +188,7 @@ function ValidationPopoverContent({ errors, onClose }) {
       ) : (
         <ul className="flex flex-col gap-1.5">
           {errors.map((err, i) => (
-            <li key={i} className={`text-[11px] flex items-start gap-1.5 ${err.level === "warning" ? "th-text-ghost" : "text-red-400"}`}>
+            <li key={i} className={`text-[11px] flex items-start gap-1.5 ${err.level === "warning" ? "text-amber-400" : "text-red-400"}`}>
               <AlertTriangle size={11} className="mt-0.5 shrink-0" />
               <span>{format(err)}</span>
             </li>
