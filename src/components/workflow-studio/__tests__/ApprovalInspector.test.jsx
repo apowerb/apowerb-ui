@@ -118,6 +118,21 @@ describe("ApprovalInspector", () => {
     expect(onConfig).toHaveBeenLastCalledWith({ assignee: undefined });
   });
 
+  it("the waiting delay defaults to a week; a number of hours is written, empty clears it", async () => {
+    const onConfig = vi.fn();
+    const user = userEvent.setup();
+    render(<Harness onConfig={onConfig} />);
+    const field = screen.getByLabelText("Expires after (hours)");
+    expect(field).toHaveValue(null);
+    expect(field).toHaveAttribute("placeholder", "168");
+    expect(field).toHaveAttribute("min", "1");
+    expect(field).toHaveAttribute("max", "720");
+    await user.type(field, "48");
+    expect(onConfig).toHaveBeenLastCalledWith({ expires_after_hours: 48 });
+    await user.clear(field);
+    expect(onConfig).toHaveBeenLastCalledWith({ expires_after_hours: undefined });
+  });
+
   it("offers the choices (and text in mode both) as the routes of an outgoing edge", () => {
     const flow = graphToFlow({
       version: 1,

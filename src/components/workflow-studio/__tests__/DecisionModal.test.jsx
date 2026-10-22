@@ -114,6 +114,18 @@ describe("DecisionModal — refusals", () => {
   const refuse = (status, code) =>
     vi.fn().mockRejectedValue(Object.assign(new Error("x"), { status, detail: code ? { code } : undefined }));
 
+  it("409 decision_expired: says the decision expired", async () => {
+    const { user } = setup(decision(), { onAnswer: refuse(409, "decision_expired") });
+    await user.click(screen.getByRole("button", { name: "Oui" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/expired/i);
+  });
+
+  it("409 decision_state_unreadable: says the saved run can no longer be read", async () => {
+    const { user } = setup(decision(), { onAnswer: refuse(409, "decision_state_unreadable") });
+    await user.click(screen.getByRole("button", { name: "Oui" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/can no longer be read/i);
+  });
+
   it("409 decision_already_answered: says so and stops offering answers", async () => {
     const { user } = setup(decision(), { onAnswer: refuse(409, "decision_already_answered") });
     await user.click(screen.getByRole("button", { name: "Oui" }));
@@ -155,5 +167,28 @@ describe("DecisionModal — Later", () => {
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onAnswer).not.toHaveBeenCalled();
+  });
+});
+
+describe("DecisionModal - both mode keeps the comment", () => {
+  it("a choice also sends the typed text, as { choice, text }", async () => {
+    const { onAnswer, user } = setup(decision({ mode: "both" }));
+    await user.type(screen.getByRole("textbox"), "  parce que budget ok ");
+    await user.click(screen.getByRole("button", { name: "Oui" }));
+    expect(onAnswer).toHaveBeenCalledWith({ choice: "oui", text: "parce que budget ok" });
+  });
+
+  it("a choice with blank text stays { choice }", async () => {
+    const { onAnswer, user } = setup(decision({ mode: "both" }));
+    await user.type(screen.getByRole("textbox"), "   ");
+    await user.click(screen.getByRole("button", { name: "Non" }));
+    expect(onAnswer).toHaveBeenLastCalledWith({ choice: "non" });
+  });
+
+  it("text alone sends { text }", async () => {
+    const { onAnswer, user } = setup(decision({ mode: "both" }));
+    await user.type(screen.getByRole("textbox"), "autre piste");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(onAnswer).toHaveBeenCalledWith({ text: "autre piste" });
   });
 });

@@ -2,13 +2,14 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "use-intl";
-import { APPROVAL_MODES } from "@/lib/workflowGraph";
+import { APPROVAL_DEFAULT_HOURS, APPROVAL_MAX_HOURS, APPROVAL_MODES } from "@/lib/workflowGraph";
 import { Field, SelectInput, TextInput, TemplateInput } from "./StudioInspector";
 
 /**
  * Inspector of a human-decision node (`approval`): the question (a template,
  * like every other field), how the person answers, the choices — each one a
- * route to wire — and who answers. `patch` merges into the node's config.
+ * route to wire — who answers, and how long the run waits for them. `patch`
+ * merges into the node's config.
  */
 export default function ApprovalInspector({ config, patch, upstreamNodes, t: ti }) {
   const t = useTranslations("WorkflowDecision");
@@ -82,6 +83,18 @@ export default function ApprovalInspector({ config, patch, upstreamNodes, t: ti 
           value={config.assignee || ""}
           onChange={(e) => patch({ assignee: e.target.value || undefined })}
           placeholder={t("inspAssigneePlaceholder")}
+        />
+      </Field>
+
+      <Field label={t("inspExpiry")} help={t("inspExpiryHelp", { hours: APPROVAL_DEFAULT_HOURS, max: APPROVAL_MAX_HOURS })}>
+        <TextInput
+          type="number"
+          min={1}
+          max={APPROVAL_MAX_HOURS}
+          step={1}
+          value={config.expires_after_hours ?? ""}
+          onChange={(e) => patch({ expires_after_hours: e.target.value === "" ? undefined : Number(e.target.value) })}
+          placeholder={String(APPROVAL_DEFAULT_HOURS)}
         />
       </Field>
     </>

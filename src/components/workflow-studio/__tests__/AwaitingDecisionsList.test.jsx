@@ -143,4 +143,86 @@ describe("AwaitingDecisionsList", () => {
     rerender(<AwaitingDecisionsList onAnswer={vi.fn()} refreshKey="b" />);
     await waitFor(() => expect(listAwaitingDecisions).toHaveBeenCalledTimes(2));
   });
+
+  it("hides Abandon (owner only, the server answers 403) for a decision assigned to me", async () => {
+    listAwaitingDecisions.mockResolvedValue([
+      { ...ROWS[0], owner_id: "alice@example.com" },
+      { ...ROWS[1], owner_id: "bob@example.com", assignee: "alice@example.com" },
+    ]);
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} userEmail="Bob@Example.com" />);
+    const mine = (await screen.findByText("Accorder ?")).closest("li");
+    const assigned = screen.getByText("Valider Plan A ?").closest("li");
+    expect(within(mine).getByRole("button", { name: "Abandon" })).toBeInTheDocument();
+    expect(within(assigned).queryByRole("button", { name: "Abandon" })).toBeNull();
+    expect(within(assigned).getByRole("button", { name: "Reply" })).toBeInTheDocument();
+  });
+
+  it("without a known user (the studio, owner only) Abandon stays", async () => {
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} />);
+    const row = (await screen.findByText("Valider Plan A ?")).closest("li");
+    expect(within(row).getByRole("button", { name: "Abandon" })).toBeInTheDocument();
+  });
+
+  it("says until when a decision waits, and nothing for an older server", async () => {
+    listAwaitingDecisions.mockResolvedValue([{ ...ROWS[0], expires_at: "2026-10-28 10:00:00.000000" }, ROWS[1]]);
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} />);
+    const row = (await screen.findByText("Valider Plan A ?")).closest("li");
+    expect(within(row).getByText(/^Expires/)).toBeInTheDocument();
+    const other = screen.getByText("Accorder ?").closest("li");
+    expect(within(other).queryByText(/^Expires/)).toBeNull();
+  });
+
+  it("an abandon refused because the decision expired says so in words", async () => {
+    abandonWorkflowRun.mockRejectedValueOnce(Object.assign(new Error("HTTP 409"), { status: 409, detail: { code: "decision_expired" } }));
+    const user = userEvent.setup();
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} />);
+    const row = (await screen.findByText("Valider Plan A ?")).closest("li");
+    await user.click(within(row).getByRole("button", { name: "Abandon" }));
+    await user.click(within(row).getByRole("button", { name: "Yes, abandon" }));
+    expect(await within(row).findByRole("alert")).toHaveTextContent(/expired/i);
+  });
+
+  it("trusts the server's mine flag: Abandon only on the user's own runs, none while the user is unknown", async () => {
+    listAwaitingDecisions.mockResolvedValue([
+      { ...ROWS[0], owner_id: undefined, mine: true },
+      { ...ROWS[1], owner_id: undefined, mine: false },
+    ]);
+    const { unmount } = render(<AwaitingDecisionsList onAnswer={vi.fn()} userEmail="me@example.com" />);
+    const own = (await screen.findByText("Valider Plan A ?")).closest("li");
+    expect(within(own).getByRole("button", { name: "Abandon" })).toBeInTheDocument();
+    expect(within(screen.getByText("Accorder ?").closest("li")).queryByRole("button", { name: "Abandon" })).toBeNull();
+    unmount();
+    listAwaitingDecisions.mockResolvedValue([{ ...ROWS[0], owner_id: undefined }]);
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} userEmail={null} />);
+    const row = (await screen.findByText("Valider Plan A ?")).closest("li");
+    expect(within(row).queryByRole("button", { name: "Abandon" })).toBeNull();
+  });
+
+  it.each([
+    [409, "decision_expired", /expired/i],
+    [404, undefined, /no longer exists/i],
+  ])("an answer refused with %s takes the row off the list and keeps the dialog with its reason", async (status, code, pattern) => {
+    const onAnswer = vi.fn().mockRejectedValue(Object.assign(new Error("x"), { status, detail: code ? { code } : undefined }));
+    const user = userEvent.setup();
+    render(<AwaitingDecisionsList onAnswer={onAnswer} hideWhenEmpty />);
+    await user.click(within(await screen.findByText("Valider Plan A ?").then((n) => n.closest("li"))).getByRole("button", { name: "Reply" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Oui" }));
+    const dialog = screen.getByRole("dialog");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(pattern);
+    expect(screen.getAllByText("Valider Plan A ?")).toHaveLength(1); // only in the dialog
+    expect(screen.getByText("Accorder ?")).toBeInTheDocument();
+  });
+
+  it("the last decision refused stays readable in its dialog even when the list hides itself", async () => {
+    listAwaitingDecisions.mockResolvedValue([ROWS[0]]);
+    const onAnswer = vi.fn().mockRejectedValue(Object.assign(new Error("x"), { status: 409, detail: { code: "decision_expired" } }));
+    const user = userEvent.setup();
+    render(<AwaitingDecisionsList onAnswer={onAnswer} hideWhenEmpty />);
+    await user.click(await screen.findByRole("button", { name: "Reply" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Oui" }));
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent(/expired/i);
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText("Valider Plan A ?")).toBeNull();
+  });
 });

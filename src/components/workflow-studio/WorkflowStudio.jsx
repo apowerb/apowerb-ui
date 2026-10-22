@@ -290,6 +290,10 @@ export default function WorkflowStudio({ workflowId }) {
   const replay = useRunReplay(runEvents);
   const runState = replay.state || liveRunState;
   const runAbortRef = useRef(null);
+  // The run on screen: its id (from `run_started`, or the answered decision's
+  // run) and whether it outlives its stream (a resumption, detached on the
+  // engine). Stop needs both.
+  const liveRunRef = useRef(null);
   const prefilledPayloadRef = useRef(false);
 
   useEffect(() => {
@@ -346,12 +350,16 @@ export default function WorkflowStudio({ workflowId }) {
     setIsRunning(true);
     const controller = new AbortController();
     runAbortRef.current = controller;
+    liveRunRef.current = { runId: null, detached: false };
     try {
       if (beforeRun) await beforeRun();
       const response = await runWorkflowDef(workflowId, payload, { signal: controller.signal, until });
       await consumeWorkflowRun(response, {
         signal: controller.signal,
         onEvent: (evt) => {
+          if (evt.event === "run_started") {
+            liveRunRef.current = { runId: evt.wid ?? evt.run_id ?? null, detached: false };
+          }
           setRunEvents((list) => [...list, evt]);
           setRunState((s) => applyRunEvent(s, evt));
         },
@@ -372,10 +380,21 @@ export default function WorkflowStudio({ workflowId }) {
   const handleRun = useCallback(() => startRun(), [startRun]);
 
   const handleCancelRun = useCallback(() => {
+    const live = liveRunRef.current;
+    if (live?.detached) {
+      // A resumption is not stopped by leaving its stream: only the engine's
+      // yes stops it. Refused (404: already over), its stream shows the end.
+      cancelWorkflowRun(live.runId)
+        .then(() => setRunState((s) => applyRunEvent(s, { event: "cancelled" })))
+        .catch(() => {});
+      return;
+    }
+    // A first run stops with its stream: the engine cancels a run whose
+    // client left.
     runAbortRef.current?.abort();
-    cancelWorkflowRun(workflowId).catch(() => {});
+    if (live?.runId) cancelWorkflowRun(live.runId).catch(() => {});
     setRunState((s) => applyRunEvent(s, { event: "cancelled" }));
-  }, [workflowId]);
+  }, []);
 
   // Human decision: the dialog, the resumption of a parked run in this panel.
   const openTestPanel = useCallback(() => setTestOpen(true), []);
@@ -384,7 +403,7 @@ export default function WorkflowStudio({ workflowId }) {
     setRunState,
     setRunEvents,
     setIsRunning,
-    runAbortRef,
+    liveRunRef,
     onResumed: openTestPanel,
   });
 

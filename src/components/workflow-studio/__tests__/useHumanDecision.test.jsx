@@ -48,8 +48,8 @@ function useHarness(extra = {}) {
   const [liveRunState, setRunState] = useState(() => AWAITING.reduce(applyRunEvent, createRunState()));
   const [runEvents, setRunEvents] = useState(AWAITING);
   const [isRunning, setIsRunning] = useState(false);
-  const runAbortRef = useRef(null);
-  const decision = useHumanDecision({ workflowId: "w1", liveRunState, setRunState, setRunEvents, setIsRunning, runAbortRef, onResumed, ...extra });
+  const liveRunRef = useRef(null);
+  const decision = useHumanDecision({ workflowId: "w1", liveRunState, setRunState, setRunEvents, setIsRunning, liveRunRef, onResumed, ...extra });
   return { ...decision, liveRunState, runEvents, isRunning, setRunState };
 }
 
@@ -178,4 +178,45 @@ describe("useHumanDecision", () => {
     act(() => result.current.abandoned({ runId: "elsewhere" }));
     expect(result.current.liveRunState.status).toBe("awaiting");
   });
+
+  it("a second answer never cuts the first stream (that would cancel its run); only the latest feeds the panel", async () => {
+    let firstSignal;
+    let pushFirst;
+    const first = new ReadableStream({ start(c) { pushFirst = c; } });
+    resumeWorkflowRun.mockImplementationOnce(async (_id, _b, { signal }) => {
+      firstSignal = signal;
+      return { ok: true, status: 200, body: first };
+    });
+    const { result } = renderHook(() => useHarness());
+    await act(async () => {
+      await result.current.answer(result.current.decision, { choice: "oui" });
+    });
+    resumeWorkflowRun.mockResolvedValueOnce(sseResponse(RESUME));
+    await act(async () => {
+      await result.current.answer({ runId: "r1", nodeId: "decision1" }, { choice: "non" });
+    });
+    await waitFor(() => expect(result.current.liveRunState.status).toBe("done"));
+    await act(async () => {
+      pushFirst.enqueue(enc.encode(`data: ${JSON.stringify({ event: "error", code: "internal" })}\n\n`));
+      pushFirst.close();
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(firstSignal.aborted).toBe(false);
+    expect(result.current.liveRunState.status).toBe("done");
+  });
+
+  it("unmounting does not cut the resumption stream: the run goes on, nothing is applied after", async () => {
+    let signal;
+    resumeWorkflowRun.mockImplementationOnce(async (_id, _b, opts) => {
+      signal = opts.signal;
+      return { ok: true, status: 200, body: new ReadableStream({ start() {} }) };
+    });
+    const { result, unmount } = renderHook(() => useHarness());
+    await act(async () => {
+      await result.current.answer(result.current.decision, { choice: "oui" });
+    });
+    unmount();
+    expect(signal.aborted).toBe(false);
+  });
 });
+

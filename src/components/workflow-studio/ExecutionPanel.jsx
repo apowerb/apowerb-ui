@@ -196,9 +196,14 @@ const TRANSLATED_ERRORS = new Set([
   "approval_choice_duplicate",
   "approval_text_route_missing",
   "approval_nested",
+  "approval_expiry_invalid",
+  // the pause could not be written / this run cannot wait.
+  "decision_not_saved",
+  "decision_unavailable",
+  "decision_state_too_large",
 ]);
 
-function errorText(t, error) {
+export function errorText(t, error) {
   if (!error) return "";
   if (typeof error === "string") return error;
   if (error.code === "invalid_graph" && TRANSLATED_ERRORS.has(error.cause)) {

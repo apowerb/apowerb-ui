@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search, Workflow as WorkflowIcon, Copy, Trash2, AlertTriangle, Loader2 } from "lucide-react";
 import { useTranslations, useFormatter, useNow } from "use-intl";
 import { Link, useRouter } from "@/lib/navigation";
-import { listWorkflowDefs, createWorkflowDef, duplicateWorkflowDef, deleteWorkflowDef } from "@/lib/api";
+import { listWorkflowDefs, createWorkflowDef, duplicateWorkflowDef, deleteWorkflowDef, resumeWorkflowRun } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { consumeWorkflowRun } from "@/lib/workflowSse";
 import CreateWorkflowModal from "./CreateWorkflowModal";
 import AwaitingDecisionsList from "./AwaitingDecisionsList";
+import { errorText } from "./ExecutionPanel";
 import PreviewBadge from "@/components/PreviewBadge";
 
 // POST et duplicate renvoient le workflow complet (graphe compris) ; la liste,
@@ -87,8 +90,33 @@ function WorkflowCard({ workflow, onDuplicate, onDelete, duplicatingId, duplicat
   );
 }
 
+// What is told after an answer sent from the list: the run is followed to its
+// terminal event, then summed up in one line.
+function resumeOutcome(terminal, td, te) {
+  switch (terminal?.event) {
+    case "done":
+      return { tone: "ok", text: td("resumeDone") };
+    case "awaiting_input":
+      return { tone: "ok", text: td("resumeAwaiting") };
+    case "cancelled":
+      return { tone: "warn", text: td("resumeCancelled") };
+    case "error":
+      return { tone: "error", text: td("resumeFailed", { message: errorText(te, terminal) }) };
+    default:
+      return { tone: "error", text: td("resumeFailed", { message: errorText(te, { code: "server_unreachable", params: { status: "-" } }) }) };
+  }
+}
+
 export default function WorkflowsPage() {
   const t = useTranslations("WorkflowsPage");
+  const td = useTranslations("WorkflowDecision");
+  const te = useTranslations("WorkflowExecutionPanel");
+  const { user } = useAuth();
+  const userEmail = user?.email ?? null;
+  const [resumeStatus, setResumeStatus] = useState(null);
+  const [decisionsKey, setDecisionsKey] = useState(0);
+  const resumeGenerationRef = useRef(0);
+  const mountedRef = useRef(true);
   const router = useRouter();
   const [workflows, setWorkflows] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -125,6 +153,38 @@ export default function WorkflowsPage() {
     if (!q) return workflows;
     return workflows.filter((w) => w.name?.toLowerCase().includes(q));
   }, [workflows, query]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // An assignee cannot open the workflow in the studio (owner only): the answer
+  // is sent from here. A refusal (404, 409, 422) is thrown to the dialog; once
+  // accepted, the rest of the run is followed in the background. The stream is
+  // never cut (the engine would cancel a run whose answer is given): leaving
+  // the page, or answering another decision, only stops listening to it.
+  const answerDecision = async (decision, body) => {
+    const response = await resumeWorkflowRun(decision.runId, body, { signal: new AbortController().signal });
+    const generation = ++resumeGenerationRef.current;
+    const latest = () => mountedRef.current && resumeGenerationRef.current === generation;
+    setResumeStatus({ tone: "info", text: td("resumeRunning") });
+    let outcome;
+    consumeWorkflowRun(response)
+      .then((terminal) => {
+        outcome = resumeOutcome(terminal, td, te);
+      })
+      .catch(() => {
+        outcome = resumeOutcome(null, td, te);
+      })
+      .finally(() => {
+        if (!mountedRef.current) return;
+        setDecisionsKey((n) => n + 1);
+        if (latest()) setResumeStatus(outcome);
+      });
+  };
 
   const handleCreate = async ({ name, description, graph }) => {
     setCreating(true);
@@ -200,7 +260,22 @@ export default function WorkflowsPage() {
           />
         </div>
 
-        <AwaitingDecisionsList hideWhenEmpty className="mb-6" />
+        {resumeStatus && (
+          <p
+            role="status"
+            className={`mb-3 text-xs ${resumeStatus.tone === "error" ? "text-red-400" : resumeStatus.tone === "warn" ? "text-amber-300" : "th-text-secondary"}`}
+          >
+            {resumeStatus.text}
+          </p>
+        )}
+        <AwaitingDecisionsList
+          hideWhenEmpty
+          className="mb-6"
+          onAnswer={answerDecision}
+          userEmail={userEmail}
+          studioLink
+          refreshKey={decisionsKey}
+        />
 
         {loadError && (
           <div className="flex items-center gap-2 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 mb-5">

@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import WorkflowsPage from "@/components/workflow-studio/WorkflowsPage";
 import StudioTopBar from "@/components/workflow-studio/StudioTopBar";
 
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { email: "me@example.com" } }) }));
 vi.mock("@/lib/navigation", () => ({
   Link: ({ href, children, ...rest }) => <a href={href} {...rest}>{children}</a>,
   usePathname: () => "/workflows",

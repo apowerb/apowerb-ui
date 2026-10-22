@@ -430,12 +430,20 @@ function declaredRoutes(node) {
  * engine's `approval_*` refusals; `approvalNested` is checked by the loop/try
  * body validators.
  */
+// How long a decision waits before the run is closed (engine: 168 h by default, 720 at most).
+export const APPROVAL_DEFAULT_HOURS = 168;
+export const APPROVAL_MAX_HOURS = 720;
+
 function validateApprovalConfig(node, outgoing) {
   const errors = [];
   const cfg = node.config || {};
   const push = (message) => errors.push({ nodeId: node.id, message });
 
   if (typeof cfg.question !== "string" || !cfg.question.trim()) push("approvalQuestionRequired");
+  const hours = cfg.expires_after_hours;
+  if (hours !== undefined && !(Number.isInteger(hours) && hours >= 1 && hours <= APPROVAL_MAX_HOURS)) {
+    push("approvalExpiryInvalid");
+  }
   if (!APPROVAL_MODES.includes(cfg.mode)) {
     push(`approvalModeUnknown:${cfg.mode}`);
     return errors;

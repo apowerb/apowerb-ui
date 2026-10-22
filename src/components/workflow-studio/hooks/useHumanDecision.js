@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listAwaitingDecisions, resumeWorkflowRun } from "@/lib/api";
 import { applyRunEvent, createRunState } from "@/lib/workflowRunState";
 import { consumeWorkflowRun } from "@/lib/workflowSse";
@@ -18,10 +18,22 @@ const keyOf = (d) => (d ? `${d.runId}:${d.nodeId}` : null);
  *   stream is accepted the test panel is reset and fed with the same reducer
  *   as a normal run (replayed nodes, the answer, the rest of the run).
  */
-export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setIsRunning, runAbortRef, onResumed }) {
+export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setIsRunning, liveRunRef, onResumed }) {
   const [manual, setManual] = useState(null);
   const [dismissed, setDismissed] = useState(null);
   const [resumes, setResumes] = useState(0);
+  // A resumption is never cut from here: leaving its stream does not stop it
+  // on the engine. A replaced stream (another answer) or one that outlives the
+  // studio is only no longer listened to; Stop cancels it by its run id.
+  const generationRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const pending = liveRunState.status === "awaiting" ? liveRunState.pendingDecision : null;
   const pendingKey = keyOf(pending);
@@ -59,7 +71,9 @@ export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setI
       // Accepted: from here on the run is shown again, from its start.
       setManual(null);
       setDismissed(keyOf(target));
-      runAbortRef.current = controller;
+      const generation = ++generationRef.current;
+      const listened = () => mountedRef.current && generationRef.current === generation;
+      liveRunRef.current = { runId: target.runId, detached: true };
       setRunState(createRunState());
       setRunEvents([]);
       setIsRunning(true);
@@ -67,23 +81,24 @@ export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setI
       consumeWorkflowRun(response, {
         signal: controller.signal,
         onEvent: (evt) => {
+          if (!listened()) return;
           setRunEvents((list) => [...list, evt]);
           setRunState((s) => applyRunEvent(s, evt));
         },
       })
         .catch((err) => {
-          if (controller.signal.aborted) return;
+          if (controller.signal.aborted || !listened()) return;
           const evt = { event: "error", code: "server_unreachable", detail: err?.message, params: { status: "-" } };
           setRunEvents((list) => [...list, evt]);
           setRunState((s) => applyRunEvent(s, evt));
         })
         .finally(() => {
+          if (!listened()) return;
           setIsRunning(false);
-          if (runAbortRef.current === controller) runAbortRef.current = null;
           setResumes((n) => n + 1);
         });
     },
-    [onResumed, runAbortRef, setIsRunning, setRunEvents, setRunState],
+    [liveRunRef, onResumed, setIsRunning, setRunEvents, setRunState],
   );
 
   // A run given up from the list: if it is the one on screen, it is over.

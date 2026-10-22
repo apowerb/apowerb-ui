@@ -208,6 +208,14 @@ describe("approval — local validation", () => {
     expect(codes(run({ mode: "text", choices: [] }, [{ source: "t", target: "d" }]))).not.toContain("approvalChoicesMissing");
   });
 
+  it("refuses a waiting delay that is not 1 to 720 whole hours, accepts none", () => {
+    for (const bad of [0, 721, 2.5, "48"]) {
+      expect(codes(run({ mode: "text", expires_after_hours: bad }))).toContain("approvalExpiryInvalid");
+    }
+    expect(codes(run({ mode: "text", expires_after_hours: 48 }))).not.toContain("approvalExpiryInvalid");
+    expect(codes(run({ mode: "text" }))).not.toContain("approvalExpiryInvalid");
+  });
+
   it("refuses a blank choice route", () => {
     expect(codes(run({ choices: [{ route: "", label: "x" }] }, [{ source: "t", target: "d" }]))).toContain("approvalChoiceRouteRequired");
   });
