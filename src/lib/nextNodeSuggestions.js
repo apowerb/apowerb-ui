@@ -15,6 +15,8 @@ const AFTER = {
   agent: ["agent", "output", "condition"],
   rag: ["agent", "output"],
   extract: ["condition", "output", "notification"],
+  document: ["classifier", "agent", "output"],
+  db_write: ["output", "notification"],
   tool: ["convert", "output", "notification"],
   http: ["convert", "output", "notification"],
   convert: ["agent", "condition", "output"],
@@ -35,7 +37,7 @@ const ROUTING_ROUTES = {
   condition: () => CONDITION_ROUTES,
   try: () => TRY_ROUTES,
   router: (config) => [...(config?.rules || []).map((r) => r?.route), config?.default_route],
-  classifier: (config) => (config?.routes || []).map((r) => r?.route),
+  classifier: (config) => [...(config?.routes || []).map((r) => r?.route), ...(config?.engine === "jev" ? ["uncertain"] : [])],
 };
 
 const MAX_SUGGESTIONS = 3;
