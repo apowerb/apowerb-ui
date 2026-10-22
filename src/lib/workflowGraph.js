@@ -641,8 +641,9 @@ function validateErrorHandling(node, outgoing, routed) {
   if (!ON_ERROR_NODE_TYPES.has(node.type)) {
     if (mode !== "fail") warn(`onErrorUnsupported:${node.type}`);
   } else if (!ON_ERROR_MODES.includes(mode) || (node.type === "classifier" && mode === "continue")) {
-    // The engine runs it as fail: a saved graph must keep running.
-    warn(`onErrorUnknown:${mode}`);
+    // The engine runs it as fail (a saved graph must keep running), except on
+    // a tool, where it was already refused before.
+    (node.type === "tool" ? push : warn)(`onErrorUnknown:${mode}`);
   }
   if (mode === "route" && node.type === "classifier" && (cfg.routes || []).some((r) => r?.route === ERROR_ROUTE)) {
     push("onErrorRouteConflict");

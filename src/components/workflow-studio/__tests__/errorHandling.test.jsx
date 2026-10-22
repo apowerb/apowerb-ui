@@ -64,6 +64,11 @@ describe("on_error in the graph model", () => {
     const unknown = { nodes: [trigger, agent({ on_error: "ignore" })], edges: [{ source: "t", target: "a" }] };
     expect(warnings(unknown)).toContain("onErrorUnknown:ignore");
     expect(validateGraphLocal(unknown).valid).toBe(true);
+    // A tool already refused it before, like the engine still does.
+    const tool = { id: "a", type: "tool", config: { tool: "x.y", on_error: "ignore" } };
+    const withTool = { nodes: [trigger, tool], edges: [{ source: "t", target: "a" }] };
+    expect(messages(withTool)).toContain("onErrorUnknown:ignore");
+    expect(warnings(withTool)).not.toContain("onErrorUnknown:ignore");
     const set = { id: "s", type: "set", config: { fields: [{ key: "k", value: "v" }], on_error: "continue" } };
     const withSet = { nodes: [trigger, set], edges: [{ source: "t", target: "s" }] };
     expect(warnings(withSet)).toContain("onErrorUnsupported:set");
