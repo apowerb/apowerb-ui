@@ -16,6 +16,7 @@ import {
   getPublicConfig,
   suggestNextWorkflowNode,
   sendWorkflowSuggestEvent,
+  retryWorkflowRunFromFailure,
 } from "@/lib/api";
 import { toolLeafName } from "@/components/tools-manager/toolsManagerUtils";
 import {
@@ -39,7 +40,7 @@ import { useRunReplay } from "./hooks/useRunReplay";
 import { useToolSchemas } from "./hooks/useToolSchemas";
 import { useSuggestionAdoption } from "./hooks/useSuggestionAdoption";
 import { useNodeShapes } from "./hooks/useNodeShapes";
-import { knownShapes, effectfulNodesUpTo } from "@/lib/workflowShapes";
+import { knownShapes, effectfulNodesUpTo, effectfulNodesFrom } from "@/lib/workflowShapes";
 import TestUntilConfirm from "./TestUntilConfirm";
 import StudioTopBar from "./StudioTopBar";
 import { suggestNextNodes, applySuggestion, paletteSuggestion, aiSuggestionsFrom, mergeAiSuggestions } from "@/lib/nextNodeSuggestions";
@@ -340,28 +341,29 @@ export default function WorkflowStudio({ workflowId }) {
   // run ends so the inspector asks for the shapes again.
   const [runsFinished, setRunsFinished] = useState(0);
 
-  const startRun = useCallback(async ({ until, beforeRun, text = payloadText } = {}) => {
-    if (payloadError) return;
-    let payload = {};
-    try {
-      payload = text.trim() ? JSON.parse(text) : {};
-    } catch {
-      return;
-    }
+  // A "Test up to here" resumed with "Resume here" stops at the same step:
+  // `{ runId, until }` of the last run started here, so a run resumed from
+  // elsewhere (a decision from the list) is not bounded by it.
+  const runUntilRef = useRef({ runId: null, until: null });
+
+  // Feeds the Test panel with one run's stream: `open(signal)` gives its
+  // Response (a first run, or a "Resume here" already accepted).
+  const streamRun = useCallback(async (open, { beforeRun, until = null, controller = new AbortController() } = {}) => {
     setRunState(createRunState());
     setRunEvents([]);
     setIsRunning(true);
-    const controller = new AbortController();
     runAbortRef.current = controller;
+    runUntilRef.current = { runId: null, until };
     liveRunRef.current = { runId: null, detached: false };
     try {
       if (beforeRun) await beforeRun();
-      const response = await runWorkflowDef(workflowId, payload, { signal: controller.signal, until });
+      const response = await open(controller.signal);
       await consumeWorkflowRun(response, {
         signal: controller.signal,
         onEvent: (evt) => {
           if (evt.event === "run_started") {
             liveRunRef.current = { runId: evt.wid ?? evt.run_id ?? null, detached: false };
+            runUntilRef.current = { ...runUntilRef.current, runId: liveRunRef.current.runId };
           }
           setRunEvents((list) => [...list, evt]);
           setRunState((s) => applyRunEvent(s, evt));
@@ -378,7 +380,21 @@ export default function WorkflowStudio({ workflowId }) {
       runAbortRef.current = null;
       setRunsFinished((n) => n + 1);
     }
-  }, [workflowId, payloadText, payloadError]);
+  }, []);
+
+  const startRun = useCallback(
+    async ({ until, beforeRun, text = payloadText } = {}) => {
+      if (payloadError) return;
+      let payload = {};
+      try {
+        payload = text.trim() ? JSON.parse(text) : {};
+      } catch {
+        return;
+      }
+      await streamRun((signal) => runWorkflowDef(workflowId, payload, { signal, until }), { beforeRun, until });
+    },
+    [workflowId, payloadText, payloadError, streamRun],
+  );
 
   const handleRun = useCallback(() => startRun(), [startRun]);
 
@@ -475,6 +491,14 @@ export default function WorkflowStudio({ workflowId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, workflowMeta?.name, workflowMeta?.settings, loadState]);
 
+  // The server runs the saved version: what is on screen is saved first.
+  const saveIfDirty = useCallback(async () => {
+    const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges, workflowMeta?.settings) });
+    if (snapshot === lastSavedSnapshotRef.current) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    await doSave();
+  }, [workflowMeta?.name, workflowMeta?.settings, nodes, edges, doSave]);
+
   // --- "Test up to here" and known output shapes (proactive Studio, step 2) --
   const serverShapes = useNodeShapes(nodes, edges, runsFinished);
   const upstreamShapes = useMemo(() => knownShapes(serverShapes, runState), [serverShapes, runState]);
@@ -497,16 +521,47 @@ export default function WorkflowStudio({ workflowId }) {
       setPayloadText(text);
       prefilledPayloadRef.current = true;
     }
-    // The server runs the saved version: a node wired a second ago must be
-    // saved before it can be tested.
-    const beforeRun = async () => {
-      const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges, workflowMeta?.settings) });
-      if (snapshot === lastSavedSnapshotRef.current) return;
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      await doSave();
-    };
-    startRun({ until, beforeRun, text });
-  }, [testUntilId, payloadText, workflowMeta?.name, workflowMeta?.settings, nodes, edges, doSave, startRun]);
+    // A node wired a second ago must be saved before it can be tested.
+    startRun({ until, beforeRun: saveIfDirty, text });
+  }, [testUntilId, payloadText, nodes, saveIfDirty, startRun]);
+
+  // --- "Resume here": a failed run again from its failed step ----------------
+  // The step waiting for confirmation, with the server's refusal if any: the
+  // run on screen stays until the new one is accepted.
+  const tRun = useTranslations("WorkflowExecutionPanel");
+  const [retryTarget, setRetryTarget] = useState(null);
+  const retryEffects = useMemo(
+    () => (retryTarget ? effectfulNodesFrom(retryTarget.nodeId, nodes, edges, retryTarget.until) : []),
+    [retryTarget, nodes, edges],
+  );
+  const askRetryHere = useCallback(
+    (nodeId) => {
+      const runId = liveRunState.runId;
+      if (!runId) return;
+      const until = runUntilRef.current.runId === runId ? runUntilRef.current.until : null;
+      setRetryTarget({ runId, nodeId, until, error: null, busy: false });
+    },
+    [liveRunState.runId],
+  );
+  const confirmRetryHere = useCallback(async () => {
+    const target = retryTarget;
+    if (!target || target.busy) return;
+    setRetryTarget({ ...target, error: null, busy: true });
+    const controller = new AbortController();
+    let response;
+    try {
+      // A fix made to the failed step is what the server will run.
+      await saveIfDirty();
+      response = await retryWorkflowRunFromFailure(target.runId, { signal: controller.signal });
+    } catch (err) {
+      const labelOf = (id) => nodes.find((n) => n.id === id)?.data?.label || id;
+      setRetryTarget({ ...target, busy: false, error: retryRefusalText(tRun, err, labelOf) });
+      return;
+    }
+    setRetryTarget(null);
+    setTestOpen(true);
+    streamRun(() => response, { until: target.until, controller });
+  }, [retryTarget, saveIfDirty, streamRun, nodes, tRun]);
 
   const currentSnapshot = useMemo(
     () => JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges, workflowMeta?.settings) }),
@@ -962,6 +1017,7 @@ export default function WorkflowStudio({ workflowId }) {
             onRun={handleRun}
             onCancel={handleCancelRun}
             onOpenDecision={humanDecision.reopen}
+            onRetryHere={askRetryHere}
             nodeLabels={Object.fromEntries(nodes.map((n) => [n.id, n.data?.label || ""]))}
           >
             <AwaitingDecisionsList
@@ -1009,6 +1065,17 @@ export default function WorkflowStudio({ workflowId }) {
           onCancel={() => setTestUntilId(null)}
         />
       )}
+      {retryTarget && (
+        <TestUntilConfirm
+          retry
+          nodeLabel={nodes.find((n) => n.id === retryTarget.nodeId)?.data?.label || retryTarget.nodeId}
+          effects={retryEffects}
+          error={retryTarget.error}
+          busy={retryTarget.busy}
+          onConfirm={confirmRetryHere}
+          onCancel={() => setRetryTarget(null)}
+        />
+      )}
       {humanDecision.decision && (
         <DecisionModal
           decision={humanDecision.decision}
@@ -1043,4 +1110,28 @@ export default function WorkflowStudio({ workflowId }) {
       )}
     </div>
   );
+}
+
+// The refusal of a "Resume here", as the person can act on it.
+const RETRY_CODES = new Set([
+  "retry_not_failed",
+  "retry_already_started",
+  "retry_expired",
+  "retry_unavailable",
+  "retry_state_unreadable",
+  "retry_workflow_missing",
+  "retry_graph_changed",
+]);
+
+export function retryRefusalText(t, err, labelOf = (id) => id) {
+  const code = err?.detail?.code;
+  if (RETRY_CODES.has(code)) {
+    const params = err.detail.params || {};
+    return t(`retryError_${code}`, {
+      nodes: (params.nodes || []).map(labelOf).join(", "),
+      days: params.days ?? 7,
+    });
+  }
+  if (err?.status === 404) return t("retryError_not_found");
+  return err?.detail?.message || err?.message || t("statusError");
 }
