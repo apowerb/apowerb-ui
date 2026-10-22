@@ -84,6 +84,48 @@ export const HTTP_TIMEOUT_DEFAULT = 15;
 // lot (21/09).
 const HTTP_FORBIDDEN_HEADERS = new Set(["authorization", "proxy-authorization", "cookie", "x-api-key"]);
 
+/**
+ * What a node does when it fails (`on_error`), mirroring the engine
+ * (core `workflow_graph._ON_ERROR_TYPES`): stop the run (default), continue
+ * with the error as output, or take a separate `error` output. Only nodes
+ * that call an agent, a tool, the network, the database or another workflow
+ * can fail this way; a classifier has no `continue` (it would lead nowhere).
+ */
+export const ON_ERROR_MODES = ["fail", "continue", "route"];
+export const ON_ERROR_NODE_TYPES = new Set([
+  "agent",
+  "tool",
+  "extract",
+  "classifier",
+  "rag",
+  "http",
+  "subworkflow",
+  "notification",
+  "document",
+  "db_write",
+]);
+export const ERROR_ROUTE = "error";
+// What a handled failure gives downstream, like a try's error route.
+const ERROR_OUTPUT_FIELDS = ["code", "detail", "params", "node"];
+
+/** The on_error choices a node type offers; empty when it cannot fail. */
+export function onErrorModesFor(type) {
+  if (!ON_ERROR_NODE_TYPES.has(type)) return [];
+  return type === "classifier" ? ["fail", "route"] : ON_ERROR_MODES;
+}
+
+/** Does this node (graph shape: `{type, config}`) have an `error` output? */
+export function routesOnError(node) {
+  return ON_ERROR_NODE_TYPES.has(node?.type) && node?.config?.on_error === "route";
+}
+
+/** Per-node time limit (`timeout_s`); http keeps its own 1–30 s timeout. */
+// Only where cancelling really stops the work: an agent keeps running on the
+// ADK server once its HTTP call is dropped, a sync tool in its thread.
+export const NODE_TIMEOUT_TYPES = new Set(["subworkflow"]);
+export const NODE_TIMEOUT_MIN = 1;
+export const NODE_TIMEOUT_MAX = 3600;
+
 export function isHttpHeaderForbidden(key) {
   return HTTP_FORBIDDEN_HEADERS.has(String(key || "").trim().toLowerCase());
 }
@@ -209,7 +251,9 @@ function defaultConfig(type) {
     case "http":
       // No `auth` key: the field isn't exposed in this lot, and the backend
       // reads a missing key the same as an explicit `auth: null`.
-      return { method: "GET", url: "", headers: [], timeout_s: HTTP_TIMEOUT_DEFAULT };
+      // A new node treats a 4xx/5xx answer as a failure; a node saved
+      // before the option has no key, which the engine reads as "accept".
+      return { method: "GET", url: "", headers: [], timeout_s: HTTP_TIMEOUT_DEFAULT, accept_error_status: false };
     case "notification":
       // No `to` key for the default `app` channel — matches `output`'s empty
       // default: a key that doesn't apply yet shouldn't ship a stray value.
@@ -317,10 +361,16 @@ export function graphToFlow(graph) {
   return { nodes, edges };
 }
 
-/** xyflow nodes/edges -> server graph shape. Client-side edge ids are dropped — the server doesn't need them back. */
-export function flowToGraph(nodes, edges) {
+/**
+ * xyflow nodes/edges -> server graph shape. Client-side edge ids are dropped — the server doesn't need them back.
+ * `settings` are the workflow's own settings (e.g. `notify_on_failure`), kept
+ * out of the graph when empty so an untouched workflow saves as before.
+ */
+export function flowToGraph(nodes, edges, settings = null) {
+  const kept = Object.fromEntries(Object.entries(settings || {}).filter(([, v]) => v !== undefined && v !== null));
   return {
     version: 1,
+    ...(Object.keys(kept).length ? { settings: kept } : {}),
     nodes: (nodes || []).map((n) => ({
       id: n.id,
       type: n.data?.nodeType || n.type,
@@ -402,6 +452,12 @@ function hasKnownOutputFields(node) {
   return node.type === "set" || node.type === "extract" || node.type in FIXED_OUTPUT_FIELDS;
 }
 
+// A handled failure (continue/route) hands its description downstream
+// instead of the node's usual output.
+function handlesErrors(node) {
+  return ON_ERROR_NODE_TYPES.has(node?.type) && ["continue", "route"].includes(node?.config?.on_error);
+}
+
 function declaredTemplateFields(node) {
   if (node.type === "trigger") {
     const payload = node.config?.sample_payload;
@@ -413,7 +469,8 @@ function declaredTemplateFields(node) {
     const nameKey = node.type === "set" ? "key" : "name";
     return (node.config?.fields || []).map((f) => f?.[nameKey]).filter(Boolean);
   }
-  return FIXED_OUTPUT_FIELDS[node.type] || [];
+  const fixed = FIXED_OUTPUT_FIELDS[node.type] || [];
+  return handlesErrors(node) ? [...fixed, ...ERROR_OUTPUT_FIELDS] : fixed;
 }
 
 /** Suggested `{{id...}}` snippets for a given upstream node, shown as one-click chips in the inspector. */
@@ -434,6 +491,7 @@ function declaredRoutes(node) {
   if (node.type === "classifier") {
     const routes = new Set((node.config?.routes || []).map((r) => r.route).filter(Boolean));
     if (node.config?.engine === "jev") routes.add(UNCERTAIN_ROUTE); // implicit, as on the backend
+    if (routesOnError(node)) routes.add(ERROR_ROUTE);
     return routes;
   }
   if (node.type === "try") {
@@ -567,6 +625,50 @@ function validateLoopConfig(node, options) {
   return errors;
 }
 
+/**
+ * `on_error` and `timeout_s` of one node, and the connections of its error
+ * output. Same refusals as the engine (`_validate_error_handling` and the
+ * edge checks of `validate_graph`); routed nodes (classifier) get their
+ * `error` route through `declaredRoutes`. A setting on a node type without it
+ * is a warning: the engine ignores it, so a saved graph keeps running.
+ */
+function validateErrorHandling(node, outgoing, routed) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+  const warn = (message) => errors.push({ nodeId: node.id, message, level: "warning" });
+  const mode = cfg.on_error ?? "fail";
+  if (!ON_ERROR_NODE_TYPES.has(node.type)) {
+    if (mode !== "fail") warn(`onErrorUnsupported:${node.type}`);
+  } else if (!ON_ERROR_MODES.includes(mode) || (node.type === "classifier" && mode === "continue")) {
+    // The engine runs it as fail (a saved graph must keep running), except on
+    // a tool, where it was already refused before.
+    (node.type === "tool" ? push : warn)(`onErrorUnknown:${mode}`);
+  }
+  if (mode === "route" && node.type === "classifier" && (cfg.routes || []).some((r) => r?.route === ERROR_ROUTE)) {
+    push("onErrorRouteConflict");
+  }
+  if (cfg.timeout_s != null && node.type !== "http") {
+    if (!NODE_TIMEOUT_TYPES.has(node.type)) {
+      warn(`nodeTimeoutUnsupported:${node.type}`);
+    } else if (!Number.isInteger(cfg.timeout_s) || cfg.timeout_s < NODE_TIMEOUT_MIN || cfg.timeout_s > NODE_TIMEOUT_MAX) {
+      push("nodeTimeoutInvalid");
+    }
+  }
+  if (routesOnError(node)) {
+    if (!outgoing.some((e) => e.route === ERROR_ROUTE)) push("onErrorRouteMissing");
+    if (!routed) {
+      // Success leaves unlabelled; the only route is the error output.
+      for (const e of outgoing) {
+        if (e.route && e.route !== ERROR_ROUTE) push(`onErrorRouteUnknown:${e.route}`);
+      }
+    }
+  } else if (!routed && ON_ERROR_NODE_TYPES.has(node.type) && outgoing.some((e) => e.route === ERROR_ROUTE)) {
+    push("onErrorRouteUnexpected");
+  }
+  return errors;
+}
+
 /** URL must be a public http(s) address, or a `{{...}}` template resolved at run time — the backend can't check a template ahead of time, so a templated URL is accepted locally and left to the server's run-time refusal (`http_url_refused`). */
 function validateHttpConfig(node) {
   const errors = [];
@@ -583,6 +685,10 @@ function validateHttpConfig(node) {
   const timeout = cfg.timeout_s;
   if (!Number.isInteger(timeout) || timeout < HTTP_TIMEOUT_MIN || timeout > HTTP_TIMEOUT_MAX) {
     push("httpTimeoutRange");
+  }
+  if (cfg.accept_error_status !== undefined && typeof cfg.accept_error_status !== "boolean") {
+    // Ignored by the engine (the response is accepted), not refused.
+    errors.push({ nodeId: node.id, message: "httpAcceptErrorStatusInvalid", level: "warning" });
   }
 
   for (const header of cfg.headers || []) {
@@ -899,6 +1005,7 @@ function validateGraphCore(graph, options = {}) {
     if (n.type === "approval") {
       errors.push(...validateApprovalConfig(n, edges.filter((e) => e.source === n.id)));
     }
+    errors.push(...validateErrorHandling(n, edges.filter((e) => e.source === n.id), !!declared));
     if (UNRUNNABLE_NODE_TYPES.has(n.type)) {
       // The engine refuses the whole run for it: an error, so Publish is
       // blocked too instead of publishing a workflow that can never run.

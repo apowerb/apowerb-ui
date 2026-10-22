@@ -118,6 +118,17 @@ export function effectfulNodesUpTo(nodeId, nodes, edges) {
 }
 
 /**
+ * The steps of a try's body that reach outside the Studio: each retry runs
+ * them again (a second mail, a second write). Body nodes are graph nodes,
+ * labelled by `label`, not xyflow nodes.
+ */
+export function effectfulBodyNodes(body) {
+  return (body?.nodes || [])
+    .filter((n) => EFFECT_NODE_TYPES.has(n.type))
+    .map((n) => ({ id: n.id, type: n.type, label: n.label || n.id }));
+}
+
+/**
  * The nodes a "Resume here" may really run that have an effect: every node
  * the failed run had not finished (`done`) — the failed step and below, a
  * step added since, a branch that had not run yet — up to `until` when the
