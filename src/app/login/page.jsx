@@ -6,14 +6,13 @@ import AuthScreen from "@/components/auth/AuthScreen";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { internalRedirect } from "@/lib/loginRedirect";
 
-// Read a `?redirect=` target, accepting ONLY internal paths (must start with
-// a single "/") to avoid open-redirects to external sites. Defaults to "/".
+// Read a `?redirect=` target, accepting ONLY this origin (see
+// `internalRedirect`) to avoid open-redirects to external sites.
 function safeInternalRedirect() {
   if (typeof window === "undefined") return "/";
-  const r = new URLSearchParams(window.location.search).get("redirect");
-  if (r && r.startsWith("/") && !r.startsWith("//")) return r;
-  return "/";
+  return internalRedirect(new URLSearchParams(window.location.search).get("redirect"));
 }
 
 function LoginContent() {
