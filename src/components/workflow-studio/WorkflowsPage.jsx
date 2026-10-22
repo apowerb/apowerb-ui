@@ -115,6 +115,10 @@ export default function WorkflowsPage() {
   const userEmail = user?.email ?? null;
   const [resumeStatus, setResumeStatus] = useState(null);
   const [decisionsKey, setDecisionsKey] = useState(0);
+  // `?decision=<run_id>`: the link of a decision notice (mail, Teams).
+  const [linkedRunId] = useState(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("decision"),
+  );
   const resumeGenerationRef = useRef(0);
   const mountedRef = useRef(true);
   const router = useRouter();
@@ -271,6 +275,7 @@ export default function WorkflowsPage() {
         <AwaitingDecisionsList
           hideWhenEmpty
           className="mb-6"
+          openRunId={linkedRunId}
           onAnswer={answerDecision}
           userEmail={userEmail}
           studioLink

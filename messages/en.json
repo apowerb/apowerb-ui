@@ -4259,6 +4259,7 @@
     "error_generic": "Your answer could not be sent: {message}",
     "listTitle": "Waiting for a decision",
     "listEmpty": "No decision is waiting for you.",
+    "linkedGone": "This decision is no longer waiting for you: it was answered, abandoned or it expired.",
     "listLoading": "Loading…",
     "listLoadFailed": "Could not load the decisions: {message}",
     "retry": "Retry",
