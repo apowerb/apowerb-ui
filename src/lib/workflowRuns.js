@@ -58,7 +58,8 @@ export function runError(run) {
  * node inside a loop or try body), or `null` when the run failed as a whole.
  */
 export function runFailedNode(run) {
-  const nodeId = run?.status === "error" ? run.error?.node_id : null;
+  // The engine names it (`failure_node`, the node « Retry here » restarts from).
+  const nodeId = run?.status === "error" ? run.failure_node : null;
   if (!nodeId) return null;
   const dot = nodeId.indexOf(".");
   return dot === -1 ? [nodeId, null] : [nodeId.slice(0, dot), nodeId.slice(dot + 1)];

@@ -1313,7 +1313,25 @@ export async function resumeWorkflowRun(runId, { choice, text } = {}, { signal }
   const body = {};
   if (choice !== undefined) body.choice = choice;
   if (text !== undefined) body.text = text;
-  const res = await fetch(apiUrl(`/api/workflows/runs/${encodeURIComponent(runId)}/resume`), {
+  return postRunStream(`/api/workflows/runs/${encodeURIComponent(runId)}/resume`, body, signal);
+}
+
+/**
+ * "Resume here": runs a failed run again from the node that failed, as a new
+ * run (its `run_started` carries the new id, then `retry_started`). The nodes
+ * done before the failure come back `replayed`, without running again.
+ * Refusals come before the stream: 404 (unknown / not mine), 409 with
+ * `detail.code` (`retry_already_started`, `retry_expired`,
+ * `retry_graph_changed` with `params.nodes`, …), 422 (saved graph invalid).
+ */
+export function retryWorkflowRunFromFailure(runId, { signal } = {}) {
+  return postRunStream(`/api/workflows/runs/${encodeURIComponent(runId)}/retry-from-failure`, {}, signal);
+}
+
+// A POST answered by a run's SSE stream: the raw Response, or the refusal
+// thrown with `err.status` and, when coded, `err.detail`.
+async function postRunStream(path, body, signal) {
+  const res = await fetch(apiUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(body),

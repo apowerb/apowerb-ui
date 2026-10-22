@@ -61,7 +61,7 @@ describe("a row's trigger and failure", () => {
   });
 
   it("gives errorText the structured code, or the raw message", () => {
-    expect(runError({ status: "error", error_message: "boom", error: { code: "http_timeout", params: { node: "http1" }, node_id: "http1" } })).toEqual({
+    expect(runError({ status: "error", error_message: "boom", error: { code: "http_timeout", params: { node: "http1" } }, failure_node: "http1" })).toEqual({
       code: "http_timeout",
       detail: "boom",
       ref: null,
@@ -72,9 +72,11 @@ describe("a row's trigger and failure", () => {
   });
 
   it("splits the faulty node of a loop or try body", () => {
-    expect(runFailedNode({ status: "error", error: { node_id: "agent2" } })).toEqual(["agent2", null]);
-    expect(runFailedNode({ status: "error", error: { node_id: "loop1.agent2" } })).toEqual(["loop1", "agent2"]);
-    expect(runFailedNode({ status: "error", error: { node_id: null } })).toBeNull();
+    expect(runFailedNode({ status: "error", failure_node: "agent2" })).toEqual(["agent2", null]);
+    expect(runFailedNode({ status: "error", failure_node: "loop1.agent2" })).toEqual(["loop1", "agent2"]);
+    expect(runFailedNode({ status: "error", failure_node: null })).toBeNull();
+    // Only the engine's failure_node counts: no node recomputed from the error.
+    expect(runFailedNode({ status: "error", error: { node_id: "agent2" } })).toBeNull();
     expect(runFailedNode({ status: "success" })).toBeNull();
   });
 
