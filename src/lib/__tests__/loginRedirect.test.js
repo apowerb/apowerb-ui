@@ -13,7 +13,8 @@ describe("internalRedirect", () => {
     ["/\t/evil.com"],
     ["//evil.com"],
     ["https://evil.com"],
-    ["/%5Cevil.com".replace("%5C", "\\")],
+    // Tel que lu dans ?redirect=%2F%5Cevil.com
+    [decodeURIComponent("/%5Cevil.com")],
     ["javascript:alert(1)"],
   ])("refuse %j (autre origine) et ramène à l'accueil", (target) => {
     expect(internalRedirect(target)).toBe("/");
