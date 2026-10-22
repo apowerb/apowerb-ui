@@ -88,12 +88,33 @@ export function ancestorIdsOf(nodeId, edges) {
   return new Set([nodeId, ...getUpstreamNodeIds(nodeId, edges)]);
 }
 
+// A loop or try runs its `config.body` sub-graph: its effects are its body's,
+// listed as "Loop › Step" (`inBody`), at any depth.
+function bodyEffects(node, label) {
+  const body = node.data?.config?.body ?? node.config?.body;
+  return (body?.nodes || []).flatMap((child) => {
+    const childLabel = `${label} › ${child.label || child.data?.label || child.id}`;
+    const own = EFFECT_NODE_TYPES.has(child.type)
+      ? [{ id: `${node.id}.${child.id}`, type: child.type, label: childLabel, inBody: true }]
+      : [];
+    return [...own, ...bodyEffects(child, childLabel)];
+  });
+}
+
+function effectsOf(nodes, keep) {
+  return nodes
+    .filter((n) => keep(n.id))
+    .flatMap((n) => {
+      const label = n.data?.label || n.id;
+      const own = EFFECT_NODE_TYPES.has(n.type) ? [{ id: n.id, type: n.type, label }] : [];
+      return [...own, ...bodyEffects(n, label)];
+    });
+}
+
 /** The nodes a "Test up to here" on `nodeId` would run that have an effect. */
 export function effectfulNodesUpTo(nodeId, nodes, edges) {
   const ids = ancestorIdsOf(nodeId, edges);
-  return nodes
-    .filter((n) => ids.has(n.id) && EFFECT_NODE_TYPES.has(n.type))
-    .map((n) => ({ id: n.id, type: n.type, label: n.data?.label || n.id }));
+  return effectsOf(nodes, (id) => ids.has(id));
 }
 
 /**
@@ -108,25 +129,15 @@ export function effectfulBodyNodes(body) {
 }
 
 /**
- * The nodes a "Resume here" on `nodeId` would really run that have an effect:
- * that node and every node below it — up to `until` when the failed run was a
- * "Test up to here". The nodes above it are replayed, not run.
+ * The nodes a "Resume here" may really run that have an effect: every node
+ * the failed run had not finished (`done`) — the failed step and below, a
+ * step added since, a branch that had not run yet — up to `until` when the
+ * failed run was a "Test up to here". A loop or try that had not finished
+ * starts over: its body is listed. Finished nodes are replayed, not run.
  */
-export function effectfulNodesFrom(nodeId, nodes, edges, until = null) {
-  const ids = new Set([nodeId]);
-  for (let grew = true; grew; ) {
-    grew = false;
-    for (const e of edges) {
-      if (ids.has(e.source) && !ids.has(e.target)) {
-        ids.add(e.target);
-        grew = true;
-      }
-    }
-  }
+export function effectfulNodesToResume(nodes, edges, { done, until = null }) {
   const bound = until ? ancestorIdsOf(until, edges) : null;
-  return nodes
-    .filter((n) => ids.has(n.id) && (!bound || bound.has(n.id)) && EFFECT_NODE_TYPES.has(n.type))
-    .map((n) => ({ id: n.id, type: n.type, label: n.data?.label || n.id }));
+  return effectsOf(nodes, (id) => !done.has(id) && (!bound || bound.has(id)));
 }
 
 const INPUT_FIELD = {

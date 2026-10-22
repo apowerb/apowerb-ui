@@ -184,6 +184,18 @@ describe("applyRunEvent — Resume here", () => {
     expect(applyRunEvent(failed, { event: "cancelled" }).retryFrom).toBeNull();
   });
 
+  it("offers to resume the original again when a resumption is stopped", () => {
+    const state = run([
+      { event: "run_started", wid: "r2" },
+      { event: "retry_started", replay_of: "r1", node_id: "a" },
+      { event: "node_start", node_id: "a" },
+      { event: "cancelled" },
+    ]);
+    expect(state.status).toBe("cancelled");
+    expect(state.retryFrom).toBe("a");
+    expect(state.retryOf.runId).toBe("r1");
+  });
+
   it("marks a resumed run with the run and step it comes from", () => {
     const state = run([
       { event: "run_started", wid: "r2" },

@@ -40,7 +40,7 @@ import { useRunReplay } from "./hooks/useRunReplay";
 import { useToolSchemas } from "./hooks/useToolSchemas";
 import { useSuggestionAdoption } from "./hooks/useSuggestionAdoption";
 import { useNodeShapes } from "./hooks/useNodeShapes";
-import { knownShapes, effectfulNodesUpTo, effectfulNodesFrom } from "@/lib/workflowShapes";
+import { knownShapes, effectfulNodesUpTo, effectfulNodesToResume } from "@/lib/workflowShapes";
 import TestUntilConfirm from "./TestUntilConfirm";
 import StudioTopBar from "./StudioTopBar";
 import { suggestNextNodes, applySuggestion, paletteSuggestion, aiSuggestionsFrom, mergeAiSuggestions } from "@/lib/nextNodeSuggestions";
@@ -348,13 +348,15 @@ export default function WorkflowStudio({ workflowId }) {
 
   // Feeds the Test panel with one run's stream: `open(signal)` gives its
   // Response (a first run, or a "Resume here" already accepted).
-  const streamRun = useCallback(async (open, { beforeRun, until = null, controller = new AbortController() } = {}) => {
+  // `detached`: the engine keeps the run going when its stream closes (a
+  // "Resume here"), so Stop asks the engine instead of closing the stream.
+  const streamRun = useCallback(async (open, { beforeRun, until = null, controller = new AbortController(), detached = false } = {}) => {
     setRunState(createRunState());
     setRunEvents([]);
     setIsRunning(true);
     runAbortRef.current = controller;
     runUntilRef.current = { runId: null, until };
-    liveRunRef.current = { runId: null, detached: false };
+    liveRunRef.current = { runId: null, detached };
     try {
       if (beforeRun) await beforeRun();
       const response = await open(controller.signal);
@@ -362,7 +364,7 @@ export default function WorkflowStudio({ workflowId }) {
         signal: controller.signal,
         onEvent: (evt) => {
           if (evt.event === "run_started") {
-            liveRunRef.current = { runId: evt.wid ?? evt.run_id ?? null, detached: false };
+            liveRunRef.current = { runId: evt.wid ?? evt.run_id ?? null, detached };
             runUntilRef.current = { ...runUntilRef.current, runId: liveRunRef.current.runId };
           }
           setRunEvents((list) => [...list, evt]);
@@ -531,21 +533,33 @@ export default function WorkflowStudio({ workflowId }) {
   const tRun = useTranslations("WorkflowExecutionPanel");
   const [retryTarget, setRetryTarget] = useState(null);
   const retryEffects = useMemo(
-    () => (retryTarget ? effectfulNodesFrom(retryTarget.nodeId, nodes, edges, retryTarget.until) : []),
+    () => (retryTarget ? effectfulNodesToResume(nodes, edges, retryTarget) : []),
     [retryTarget, nodes, edges],
   );
   const askRetryHere = useCallback(
     (nodeId) => {
-      const runId = liveRunState.runId;
-      if (!runId) return;
-      const until = runUntilRef.current.runId === runId ? runUntilRef.current.until : null;
-      setRetryTarget({ runId, nodeId, until, error: null, busy: false });
+      const shown = liveRunState.runId;
+      if (!shown) return;
+      // A stopped resumption gave the failure back to the run it resumed:
+      // only its replayed steps count as done there.
+      const stopped = liveRunState.status === "cancelled" && liveRunState.retryOf?.runId;
+      const runId = stopped ? liveRunState.retryOf.runId : shown;
+      const done = new Set(
+        liveRunState.timeline.filter((e) => e.status === "done" && (!stopped || e.replayed)).map((e) => e.id),
+      );
+      const until = runUntilRef.current.runId === shown ? runUntilRef.current.until : null;
+      setRetryTarget({ runId, nodeId, until, done, error: null, busy: false });
     },
-    [liveRunState.runId],
+    [liveRunState],
   );
   const confirmRetryHere = useCallback(async () => {
     const target = retryTarget;
     if (!target || target.busy) return;
+    // Saved elsewhere since: the server would run that version, not this one.
+    if (conflictRef.current) {
+      setRetryTarget({ ...target, error: tRun("retryError_save_conflict") });
+      return;
+    }
     setRetryTarget({ ...target, error: null, busy: true });
     const controller = new AbortController();
     let response;
@@ -555,12 +569,13 @@ export default function WorkflowStudio({ workflowId }) {
       response = await retryWorkflowRunFromFailure(target.runId, { signal: controller.signal });
     } catch (err) {
       const labelOf = (id) => nodes.find((n) => n.id === id)?.data?.label || id;
-      setRetryTarget({ ...target, busy: false, error: retryRefusalText(tRun, err, labelOf) });
+      const error = conflictRef.current ? tRun("retryError_save_conflict") : retryRefusalText(tRun, err, labelOf);
+      setRetryTarget({ ...target, busy: false, error });
       return;
     }
     setRetryTarget(null);
     setTestOpen(true);
-    streamRun(() => response, { until: target.until, controller });
+    streamRun(() => response, { until: target.until, controller, detached: true });
   }, [retryTarget, saveIfDirty, streamRun, nodes, tRun]);
 
   const currentSnapshot = useMemo(
