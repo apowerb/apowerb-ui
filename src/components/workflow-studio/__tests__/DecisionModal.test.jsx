@@ -114,6 +114,12 @@ describe("DecisionModal — refusals", () => {
   const refuse = (status, code) =>
     vi.fn().mockRejectedValue(Object.assign(new Error("x"), { status, detail: code ? { code } : undefined }));
 
+  it("409 decision_expired: says the decision expired", async () => {
+    const { user } = setup(decision(), { onAnswer: refuse(409, "decision_expired") });
+    await user.click(screen.getByRole("button", { name: "Oui" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/expired/i);
+  });
+
   it("409 decision_already_answered: says so and stops offering answers", async () => {
     const { user } = setup(decision(), { onAnswer: refuse(409, "decision_already_answered") });
     await user.click(screen.getByRole("button", { name: "Oui" }));

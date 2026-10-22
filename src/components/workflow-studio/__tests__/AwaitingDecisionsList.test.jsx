@@ -162,4 +162,23 @@ describe("AwaitingDecisionsList", () => {
     const row = (await screen.findByText("Valider Plan A ?")).closest("li");
     expect(within(row).getByRole("button", { name: "Abandon" })).toBeInTheDocument();
   });
+
+  it("says until when a decision waits, and nothing for an older server", async () => {
+    listAwaitingDecisions.mockResolvedValue([{ ...ROWS[0], expires_at: "2026-10-28 10:00:00.000000" }, ROWS[1]]);
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} />);
+    const row = (await screen.findByText("Valider Plan A ?")).closest("li");
+    expect(within(row).getByText(/^Expires/)).toBeInTheDocument();
+    const other = screen.getByText("Accorder ?").closest("li");
+    expect(within(other).queryByText(/^Expires/)).toBeNull();
+  });
+
+  it("an abandon refused because the decision expired says so in words", async () => {
+    abandonWorkflowRun.mockRejectedValueOnce(Object.assign(new Error("HTTP 409"), { status: 409, detail: { code: "decision_expired" } }));
+    const user = userEvent.setup();
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} />);
+    const row = (await screen.findByText("Valider Plan A ?")).closest("li");
+    await user.click(within(row).getByRole("button", { name: "Abandon" }));
+    await user.click(within(row).getByRole("button", { name: "Yes, abandon" }));
+    expect(await within(row).findByRole("alert")).toHaveTextContent(/expired/i);
+  });
 });

@@ -4054,7 +4054,9 @@
     "runError_approval_text_route_missing": "La décision {node} accepte les réponses écrites mais rien n'est branché sur sa route « text ». Branche-la, ou retire la réponse écrite.",
     "runError_approval_nested": "La décision {node} est dans une boucle, un essai ou un sous-workflow, où personne ne peut répondre. Place-la dans le workflow principal.",
     "runError_decision_not_saved": "La décision n'a pas pu être enregistrée : le run ne peut donc pas attendre de réponse. Réessaie dans un instant (réf. {ref}).",
-    "runError_decision_unavailable": "Ce run ne peut pas attendre de décision (réf. {ref})."
+    "runError_decision_unavailable": "Ce run ne peut pas attendre de décision (réf. {ref}).",
+    "runError_decision_state_too_large": "La décision {node} ne peut pas attendre : ce run porte trop de données pour être gardé jusqu'à la réponse (max {max} octets). Réduis ce que renvoient les étapes précédentes (réf. {ref}).",
+    "runError_approval_expiry_invalid": "La décision {node} : le délai d'attente doit être un nombre entier d'heures entre 1 et {max}."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -4174,7 +4176,8 @@
     "conditionNoRules": "Une condition a besoin d'au moins une règle",
     "conditionDuplicateRoute": "La route « {value} » a déjà une connexion",
     "agentRequired": "Choisis l'agent que ce nœud exécute",
-    "nodeNotConnected": "Aucun lien n'arrive à ce nœud : il s'exécute sans rien recevoir. Tire un lien depuis l'étape qu'il doit lire."
+    "nodeNotConnected": "Aucun lien n'arrive à ce nœud : il s'exécute sans rien recevoir. Tire un lien depuis l'étape qu'il doit lire.",
+    "approvalExpiryInvalid": "Le délai d'attente doit être un nombre entier d'heures entre 1 et 720"
   },
   "TeamsWebhookModal": {
     "title": "Configurer le webhook Teams",
@@ -4243,7 +4246,11 @@
     "inspAssignee": "Assignée à (facultatif)",
     "inspAssigneeHelp": "E-mail de la personne qui répond. Vide : toi, propriétaire du workflow.",
     "inspAssigneePlaceholder": "nom@societe.com",
-    "inspOutputHelp": "La réponse est disponible en '{{'id.choice'}}' et '{{'id.text'}}'."
+    "inspOutputHelp": "La réponse est disponible en '{{'id.choice'}}' et '{{'id.text'}}'.",
+    "expires": "Expire le {when}",
+    "error_decision_expired": "Cette décision a expiré : personne n'a répondu à temps, le run a été clos.",
+    "inspExpiry": "Expire après (heures)",
+    "inspExpiryHelp": "Passé ce délai, le run est clos en échec. Vide : {hours} heures (une semaine). Au plus {max}."
   },
   "WorkflowFormView": {
     "loading": "Chargement du formulaire…",

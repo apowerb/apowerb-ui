@@ -196,9 +196,11 @@ const TRANSLATED_ERRORS = new Set([
   "approval_choice_duplicate",
   "approval_text_route_missing",
   "approval_nested",
+  "approval_expiry_invalid",
   // the pause could not be written / this run cannot wait.
   "decision_not_saved",
   "decision_unavailable",
+  "decision_state_too_large",
 ]);
 
 export function errorText(t, error) {

@@ -4054,7 +4054,9 @@
     "runError_approval_text_route_missing": "The decision {node} accepts written answers but nothing is connected to its “text” route. Connect it, or remove the written answer.",
     "runError_approval_nested": "The decision {node} sits in a loop, a try or a sub-workflow, where nobody can answer. Move it to the main workflow.",
     "runError_decision_not_saved": "The decision could not be saved, so the run cannot wait for an answer. Try again in a moment (ref. {ref}).",
-    "runError_decision_unavailable": "This run cannot wait for a decision (ref. {ref})."
+    "runError_decision_unavailable": "This run cannot wait for a decision (ref. {ref}).",
+    "runError_decision_state_too_large": "The decision {node} cannot wait: this run carries too much data to be kept until the answer (max {max} bytes). Reduce what the earlier steps return (ref. {ref}).",
+    "runError_approval_expiry_invalid": "The decision {node}: the waiting delay must be a whole number of hours between 1 and {max}."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -4174,7 +4176,8 @@
     "conditionNoRules": "A condition needs at least one rule",
     "conditionDuplicateRoute": "Route “{value}” already has a connection",
     "agentRequired": "Choose the agent this node runs",
-    "nodeNotConnected": "Nothing leads to this node: it runs without receiving anything. Draw a link from the step it should read."
+    "nodeNotConnected": "Nothing leads to this node: it runs without receiving anything. Draw a link from the step it should read.",
+    "approvalExpiryInvalid": "The waiting delay must be a whole number of hours between 1 and 720"
   },
   "TeamsWebhookModal": {
     "title": "Configure Teams webhook",
@@ -4243,7 +4246,11 @@
     "inspAssignee": "Assigned to (optional)",
     "inspAssigneeHelp": "Email of the person who answers. Empty: you, as owner of the workflow.",
     "inspAssigneePlaceholder": "name@company.com",
-    "inspOutputHelp": "The answer is available as '{{'id.choice'}}' and '{{'id.text'}}'."
+    "inspOutputHelp": "The answer is available as '{{'id.choice'}}' and '{{'id.text'}}'.",
+    "expires": "Expires {when}",
+    "error_decision_expired": "This decision expired: nobody answered in time, so the run was closed.",
+    "inspExpiry": "Expires after (hours)",
+    "inspExpiryHelp": "Past this delay the run is closed as failed. Empty: {hours} hours (one week). At most {max}."
   },
   "WorkflowFormView": {
     "loading": "Loading the form…",

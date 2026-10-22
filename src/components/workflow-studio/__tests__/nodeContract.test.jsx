@@ -141,6 +141,16 @@ describe("a decision that could not be parked", () => {
   });
 });
 
+describe("a decision the engine refuses to keep waiting", () => {
+  it.each([
+    ["decision_state_too_large", { node: "decision1", max: "8388608" }, /decision1 cannot wait: this run carries too much data/i],
+    ["approval_expiry_invalid", { node: "decision1", max: "720" }, /hours between 1 and 720/i],
+  ])("words %s with its node", (code, params, pattern) => {
+    panel(reduce([{ event: "error", code, params }]));
+    expect(screen.getAllByText(pattern).length).toBeGreaterThan(0);
+  });
+});
+
 describe("validation — approval", () => {
   it("is no longer refused as not runnable; an unconfigured one is still blocked by its own checks", () => {
     const r = validateGraphLocal({

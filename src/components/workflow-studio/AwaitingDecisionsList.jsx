@@ -20,7 +20,17 @@ export function decisionFromRow(row) {
     assignee: row.assignee ?? null,
     ownerId: row.owner_id ?? null,
     pausedAt: row.paused_at ?? null,
+    expiresAt: row.expires_at ?? null,
   };
+}
+
+// The engine writes "2026-10-21 10:00:00.123456" (server time): Safari only
+// reads it as ISO with milliseconds.
+function parseWhen(value) {
+  if (!value) return null;
+  const iso = String(value).replace(" ", "T").replace(/(\.\d{3})\d+/, "$1");
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 // Owner of the run? `userEmail` undefined: the caller is the owner by construction.
@@ -43,12 +53,14 @@ function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, canAbandon, 
       await abandonWorkflowRun(item.runId);
       onAbandoned(item);
     } catch (err) {
-      setError(err?.message || "-");
+      setError(err?.detail?.code === "decision_expired" ? t("error_decision_expired") : err?.message || "-");
       setBusy(false);
     }
   };
 
-  const when = item.pausedAt ? format.dateTime(new Date(item.pausedAt), { dateStyle: "short", timeStyle: "short" }) : null;
+  const short = (date) => (date ? format.dateTime(date, { dateStyle: "short", timeStyle: "short" }) : null);
+  const when = short(parseWhen(item.pausedAt));
+  const until = short(parseWhen(item.expiresAt));
   const replyClass = "px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-linear-to-r from-brand to-brand-secondary text-white hover:opacity-90";
 
   return (
@@ -59,6 +71,7 @@ function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, canAbandon, 
           {showWorkflow && <p className="text-[11px] font-semibold th-text-secondary truncate">{item.workflowName}</p>}
           <p className="text-xs th-text break-words">{item.question}</p>
           {when && <p className="text-[10px] th-text-ghost mt-0.5">{t("since", { when: String(when) })}</p>}
+          {until && <p className="text-[10px] th-text-ghost">{t("expires", { when: String(until) })}</p>}
           {error && <p role="alert" className="text-[10px] text-red-400 mt-1">{t("abandonFailed", { message: error })}</p>}
           {confirming ? (
             <div className="mt-1.5">
