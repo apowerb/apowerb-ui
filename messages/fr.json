@@ -4259,6 +4259,7 @@
     "error_generic": "Ta réponse n'a pas pu être envoyée : {message}",
     "listTitle": "En attente de décision",
     "listEmpty": "Aucune décision ne t'attend.",
+    "linkedGone": "Cette décision ne t'attend plus : elle a reçu une réponse, a été abandonnée ou a expiré.",
     "listLoading": "Chargement…",
     "listLoadFailed": "Impossible de charger les décisions : {message}",
     "retry": "Réessayer",
