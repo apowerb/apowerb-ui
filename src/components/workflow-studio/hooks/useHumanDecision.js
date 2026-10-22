@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listAwaitingDecisions, resumeWorkflowRun } from "@/lib/api";
 import { applyRunEvent, createRunState } from "@/lib/workflowRunState";
 import { consumeWorkflowRun } from "@/lib/workflowSse";
@@ -22,6 +22,10 @@ export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setI
   const [manual, setManual] = useState(null);
   const [dismissed, setDismissed] = useState(null);
   const [resumes, setResumes] = useState(0);
+  // The stream this hook started: closed when the studio goes away.
+  const ownControllerRef = useRef(null);
+
+  useEffect(() => () => ownControllerRef.current?.abort(), []);
 
   const pending = liveRunState.status === "awaiting" ? liveRunState.pendingDecision : null;
   const pendingKey = keyOf(pending);
@@ -59,7 +63,10 @@ export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setI
       // Accepted: from here on the run is shown again, from its start.
       setManual(null);
       setDismissed(keyOf(target));
+      // A previous resumption still streaming must not keep feeding the panel.
+      runAbortRef.current?.abort();
       runAbortRef.current = controller;
+      ownControllerRef.current = controller;
       setRunState(createRunState());
       setRunEvents([]);
       setIsRunning(true);

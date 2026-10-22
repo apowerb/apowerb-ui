@@ -178,4 +178,40 @@ describe("useHumanDecision", () => {
     act(() => result.current.abandoned({ runId: "elsewhere" }));
     expect(result.current.liveRunState.status).toBe("awaiting");
   });
+
+  it("a second answer stops the stream of the first, so two flows never feed the panel", async () => {
+    let firstSignal;
+    const hang = new ReadableStream({ start() {} });
+    resumeWorkflowRun.mockImplementationOnce(async (_id, _b, { signal }) => {
+      firstSignal = signal;
+      return { ok: true, status: 200, body: hang };
+    });
+    const { result } = renderHook(() => useHarness());
+    await act(async () => {
+      await result.current.answer(result.current.decision, { choice: "oui" });
+    });
+    expect(firstSignal.aborted).toBe(false);
+    resumeWorkflowRun.mockResolvedValueOnce(sseResponse(RESUME));
+    await act(async () => {
+      await result.current.answer({ runId: "r1", nodeId: "decision1" }, { choice: "non" });
+    });
+    expect(firstSignal.aborted).toBe(true);
+    await waitFor(() => expect(result.current.liveRunState.status).toBe("done"));
+  });
+
+  it("unmounting stops the resumption stream it started", async () => {
+    let signal;
+    resumeWorkflowRun.mockImplementationOnce(async (_id, _b, opts) => {
+      signal = opts.signal;
+      return { ok: true, status: 200, body: new ReadableStream({ start() {} }) };
+    });
+    const { result, unmount } = renderHook(() => useHarness());
+    await act(async () => {
+      await result.current.answer(result.current.decision, { choice: "oui" });
+    });
+    expect(signal.aborted).toBe(false);
+    unmount();
+    expect(signal.aborted).toBe(true);
+  });
 });
+

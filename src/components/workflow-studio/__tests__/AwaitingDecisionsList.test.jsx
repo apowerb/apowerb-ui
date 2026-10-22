@@ -143,4 +143,23 @@ describe("AwaitingDecisionsList", () => {
     rerender(<AwaitingDecisionsList onAnswer={vi.fn()} refreshKey="b" />);
     await waitFor(() => expect(listAwaitingDecisions).toHaveBeenCalledTimes(2));
   });
+
+  it("hides Abandon (owner only, the server answers 403) for a decision assigned to me", async () => {
+    listAwaitingDecisions.mockResolvedValue([
+      { ...ROWS[0], owner_id: "alice@example.com" },
+      { ...ROWS[1], owner_id: "bob@example.com", assignee: "alice@example.com" },
+    ]);
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} userEmail="Bob@Example.com" />);
+    const mine = (await screen.findByText("Accorder ?")).closest("li");
+    const assigned = screen.getByText("Valider Plan A ?").closest("li");
+    expect(within(mine).getByRole("button", { name: "Abandon" })).toBeInTheDocument();
+    expect(within(assigned).queryByRole("button", { name: "Abandon" })).toBeNull();
+    expect(within(assigned).getByRole("button", { name: "Reply" })).toBeInTheDocument();
+  });
+
+  it("without a known user (the studio, owner only) Abandon stays", async () => {
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} />);
+    const row = (await screen.findByText("Valider Plan A ?")).closest("li");
+    expect(within(row).getByRole("button", { name: "Abandon" })).toBeInTheDocument();
+  });
 });

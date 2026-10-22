@@ -4052,7 +4052,9 @@
     "runError_approval_choice_reserved": "A choice of the decision {node} is named “text”, which is reserved for written answers. Rename it.",
     "runError_approval_choice_duplicate": "Two choices of the decision {node} share the same route. Give each its own.",
     "runError_approval_text_route_missing": "The decision {node} accepts written answers but nothing is connected to its “text” route. Connect it, or remove the written answer.",
-    "runError_approval_nested": "The decision {node} sits in a loop, a try or a sub-workflow, where nobody can answer. Move it to the main workflow."
+    "runError_approval_nested": "The decision {node} sits in a loop, a try or a sub-workflow, where nobody can answer. Move it to the main workflow.",
+    "runError_decision_not_saved": "The decision could not be saved, so the run cannot wait for an answer. Try again in a moment (ref. {ref}).",
+    "runError_decision_unavailable": "This run cannot wait for a decision (ref. {ref})."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -4215,6 +4217,12 @@
     "abandonKeep": "Keep",
     "abandoning": "Abandoning…",
     "abandonFailed": "Could not abandon the run: {message}",
+    "openInStudio": "Open in the Studio",
+    "resumeRunning": "Answer sent. The rest of the workflow is running…",
+    "resumeDone": "Answer sent: the workflow finished.",
+    "resumeAwaiting": "Answer sent: the workflow is now waiting for another decision.",
+    "resumeCancelled": "The workflow was cancelled.",
+    "resumeFailed": "The workflow failed after your answer: {message}",
     "panelWaiting": "Waiting for a decision",
     "panelAnswer": "Answer",
     "panelReplayed": "Before the answer",

@@ -131,6 +131,16 @@ describe("test panel — what a node returned", () => {
   });
 });
 
+describe("a decision that could not be parked", () => {
+  it.each([
+    ["decision_not_saved", /could not be saved/i],
+    ["decision_unavailable", /cannot wait for a decision/i],
+  ])("words %s", (code, pattern) => {
+    panel(reduce([{ event: "error", code }]));
+    expect(screen.getAllByText(pattern).length).toBeGreaterThan(0);
+  });
+});
+
 describe("validation — approval", () => {
   it("is no longer refused as not runnable; an unconfigured one is still blocked by its own checks", () => {
     const r = validateGraphLocal({

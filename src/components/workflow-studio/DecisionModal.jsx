@@ -17,7 +17,8 @@ function errorMessage(t, err) {
 /**
  * The dialog a person answers a paused run in. `decision` is
  * `{runId, nodeId, question, mode, choices:[{route,label}], assignee}`;
- * `onAnswer({choice})` or `onAnswer({text})` resolves when the run was
+ * `onAnswer({choice})`, `onAnswer({text})` or, in `both` mode with a comment
+ * typed, `onAnswer({choice, text})` resolves when the run was
  * resumed and throws the API error otherwise (shown here). "Later" closes
  * without answering: the run stays parked and can be reopened.
  */
@@ -102,7 +103,7 @@ export default function DecisionModal({ decision, onAnswer, onClose }) {
                     ref={i === 0 ? firstRef : undefined}
                     type="button"
                     disabled={locked}
-                    onClick={() => submit({ choice: c.route })}
+                    onClick={() => submit(canWrite && trimmed ? { choice: c.route, text: trimmed } : { choice: c.route })}
                     className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-linear-to-r from-brand to-brand-secondary text-white hover:opacity-90 disabled:opacity-40"
                   >
                     {c.label || c.route}

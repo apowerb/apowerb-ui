@@ -18,11 +18,19 @@ export function decisionFromRow(row) {
     mode: row.mode,
     choices: row.choices || [],
     assignee: row.assignee ?? null,
+    ownerId: row.owner_id ?? null,
     pausedAt: row.paused_at ?? null,
   };
 }
 
-function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, t }) {
+// Owner of the run? `userEmail` undefined: the caller is the owner by construction.
+// An unknown owner (older server) is not hidden from anyone.
+function isOwner(item, userEmail) {
+  if (userEmail === undefined || !item.ownerId) return true;
+  return String(item.ownerId).toLowerCase() === String(userEmail || "").toLowerCase();
+}
+
+function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, canAbandon, studioLink, t }) {
   const format = useFormatter();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -71,9 +79,16 @@ function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, t }) {
               ) : (
                 <Link href={replyHref} className={replyClass}>{t("reply")}</Link>
               )}
-              <button type="button" onClick={() => setConfirming(true)} className="px-2 py-1 text-[11px] font-medium rounded-lg th-text-secondary border th-border-secondary hover:th-bg-surface-hover">
-                {t("abandon")}
-              </button>
+              {onReply && studioLink && (
+                <Link href={replyHref} className="px-2 py-1 text-[11px] font-medium rounded-lg th-text-secondary border th-border-secondary hover:th-bg-surface-hover">
+                  {t("openInStudio")}
+                </Link>
+              )}
+              {canAbandon && (
+                <button type="button" onClick={() => setConfirming(true)} className="px-2 py-1 text-[11px] font-medium rounded-lg th-text-secondary border th-border-secondary hover:th-bg-surface-hover">
+                  {t("abandon")}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -91,11 +106,15 @@ function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, t }) {
  * - `onAnswer(decision, {choice}|{text})` resumes the run (throws the API
  *   error for the modal to show). Without it (the workflows page), Reply links
  *   to the studio, which opens the decision there and plays the resumption.
+ * - `userEmail` is the signed-in user: Abandon (and, with `studioLink`, "Open in
+ *   the Studio", which loads the workflow) belong to the owner of the run; an
+ *   assignee only replies (the server answers 403 to their abandon). Left
+ *   undefined (the studio, which only the owner opens) every row is theirs.
  * - `refreshKey` reloads the list (a run just parked, or resumed).
  * - `hideWhenEmpty` renders nothing while no decision waits (the workflows page).
  * - `className` spaces the section (default: the panel's).
  */
-export default function AwaitingDecisionsList({ workflowId, onAnswer, onAbandoned, refreshKey, hideWhenEmpty = false, className = "mt-3" }) {
+export default function AwaitingDecisionsList({ workflowId, onAnswer, onAbandoned, refreshKey, userEmail, studioLink = false, hideWhenEmpty = false, className = "mt-3" }) {
   const t = useTranslations("WorkflowDecision");
   const [items, setItems] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -155,6 +174,8 @@ export default function AwaitingDecisionsList({ workflowId, onAnswer, onAbandone
               t={t}
               showWorkflow={workflowId == null}
               onReply={onAnswer ? setOpen : null}
+              canAbandon={isOwner(item, userEmail)}
+              studioLink={studioLink && isOwner(item, userEmail)}
               replyHref={`/workflows/${item.workflowId}?decision=${encodeURIComponent(item.runId)}`}
               onAbandoned={(gone) => {
                 setItems((list) => (list || []).filter((d) => d.runId !== gone.runId));

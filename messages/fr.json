@@ -4052,7 +4052,9 @@
     "runError_approval_choice_reserved": "Un choix de la décision {node} s'appelle « text », nom réservé aux réponses écrites. Renomme-le.",
     "runError_approval_choice_duplicate": "Deux choix de la décision {node} ont la même route. Donne-leur chacun la leur.",
     "runError_approval_text_route_missing": "La décision {node} accepte les réponses écrites mais rien n'est branché sur sa route « text ». Branche-la, ou retire la réponse écrite.",
-    "runError_approval_nested": "La décision {node} est dans une boucle, un essai ou un sous-workflow, où personne ne peut répondre. Place-la dans le workflow principal."
+    "runError_approval_nested": "La décision {node} est dans une boucle, un essai ou un sous-workflow, où personne ne peut répondre. Place-la dans le workflow principal.",
+    "runError_decision_not_saved": "La décision n'a pas pu être enregistrée : le run ne peut donc pas attendre de réponse. Réessaie dans un instant (réf. {ref}).",
+    "runError_decision_unavailable": "Ce run ne peut pas attendre de décision (réf. {ref})."
   },
   "WorkflowVersions": {
     "title": "Versions",
@@ -4215,6 +4217,12 @@
     "abandonKeep": "Garder",
     "abandoning": "Abandon…",
     "abandonFailed": "Impossible d'abandonner le run : {message}",
+    "openInStudio": "Ouvrir dans le Studio",
+    "resumeRunning": "Réponse envoyée. La suite du workflow s'exécute…",
+    "resumeDone": "Réponse envoyée : le workflow est terminé.",
+    "resumeAwaiting": "Réponse envoyée : le workflow attend maintenant une autre décision.",
+    "resumeCancelled": "Le workflow a été annulé.",
+    "resumeFailed": "Le workflow a échoué après ta réponse : {message}",
     "panelWaiting": "En attente de décision",
     "panelAnswer": "Répondre",
     "panelReplayed": "Avant la réponse",

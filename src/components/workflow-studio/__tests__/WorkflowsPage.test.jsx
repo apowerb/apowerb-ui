@@ -11,6 +11,8 @@ vi.mock("@/lib/navigation", () => ({
   useRouter: () => ({ push, replace: vi.fn() }),
 }));
 
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { email: "me@example.com" } }) }));
+
 const { listWorkflowDefs, createWorkflowDef, duplicateWorkflowDef, deleteWorkflowDef } = vi.hoisted(() => ({
   listWorkflowDefs: vi.fn(),
   createWorkflowDef: vi.fn(),
