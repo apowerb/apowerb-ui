@@ -4,7 +4,7 @@
  * agent that is not asked for JSON, a Try with nothing inside that can fail.
  */
 import { describe, it, expect } from "vitest";
-import { validateGraphLocal } from "@/lib/workflowGraph";
+import { validateGraphLocal, notifiesOnFailure } from "@/lib/workflowGraph";
 
 const trigger = (kind, extra = {}) => ({ id: "trigger1", type: "trigger", config: { kind, ...extra } });
 const agent = (id, config = {}) => ({ id, type: "agent", config: { agent_id: "agent7", ...config } });
@@ -58,8 +58,24 @@ describe("noErrorHandling", () => {
     expect(warnings(result, "noErrorHandling")).toEqual([]);
   });
 
-  it("stays quiet when a failure alert is set (extension point for the alert setting)", () => {
+  it("stays quiet when the failure alert is on", () => {
     expect(warnings(validateGraphLocal(scheduled, { failureAlert: true }), "noErrorHandling")).toEqual([]);
+    expect(warnings(validateGraphLocal(scheduled, { failureAlert: false }), "noErrorHandling")).toHaveLength(1);
+  });
+
+  it("stays quiet when a step handles its own failure", () => {
+    for (const mode of ["continue", "route"]) {
+      const handled = graph(
+        [trigger("schedule", { cron: "0 9 * * *", timezone: "Europe/Paris" }), agent("agent1", { on_error: mode })],
+        [{ source: "trigger1", target: "agent1" }],
+      );
+      expect(warnings(validateGraphLocal(handled), "noErrorHandling")).toEqual([]);
+    }
+    const stops = graph(
+      [trigger("schedule", { cron: "0 9 * * *", timezone: "Europe/Paris" }), agent("agent1", { on_error: "fail" })],
+      [{ source: "trigger1", target: "agent1" }],
+    );
+    expect(warnings(validateGraphLocal(stops), "noErrorHandling")).toHaveLength(1);
   });
 
   it("does not repeat itself for the trigger inside a Try body", () => {
@@ -75,6 +91,15 @@ describe("noErrorHandling", () => {
       [{ source: "trigger1", target: "try1" }],
     );
     expect(warnings(validateGraphLocal(nested), "noErrorHandling")).toEqual([]);
+  });
+});
+
+describe("notifiesOnFailure", () => {
+  it("follows the status when unset, as the engine does", () => {
+    expect(notifiesOnFailure(null, "published")).toBe(true);
+    expect(notifiesOnFailure({}, "draft")).toBe(false);
+    expect(notifiesOnFailure({ notify_on_failure: false }, "published")).toBe(false);
+    expect(notifiesOnFailure({ notify_on_failure: true }, "draft")).toBe(true);
   });
 });
 

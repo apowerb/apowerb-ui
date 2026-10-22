@@ -905,8 +905,9 @@ function validateToolArgs(node, options) {
  */
 /**
  * `options.failureListeners`: the published workflows that run when this one
- * fails (`GET /triggers` → `failure_listeners`); `options.failureAlert`: a
- * failure alert is set on this workflow. Either one silences
+ * fails (`GET /triggers` → `failure_listeners`); `options.failureAlert`: the
+ * workflow's failure alert is on (`notifiesOnFailure`). Either one, a Try or
+ * a node that handles its own failure (`on_error` continue/route) silences
  * `noErrorHandling`.
  */
 export function validateGraphLocal(graph, options = {}) {
@@ -915,6 +916,17 @@ export function validateGraphLocal(graph, options = {}) {
   // also walks with its own trigger.
   const errors = [...result.errors, ...errorHandlingWarnings(graph, options)];
   return { valid: errors.every((e) => e.level === "warning"), errors };
+}
+
+/**
+ * Is the failure alert on? Mirrors the engine (`workflow_alerts.alert_enabled`):
+ * unset, it follows the status (on once published, off on a draft);
+ * `true` or `false` impose it.
+ */
+export function notifiesOnFailure(settings, status) {
+  const value = settings?.notify_on_failure;
+  if (value === undefined || value === null) return status === "published";
+  return Boolean(value);
 }
 
 // Triggers that start a run with nobody watching the Test panel: a failure
@@ -926,9 +938,8 @@ function errorHandlingWarnings(graph, options) {
   const trigger = nodes.find((n) => n.type === "trigger");
   if (!trigger || !AUTOMATIC_TRIGGER_KINDS.has(trigger.config?.kind)) return [];
   if (nodes.some((n) => n.type === "try")) return [];
+  if (nodes.some(handlesErrors)) return [];
   if ((options.failureListeners || []).length > 0) return [];
-  // Extension point for the failure alert setting (error handling v1): the
-  // caller passes `failureAlert` once the workflow can carry one.
   if (options.failureAlert) return [];
   return [{ nodeId: trigger.id, message: "noErrorHandling", level: "warning" }];
 }

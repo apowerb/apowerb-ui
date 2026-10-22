@@ -31,6 +31,7 @@ import {
   autoLayout,
   renameNodeId,
   approvalRoutes,
+  notifiesOnFailure,
 } from "@/lib/workflowGraph";
 import { buildWorkflowFile, downloadWorkflowFile } from "@/lib/workflowFile";
 import { triggerSamplePayloadFromSchema, triggerPayloadInitialMode, triggerScheduleDetail } from "@/lib/workflowTriggers";
@@ -285,8 +286,14 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
     return () => { cancelled = true; };
   }, [workflowId, triggerRefreshKey]);
   const validation = useMemo(
-    () => validateGraphLocal(flowToGraph(nodes, edges), { toolSchemas, currentWorkflowId: workflowId, now: new Date(), failureListeners }),
-    [nodes, edges, toolSchemas, workflowId, failureListeners],
+    () => validateGraphLocal(flowToGraph(nodes, edges), {
+      toolSchemas,
+      currentWorkflowId: workflowId,
+      now: new Date(),
+      failureListeners,
+      failureAlert: notifiesOnFailure(workflowMeta?.settings, workflowMeta?.status),
+    }),
+    [nodes, edges, toolSchemas, workflowId, failureListeners, workflowMeta?.settings, workflowMeta?.status],
   );
   const errorsByNode = useMemo(() => {
     const map = {};

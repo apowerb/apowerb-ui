@@ -173,8 +173,9 @@ const TRACE = {
   ],
 };
 
-function setupStudio({ triggerState = {} } = {}) {
-  api.getWorkflowDef.mockResolvedValue({ workflow_id: "wf1", name: "Prices", description: "", status: "published", version: 3, graph: GRAPH, validation: { valid: true, errors: [] } });
+function setupStudio({ triggerState = {}, status = "published", settings } = {}) {
+  const graph = settings ? { ...GRAPH, settings } : GRAPH;
+  api.getWorkflowDef.mockResolvedValue({ workflow_id: "wf1", name: "Prices", description: "", status, version: 3, graph, validation: { valid: true, errors: [] } });
   api.updateWorkflowDef.mockResolvedValue({});
   api.listAgents.mockResolvedValue([]);
   api.listTools.mockResolvedValue({});
@@ -254,7 +255,7 @@ describe("Runs in the studio", () => {
   });
 
   it("warns that nothing handles a failure, until a workflow listens to it", async () => {
-    setupStudio();
+    setupStudio({ settings: { notify_on_failure: false } });
     const user = userEvent.setup();
     const { unmount } = render(<WorkflowStudio workflowId="wf1" />);
     await screen.findByRole("button", { name: "Runs" });
@@ -262,13 +263,37 @@ describe("Runs in the studio", () => {
     expect(await screen.findByText(/starts on its own/)).toBeInTheDocument();
     unmount();
 
-    setupStudio({ triggerState: { failure_listeners: [{ workflow_id: "wf9", name: "Alert" }] } });
+    setupStudio({ settings: { notify_on_failure: false }, triggerState: { failure_listeners: [{ workflow_id: "wf9", name: "Alert" }] } });
     render(<WorkflowStudio workflowId="wf1" />);
     await screen.findByRole("button", { name: "Runs" });
     await waitFor(() => expect(api.getWorkflowTriggerState).toHaveBeenCalledWith("wf1"));
     await user.click(screen.getByRole("button", { name: /graph/i }));
     expect(await screen.findByText("Validation")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(/starts on its own/)).not.toBeInTheDocument());
+  });
+});
+
+describe("Failure alert and the missing error handling warning", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("stays quiet on a published workflow, whose failure alert is on by default", async () => {
+    setupStudio();
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await screen.findByRole("button", { name: "Runs" });
+    await waitFor(() => expect(api.getWorkflowTriggerState).toHaveBeenCalledWith("wf1"));
+    await user.click(screen.getByRole("button", { name: /graph/i }));
+    expect(await screen.findByText("Validation")).toBeInTheDocument();
+    expect(screen.queryByText(/starts on its own/)).not.toBeInTheDocument();
+  });
+
+  it("warns on a draft, whose failure alert is off until published", async () => {
+    setupStudio({ status: "draft" });
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await screen.findByRole("button", { name: "Runs" });
+    await user.click(screen.getByRole("button", { name: /graph/i }));
+    expect(await screen.findByText(/starts on its own/)).toBeInTheDocument();
   });
 });
 
