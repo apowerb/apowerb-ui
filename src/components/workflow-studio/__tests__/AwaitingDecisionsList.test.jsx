@@ -197,4 +197,32 @@ describe("AwaitingDecisionsList", () => {
     const row = (await screen.findByText("Valider Plan A ?")).closest("li");
     expect(within(row).queryByRole("button", { name: "Abandon" })).toBeNull();
   });
+
+  it.each([
+    [409, "decision_expired", /expired/i],
+    [404, undefined, /no longer exists/i],
+  ])("an answer refused with %s takes the row off the list and keeps the dialog with its reason", async (status, code, pattern) => {
+    const onAnswer = vi.fn().mockRejectedValue(Object.assign(new Error("x"), { status, detail: code ? { code } : undefined }));
+    const user = userEvent.setup();
+    render(<AwaitingDecisionsList onAnswer={onAnswer} hideWhenEmpty />);
+    await user.click(within(await screen.findByText("Valider Plan A ?").then((n) => n.closest("li"))).getByRole("button", { name: "Reply" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Oui" }));
+    const dialog = screen.getByRole("dialog");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(pattern);
+    expect(screen.getAllByText("Valider Plan A ?")).toHaveLength(1); // only in the dialog
+    expect(screen.getByText("Accorder ?")).toBeInTheDocument();
+  });
+
+  it("the last decision refused stays readable in its dialog even when the list hides itself", async () => {
+    listAwaitingDecisions.mockResolvedValue([ROWS[0]]);
+    const onAnswer = vi.fn().mockRejectedValue(Object.assign(new Error("x"), { status: 409, detail: { code: "decision_expired" } }));
+    const user = userEvent.setup();
+    render(<AwaitingDecisionsList onAnswer={onAnswer} hideWhenEmpty />);
+    await user.click(await screen.findByRole("button", { name: "Reply" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Oui" }));
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent(/expired/i);
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText("Valider Plan A ?")).toBeNull();
+  });
 });

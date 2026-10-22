@@ -158,7 +158,16 @@ export default function AwaitingDecisionsList({ workflowId, onAnswer, onAbandone
   );
 
   const answer = async (answerBody) => {
-    await onAnswer(open, answerBody);
+    try {
+      await onAnswer(open, answerBody);
+    } catch (err) {
+      // Expired, answered elsewhere, or no longer reachable: the row is gone;
+      // the dialog stays to say why.
+      if (err?.status === 404 || err?.status === 409) {
+        setItems((list) => (list || []).filter((d) => d.runId !== open.runId));
+      }
+      throw err;
+    }
     setOpen(null);
     load();
   };
@@ -168,41 +177,49 @@ export default function AwaitingDecisionsList({ workflowId, onAnswer, onAbandone
     load();
   };
 
-  if (hideWhenEmpty && !loadError && items !== null && visible.length === 0) return null;
+  const modal = open && <DecisionModal decision={open} onAnswer={answer} onClose={() => setOpen(null)} />;
+
+  // The dialog keeps its place in the tree when the list hides itself (the
+  // last decision refused): its message stays on screen.
+  const hidden = hideWhenEmpty && !loadError && items !== null && visible.length === 0;
 
   return (
-    <section aria-label={t("listTitle")} className={className}>
-      <p className="text-[11px] font-semibold th-text-secondary mb-1">{t("listTitle")}</p>
-      {loadError ? (
-        <div>
-          <p role="alert" className="text-[11px] text-red-400">{t("listLoadFailed", { message: loadError })}</p>
-          <button type="button" onClick={retry} className="mt-1 text-[11px] font-semibold underline th-text-secondary">{t("retry")}</button>
-        </div>
-      ) : items === null ? (
-        <p className="flex items-center gap-1.5 text-[11px] th-text-ghost"><Loader2 size={11} className="animate-spin" />{t("listLoading")}</p>
-      ) : visible.length === 0 ? (
-        <p className="text-[11px] th-text-ghost">{t("listEmpty")}</p>
-      ) : (
-        <ul>
-          {visible.map((item) => (
-            <Row
-              key={`${item.runId}:${item.nodeId}`}
-              item={item}
-              t={t}
-              showWorkflow={workflowId == null}
-              onReply={onAnswer ? setOpen : null}
-              canAbandon={isOwner(item, userEmail)}
-              studioLink={studioLink && isOwner(item, userEmail)}
-              replyHref={`/workflows/${item.workflowId}?decision=${encodeURIComponent(item.runId)}`}
-              onAbandoned={(gone) => {
-                setItems((list) => (list || []).filter((d) => d.runId !== gone.runId));
-                onAbandoned?.(gone);
-              }}
-            />
-          ))}
-        </ul>
+    <>
+      {!hidden && (
+        <section aria-label={t("listTitle")} className={className}>
+          <p className="text-[11px] font-semibold th-text-secondary mb-1">{t("listTitle")}</p>
+          {loadError ? (
+            <div>
+              <p role="alert" className="text-[11px] text-red-400">{t("listLoadFailed", { message: loadError })}</p>
+              <button type="button" onClick={retry} className="mt-1 text-[11px] font-semibold underline th-text-secondary">{t("retry")}</button>
+            </div>
+          ) : items === null ? (
+            <p className="flex items-center gap-1.5 text-[11px] th-text-ghost"><Loader2 size={11} className="animate-spin" />{t("listLoading")}</p>
+          ) : visible.length === 0 ? (
+            <p className="text-[11px] th-text-ghost">{t("listEmpty")}</p>
+          ) : (
+            <ul>
+              {visible.map((item) => (
+                <Row
+                  key={`${item.runId}:${item.nodeId}`}
+                  item={item}
+                  t={t}
+                  showWorkflow={workflowId == null}
+                  onReply={onAnswer ? setOpen : null}
+                  canAbandon={isOwner(item, userEmail)}
+                  studioLink={studioLink && isOwner(item, userEmail)}
+                  replyHref={`/workflows/${item.workflowId}?decision=${encodeURIComponent(item.runId)}`}
+                  onAbandoned={(gone) => {
+                    setItems((list) => (list || []).filter((d) => d.runId !== gone.runId));
+                    onAbandoned?.(gone);
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
       )}
-      {open && <DecisionModal decision={open} onAnswer={answer} onClose={() => setOpen(null)} />}
-    </section>
+      {modal}
+    </>
   );
 }
