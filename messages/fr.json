@@ -3981,7 +3981,7 @@
     "onError_continue": "Continuer avec l'erreur",
     "onError_route": "Prendre la sortie d'erreur",
     "nodeTimeout": "Durée maximale (secondes)",
-    "nodeTimeoutHelp": "Vide : pas de limite. Au-delà, l'étape est arrêtée et échoue pour dépassement de délai, traité comme réglé ci-dessus (1 à {max} s).",
+    "nodeTimeoutHelp": "Vide : pas de limite. Au-delà, le sous-workflow est arrêté : aucune de ses étapes suivantes ne démarre, et il échoue pour dépassement de délai, traité comme réglé ci-dessus (1 à {max} s). Une étape déjà en cours à l'intérieur (agent, outil) peut tout de même aller au bout.",
     "httpAcceptErrorStatus": "Considérer les réponses 4xx/5xx comme un succès",
     "httpAcceptErrorStatusHelp": "Désactivé : une réponse 4xx ou 5xx fait échouer l'étape, traité comme réglé ci-dessous. Activé : la réponse est transmise telle quelle, avec son statut.",
     "edgeRouteSuccess": "Succès",
@@ -3989,7 +3989,7 @@
     "tryEffectsWarning": "Ces étapes agissent hors du Studio et sont rejouées à chaque tentative (jusqu'à {count} fois) :",
     "workflowSettingsTitle": "Réglages du workflow",
     "notifyOnFailure": "Me prévenir en cas d'échec",
-    "notifyOnFailureHelp": "Un e-mail (et un message Teams si Teams est connecté) quand une exécution échoue ou qu'une décision expire. Une alerte par exécution, au plus une par heure pour ce workflow. Activé par défaut une fois publié."
+    "notifyOnFailureHelp": "Un e-mail (et un message Teams si Teams est connecté) quand une exécution échoue. Une alerte par exécution, au plus une par heure pour ce workflow. Activé par défaut une fois publié."
   },
   "WorkflowExecutionPanel": {
     "partialOutput": "Sortie de {node} (test jusqu'ici)",
@@ -4117,7 +4117,7 @@
     "runError_approval_expiry_invalid": "La décision {node} : le délai d'attente doit être un nombre entier d'heures entre 1 et {max}.",
     "handledErrorContinue": "Échec, l'exécution a continué : {error}",
     "handledErrorRoute": "Échec, sortie d'erreur prise : {error}",
-    "runError_node_timeout": "L'étape {node} a dépassé {seconds} s et a été arrêtée. Augmentez sa durée maximale ou allégez-la.",
+    "runError_node_timeout": "L'étape {node} a dépassé {seconds} s : ses étapes suivantes n'ont pas été lancées. Augmentez sa durée maximale ou allégez-la.",
     "runError_http_error_status": "HTTP {node} a répondu avec le statut {status}. Vérifiez l'adresse et la requête, ou considérez les réponses 4xx/5xx comme un succès.",
     "runError_tool_reported_error": "L'outil {node} a signalé une erreur.",
     "runError_on_error_unknown": "Gestion d'erreur « {value} » inconnue sur {node}.",
@@ -4259,13 +4259,13 @@
     "nodeNotConnected": "Aucun lien n'arrive à ce nœud : il s'exécute sans rien recevoir. Tire un lien depuis l'étape qu'il doit lire.",
     "approvalExpiryInvalid": "Le délai d'attente doit être un nombre entier d'heures entre 1 et 720",
     "onErrorUnknown": "Gestion d'erreur « {value} » inconnue",
-    "onErrorUnsupported": "Cette étape n'a pas de réglage de gestion d'erreur",
+    "onErrorUnsupported": "Cette étape n'a pas de réglage de gestion d'erreur : il est ignoré",
     "onErrorRouteMissing": "Reliez la sortie d'erreur à l'étape qui traite l'erreur",
     "onErrorRouteUnexpected": "Liaison de sortie d'erreur sur une étape qui ne prend pas sa sortie d'erreur",
     "onErrorRouteUnknown": "La route « {value} » n'existe pas : choisissez Succès ou Sortie d'erreur",
     "onErrorRouteConflict": "Une route nommée « error » entre en conflit avec la sortie d'erreur",
     "nodeTimeoutInvalid": "La durée maximale doit être comprise entre 1 et 3600 secondes",
-    "nodeTimeoutUnsupported": "Cette étape n'a pas de réglage de durée maximale",
+    "nodeTimeoutUnsupported": "Cette étape ne peut pas être arrêtée en cours de route : sa durée maximale est ignorée",
     "httpAcceptErrorStatusInvalid": "« Considérer les réponses 4xx/5xx comme un succès » doit être activé ou désactivé"
   },
   "TeamsWebhookModal": {

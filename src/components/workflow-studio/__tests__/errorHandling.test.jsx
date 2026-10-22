@@ -3,7 +3,8 @@
  * `timeout_s`, HTTP error statuses, the Try retry warning and the workflow's
  * "Notify me on failure" setting. Local validation mirrors the engine
  * (core `workflow_graph._validate_error_handling` and the edge checks of
- * `validate_graph`), with the same refusals.
+ * `validate_graph`), with the same refusals; settings the engine ignores (on a
+ * node type without them) are warnings, so a saved graph still runs.
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -19,9 +20,14 @@ vi.mock("@/lib/api", () => ({ getTeamsWebhookStatus: vi.fn(() => Promise.resolve
 const trigger = { id: "t", type: "trigger", config: {} };
 const agent = (config = {}) => ({ id: "a", type: "agent", config: { agent_id: "agent1", ...config } });
 const out = (id) => ({ id, type: "output", config: {} });
+const sub = (config = {}) => ({ id: "a", type: "subworkflow", config: { workflow_id: "w2", ...config } });
 
 function messages(graph) {
   return validateGraphLocal(graph).errors.map((e) => e.message);
+}
+
+function warnings(graph) {
+  return validateGraphLocal(graph).errors.filter((e) => e.level === "warning").map((e) => e.message);
 }
 
 describe("on_error in the graph model", () => {
@@ -53,10 +59,12 @@ describe("on_error in the graph model", () => {
     expect(messages(graph)).toContain("onErrorRouteUnknown:oops");
   });
 
-  it("refuses an unknown mode, a mode on a node that cannot fail, and continue on a classifier", () => {
+  it("refuses an unknown mode and continue on a classifier, and only warns about a mode the engine ignores", () => {
     expect(messages({ nodes: [trigger, agent({ on_error: "ignore" })], edges: [{ source: "t", target: "a" }] })).toContain("onErrorUnknown:ignore");
     const set = { id: "s", type: "set", config: { fields: [{ key: "k", value: "v" }], on_error: "continue" } };
-    expect(messages({ nodes: [trigger, set], edges: [{ source: "t", target: "s" }] })).toContain("onErrorUnsupported:set");
+    const withSet = { nodes: [trigger, set], edges: [{ source: "t", target: "s" }] };
+    expect(warnings(withSet)).toContain("onErrorUnsupported:set");
+    expect(validateGraphLocal(withSet).valid).toBe(true);
     const cls = { id: "c", type: "classifier", config: { agent_id: "x", routes: [{ route: "a", description: "a" }, { route: "b", description: "b" }], on_error: "continue" } };
     expect(messages({ nodes: [trigger, cls], edges: [{ source: "t", target: "c" }] })).toContain("onErrorUnknown:continue");
   });
@@ -75,12 +83,19 @@ describe("on_error in the graph model", () => {
     expect(messages({ nodes: [trigger, clash, out("y"), out("e")], edges: [edges[0], edges[2], edges[3]] })).toContain("onErrorRouteConflict");
   });
 
-  it("bounds timeout_s and only allows it where the engine does", () => {
-    expect(messages({ nodes: [trigger, agent({ timeout_s: 0 })], edges: [{ source: "t", target: "a" }] })).toContain("nodeTimeoutInvalid");
-    expect(messages({ nodes: [trigger, agent({ timeout_s: 3601 })], edges: [{ source: "t", target: "a" }] })).toContain("nodeTimeoutInvalid");
-    expect(messages({ nodes: [trigger, agent({ timeout_s: 60 })], edges: [{ source: "t", target: "a" }] }).some((m) => m.startsWith("nodeTimeout"))).toBe(false);
-    const set = { id: "s", type: "set", config: { fields: [{ key: "k", value: "v" }], timeout_s: 5 } };
-    expect(messages({ nodes: [trigger, set], edges: [{ source: "t", target: "s" }] })).toContain("nodeTimeoutUnsupported:set");
+  it("treats a null on_error as the default, like the engine", () => {
+    expect(validateGraphLocal({ nodes: [trigger, agent({ on_error: null })], edges: [{ source: "t", target: "a" }] }).valid).toBe(true);
+  });
+
+  it("bounds timeout_s on a sub-workflow, the only step it really stops", () => {
+    const edge = [{ source: "t", target: "a" }];
+    expect(messages({ nodes: [trigger, sub({ timeout_s: 0 })], edges: edge })).toContain("nodeTimeoutInvalid");
+    expect(messages({ nodes: [trigger, sub({ timeout_s: 3601 })], edges: edge })).toContain("nodeTimeoutInvalid");
+    expect(messages({ nodes: [trigger, sub({ timeout_s: 60 })], edges: edge }).some((m) => m.startsWith("nodeTimeout"))).toBe(false);
+    // An agent keeps running on the ADK server and a tool in its thread: ignored, said so.
+    const slowAgent = { nodes: [trigger, agent({ timeout_s: 60 })], edges: edge };
+    expect(warnings(slowAgent)).toContain("nodeTimeoutUnsupported:agent");
+    expect(validateGraphLocal(slowAgent).valid).toBe(true);
   });
 
   it("lets downstream steps read the error fields of a handled node only", () => {
@@ -161,9 +176,14 @@ describe("inspector: error handling", () => {
     expect(screen.queryByLabelText("If this step fails")).toBeNull();
   });
 
+  it("offers no time limit on an agent, which it could not stop", () => {
+    render(<Inspector graph={{ nodes: [trigger, agent()], edges: [] }} selection={{ kind: "node", id: "a" }} />);
+    expect(screen.queryByLabelText("Time limit (seconds)")).toBeNull();
+  });
+
   it("edits the time limit, empty meaning none", async () => {
     const onConfig = vi.fn();
-    render(<Inspector graph={{ nodes: [trigger, agent()], edges: [] }} selection={{ kind: "node", id: "a" }} onConfig={onConfig} />);
+    render(<Inspector graph={{ nodes: [trigger, sub()], edges: [] }} selection={{ kind: "node", id: "a" }} onConfig={onConfig} />);
     const input = screen.getByLabelText("Time limit (seconds)");
     await userEvent.type(input, "30");
     expect(onConfig).toHaveBeenLastCalledWith({ timeout_s: 30 });

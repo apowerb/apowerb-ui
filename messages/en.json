@@ -3981,7 +3981,7 @@
     "onError_continue": "Continue with the error",
     "onError_route": "Take the error output",
     "nodeTimeout": "Time limit (seconds)",
-    "nodeTimeoutHelp": "Empty: no limit. Past it the step is stopped and fails with a timeout, handled as set above (1 to {max} s).",
+    "nodeTimeoutHelp": "Empty: no limit. Past it the sub-workflow is stopped: none of its next steps start, and it fails with a timeout, handled as set above (1 to {max} s). A step already running inside it (agent, tool) may still finish.",
     "httpAcceptErrorStatus": "Treat 4xx/5xx responses as success",
     "httpAcceptErrorStatusHelp": "Off: a 4xx or 5xx answer makes the step fail, handled as set below. On: the answer is passed on as is, with its status.",
     "edgeRouteSuccess": "Success",
@@ -3989,7 +3989,7 @@
     "tryEffectsWarning": "These steps reach outside the Studio and run again on every attempt (up to {count} times):",
     "workflowSettingsTitle": "Workflow settings",
     "notifyOnFailure": "Notify me on failure",
-    "notifyOnFailureHelp": "An email (and a Teams message if Teams is connected) when a run fails or a decision expires. One alert per run, at most one per hour for this workflow. On by default once published."
+    "notifyOnFailureHelp": "An email (and a Teams message if Teams is connected) when a run fails. One alert per run, at most one per hour for this workflow. On by default once published."
   },
   "WorkflowExecutionPanel": {
     "partialOutput": "Output of {node} (test up to here)",
@@ -4117,7 +4117,7 @@
     "runError_approval_expiry_invalid": "The decision {node}: the waiting delay must be a whole number of hours between 1 and {max}.",
     "handledErrorContinue": "Failed, the run went on: {error}",
     "handledErrorRoute": "Failed, took the error output: {error}",
-    "runError_node_timeout": "Step {node} timed out after {seconds}s and was stopped. Raise its time limit or make it lighter.",
+    "runError_node_timeout": "Step {node} timed out after {seconds}s: its next steps were not started. Raise its time limit or make it lighter.",
     "runError_http_error_status": "HTTP {node} answered with status {status}. Check the address and the request, or treat 4xx/5xx responses as success.",
     "runError_tool_reported_error": "Tool {node} reported an error.",
     "runError_on_error_unknown": "Unknown error handling “{value}” on {node}.",
@@ -4259,13 +4259,13 @@
     "nodeNotConnected": "Nothing leads to this node: it runs without receiving anything. Draw a link from the step it should read.",
     "approvalExpiryInvalid": "The waiting delay must be a whole number of hours between 1 and 720",
     "onErrorUnknown": "Unknown error handling “{value}”",
-    "onErrorUnsupported": "This step has no error handling setting",
+    "onErrorUnsupported": "This step has no error handling setting: it is ignored",
     "onErrorRouteMissing": "Connect the error output to the step that handles the error",
     "onErrorRouteUnexpected": "Error-output connection on a step that does not take its error output",
     "onErrorRouteUnknown": "Route “{value}” does not exist: use Success or Error output",
     "onErrorRouteConflict": "A route named “error” conflicts with the error output",
     "nodeTimeoutInvalid": "Time limit must be between 1 and 3600 seconds",
-    "nodeTimeoutUnsupported": "This step has no time limit setting",
+    "nodeTimeoutUnsupported": "This step cannot be stopped mid-way: its time limit is ignored",
     "httpAcceptErrorStatusInvalid": "“Treat 4xx/5xx responses as success” must be on or off"
   },
   "TeamsWebhookModal": {

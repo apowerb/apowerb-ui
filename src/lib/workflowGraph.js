@@ -120,7 +120,9 @@ export function routesOnError(node) {
 }
 
 /** Per-node time limit (`timeout_s`); http keeps its own 1–30 s timeout. */
-export const NODE_TIMEOUT_TYPES = new Set(["agent", "tool", "extract", "subworkflow"]);
+// Only where cancelling really stops the work: an agent keeps running on the
+// ADK server once its HTTP call is dropped, a sync tool in its thread.
+export const NODE_TIMEOUT_TYPES = new Set(["subworkflow"]);
 export const NODE_TIMEOUT_MIN = 1;
 export const NODE_TIMEOUT_MAX = 3600;
 
@@ -627,15 +629,17 @@ function validateLoopConfig(node, options) {
  * `on_error` and `timeout_s` of one node, and the connections of its error
  * output. Same refusals as the engine (`_validate_error_handling` and the
  * edge checks of `validate_graph`); routed nodes (classifier) get their
- * `error` route through `declaredRoutes`.
+ * `error` route through `declaredRoutes`. A setting on a node type without it
+ * is a warning: the engine ignores it, so a saved graph keeps running.
  */
 function validateErrorHandling(node, outgoing, routed) {
   const errors = [];
   const cfg = node.config || {};
   const push = (message) => errors.push({ nodeId: node.id, message });
+  const warn = (message) => errors.push({ nodeId: node.id, message, level: "warning" });
   const mode = cfg.on_error ?? "fail";
-  if (mode !== "fail" && ON_ERROR_MODES.includes(mode) && !ON_ERROR_NODE_TYPES.has(node.type)) {
-    push(`onErrorUnsupported:${node.type}`);
+  if (!ON_ERROR_NODE_TYPES.has(node.type)) {
+    if (mode !== "fail") warn(`onErrorUnsupported:${node.type}`);
   } else if (!ON_ERROR_MODES.includes(mode) || (node.type === "classifier" && mode === "continue")) {
     push(`onErrorUnknown:${mode}`);
   }
@@ -644,7 +648,7 @@ function validateErrorHandling(node, outgoing, routed) {
   }
   if (cfg.timeout_s !== undefined && node.type !== "http") {
     if (!NODE_TIMEOUT_TYPES.has(node.type)) {
-      push(`nodeTimeoutUnsupported:${node.type}`);
+      warn(`nodeTimeoutUnsupported:${node.type}`);
     } else if (!Number.isInteger(cfg.timeout_s) || cfg.timeout_s < NODE_TIMEOUT_MIN || cfg.timeout_s > NODE_TIMEOUT_MAX) {
       push("nodeTimeoutInvalid");
     }
