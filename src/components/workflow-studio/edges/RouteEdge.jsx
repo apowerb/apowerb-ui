@@ -34,9 +34,12 @@ export default function RouteEdge({
 
   const needsRoute = !!data?.needsRoute;
   const route = data?.route;
+  // The `error` output of a try or of a node with on_error: "route".
+  const isError = route === "error";
 
   let color = selected ? "#5B8AFF" : "rgba(255,255,255,0.35)";
   if (needsRoute) color = "#ef4444";
+  else if (isError && !selected) color = "rgba(239,68,68,0.7)";
 
   return (
     <>
@@ -62,7 +65,7 @@ export default function RouteEdge({
               pointerEvents: "all",
             }}
             className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold border backdrop-blur-sm nodrag nopan ${
-              needsRoute
+              needsRoute || isError
                 ? "bg-red-500/20 border-red-400/50 text-red-200"
                 : "bg-black/40 border-white/15 text-white/90"
             }`}

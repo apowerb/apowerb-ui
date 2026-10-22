@@ -26,7 +26,7 @@ const trigger = { id: "t", type: "trigger", config: {} };
 describe("http and notification in the graph model", () => {
   it("are known node types with safe defaults", () => {
     expect(NODE_TYPES).toEqual(expect.arrayContaining(["http", "notification"]));
-    expect(createNode("http").config).toEqual({ method: "GET", url: "", headers: [], timeout_s: 15 });
+    expect(createNode("http").config).toEqual({ method: "GET", url: "", headers: [], timeout_s: 15, accept_error_status: false });
     // No `to` key: an empty-array default would still fail email validation,
     // and the default channel (app) never reads it.
     expect(createNode("notification").config).toEqual({ channel: "app", subject: "", body: "" });

@@ -42,7 +42,7 @@ import { useRunReplay } from "./hooks/useRunReplay";
 import { useToolSchemas } from "./hooks/useToolSchemas";
 import { useSuggestionAdoption } from "./hooks/useSuggestionAdoption";
 import { useNodeShapes } from "./hooks/useNodeShapes";
-import { knownShapes, effectfulNodesUpTo, effectfulNodesFrom } from "@/lib/workflowShapes";
+import { knownShapes, effectfulNodesUpTo, effectfulNodesToResume } from "@/lib/workflowShapes";
 import TestUntilConfirm from "./TestUntilConfirm";
 import StudioTopBar from "./StudioTopBar";
 import { suggestNextNodes, applySuggestion, paletteSuggestion, aiSuggestionsFrom, mergeAiSuggestions } from "@/lib/nextNodeSuggestions";
@@ -248,9 +248,12 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
         .then((wf) => {
           const { nodes: n, edges: e } = graphToFlow(wf.graph);
           resetHistory(n, e);
-          setWorkflowMeta({ name: wf.name, description: wf.description, status: wf.status, version: wf.version });
+          // `settings` (e.g. notify_on_failure) live in the graph but not on
+          // the canvas: kept here and written back on every save.
+          const settings = wf.graph?.settings ?? null;
+          setWorkflowMeta({ name: wf.name, description: wf.description, status: wf.status, version: wf.version, settings });
           expectedVersionRef.current = wf.version;
-          lastSavedSnapshotRef.current = JSON.stringify({ name: wf.name, graph: flowToGraph(n, e) });
+          lastSavedSnapshotRef.current = JSON.stringify({ name: wf.name, graph: flowToGraph(n, e, settings) });
           setSavedSnapshot(lastSavedSnapshotRef.current);
           setConflict(null);
           conflictRef.current = false;
@@ -378,13 +381,15 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
 
   // Feeds the Test panel with one run's stream: `open(signal)` gives its
   // Response (a first run, or a "Resume here" already accepted).
-  const streamRun = useCallback(async (open, { beforeRun, until = null, controller = new AbortController() } = {}) => {
+  // `detached`: the engine keeps the run going when its stream closes (a
+  // "Resume here"), so Stop asks the engine instead of closing the stream.
+  const streamRun = useCallback(async (open, { beforeRun, until = null, controller = new AbortController(), detached = false } = {}) => {
     setRunState(createRunState());
     setRunEvents([]);
     setIsRunning(true);
     runAbortRef.current = controller;
     runUntilRef.current = { runId: null, until };
-    liveRunRef.current = { runId: null, detached: false };
+    liveRunRef.current = { runId: null, detached };
     try {
       if (beforeRun) await beforeRun();
       const response = await open(controller.signal);
@@ -392,7 +397,7 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
         signal: controller.signal,
         onEvent: (evt) => {
           if (evt.event === "run_started") {
-            liveRunRef.current = { runId: evt.wid ?? evt.run_id ?? null, detached: false };
+            liveRunRef.current = { runId: evt.wid ?? evt.run_id ?? null, detached };
             runUntilRef.current = { ...runUntilRef.current, runId: liveRunRef.current.runId };
           }
           setRunEvents((list) => [...list, evt]);
@@ -463,7 +468,7 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
       buildWorkflowFile({
         name: workflowMeta?.name,
         description: workflowMeta?.description,
-        graph: flowToGraph(nodes, edges),
+        graph: flowToGraph(nodes, edges, workflowMeta?.settings),
       }),
     );
   }, [nodes, edges, workflowMeta]);
@@ -472,7 +477,7 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
   const doSave = useCallback(
     async (overrides = {}, { keepalive = false } = {}) => {
       if (conflictRef.current) return;
-      const graph = flowToGraph(nodes, edges);
+      const graph = flowToGraph(nodes, edges, workflowMeta?.settings);
       const name = overrides.name ?? workflowMeta?.name ?? "";
       const body = {
         expected_version: expectedVersionRef.current,
@@ -506,12 +511,12 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
         throw err;
       }
     },
-    [workflowId, nodes, edges, workflowMeta?.name],
+    [workflowId, nodes, edges, workflowMeta?.name, workflowMeta?.settings],
   );
 
   useEffect(() => {
     if (loadState !== "loaded" || conflictRef.current) return;
-    const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) });
+    const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges, workflowMeta?.settings) });
     if (snapshot === lastSavedSnapshotRef.current) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
@@ -519,15 +524,15 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, workflowMeta?.name, loadState]);
+  }, [nodes, edges, workflowMeta?.name, workflowMeta?.settings, loadState]);
 
   // The server runs the saved version: what is on screen is saved first.
   const saveIfDirty = useCallback(async () => {
-    const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) });
+    const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges, workflowMeta?.settings) });
     if (snapshot === lastSavedSnapshotRef.current) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     await doSave();
-  }, [workflowMeta?.name, nodes, edges, doSave]);
+  }, [workflowMeta?.name, workflowMeta?.settings, nodes, edges, doSave]);
 
   // --- "Test up to here" and known output shapes (proactive Studio, step 2) --
   const serverShapes = useNodeShapes(nodes, edges, runsFinished);
@@ -561,21 +566,33 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
   const tRun = useTranslations("WorkflowExecutionPanel");
   const [retryTarget, setRetryTarget] = useState(null);
   const retryEffects = useMemo(
-    () => (retryTarget ? effectfulNodesFrom(retryTarget.nodeId, nodes, edges, retryTarget.until) : []),
+    () => (retryTarget ? effectfulNodesToResume(nodes, edges, retryTarget) : []),
     [retryTarget, nodes, edges],
   );
   const askRetryHere = useCallback(
     (nodeId) => {
-      const runId = liveRunState.runId;
-      if (!runId) return;
-      const until = runUntilRef.current.runId === runId ? runUntilRef.current.until : null;
-      setRetryTarget({ runId, nodeId, until, error: null, busy: false });
+      const shown = liveRunState.runId;
+      if (!shown) return;
+      // A stopped resumption gave the failure back to the run it resumed:
+      // only its replayed steps count as done there.
+      const stopped = liveRunState.status === "cancelled" && liveRunState.retryOf?.runId;
+      const runId = stopped ? liveRunState.retryOf.runId : shown;
+      const done = new Set(
+        liveRunState.timeline.filter((e) => e.status === "done" && (!stopped || e.replayed)).map((e) => e.id),
+      );
+      const until = runUntilRef.current.runId === shown ? runUntilRef.current.until : null;
+      setRetryTarget({ runId, nodeId, until, done, error: null, busy: false });
     },
-    [liveRunState.runId],
+    [liveRunState],
   );
   const confirmRetryHere = useCallback(async () => {
     const target = retryTarget;
     if (!target || target.busy) return;
+    // Saved elsewhere since: the server would run that version, not this one.
+    if (conflictRef.current) {
+      setRetryTarget({ ...target, error: tRun("retryError_save_conflict") });
+      return;
+    }
     setRetryTarget({ ...target, error: null, busy: true });
     const controller = new AbortController();
     let response;
@@ -585,17 +602,18 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
       response = await retryWorkflowRunFromFailure(target.runId, { signal: controller.signal });
     } catch (err) {
       const labelOf = (id) => nodes.find((n) => n.id === id)?.data?.label || id;
-      setRetryTarget({ ...target, busy: false, error: retryRefusalText(tRun, err, labelOf) });
+      const error = conflictRef.current ? tRun("retryError_save_conflict") : retryRefusalText(tRun, err, labelOf);
+      setRetryTarget({ ...target, busy: false, error });
       return;
     }
     setRetryTarget(null);
     setTestOpen(true);
-    streamRun(() => response, { until: target.until, controller });
+    streamRun(() => response, { until: target.until, controller, detached: true });
   }, [retryTarget, saveIfDirty, streamRun, nodes, tRun]);
 
   const currentSnapshot = useMemo(
-    () => JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) }),
-    [nodes, edges, workflowMeta?.name],
+    () => JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges, workflowMeta?.settings) }),
+    [nodes, edges, workflowMeta?.name, workflowMeta?.settings],
   );
   const dirty = loadState === "loaded" && savedSnapshot !== null && currentSnapshot !== savedSnapshot;
   const shownSaveState = saveState === "idle" && dirty ? "dirty" : saveState;
@@ -681,9 +699,10 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
           description: updated.description ?? m?.description,
           status: updated.status,
           version: updated.version,
+          settings: updated.graph?.settings ?? null,
         }));
       expectedVersionRef.current = updated.version;
-      lastSavedSnapshotRef.current = JSON.stringify({ name: updated.name, graph: flowToGraph(n, e) });
+      lastSavedSnapshotRef.current = JSON.stringify({ name: updated.name, graph: flowToGraph(n, e, updated.graph?.settings) });
       setSavedSnapshot(lastSavedSnapshotRef.current);
       setVersionsOpen(false);
     },
@@ -1081,6 +1100,9 @@ export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) 
           onTestUntil={setTestUntilId}
           isRunning={isRunning}
           runOutputs={runOutputs}
+          workflowStatus={workflowMeta?.status}
+          workflowSettings={workflowMeta?.settings}
+          onChangeSettings={(settings) => setWorkflowMeta((m) => ({ ...m, settings }))}
         />
       </div>
 

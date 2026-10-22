@@ -4,7 +4,7 @@ import { getToolCategoryLogo, isProviderLogo } from "@/components/icons/integrat
 import { Zap, Bot, Sparkles, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell, FileText, DatabaseZap } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
-import { NODE_FAMILIES, approvalRoutes, APPROVAL_TEXT_ROUTE, UNCERTAIN_ROUTE } from "@/lib/workflowGraph";
+import { NODE_FAMILIES, approvalRoutes, APPROVAL_TEXT_ROUTE, UNCERTAIN_ROUTE, routesOnError } from "@/lib/workflowGraph";
 
 function RunFooter({ runStatus, runDuration }) {
   const t = useTranslations("WorkflowExecutionPanel");
@@ -59,6 +59,9 @@ function common(data, selected) {
     runStatus: data.runStatus,
     onDelete: data.onDelete,
     onDuplicate: data.onDuplicate,
+    // on_error: "route" adds an `error` output to the node.
+    errorOutput: routesOnError({ type: data.nodeType, config: data.config }),
+    errorTaken: data.runRoute === "error",
   };
 }
 

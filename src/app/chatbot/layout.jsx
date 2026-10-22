@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/components/Toast";
 import { Loader2 } from "lucide-react";
+import { loginHref } from "@/lib/loginRedirect";
 
 const REDIRECT_KEY = "th2_auth_redirect";
 
@@ -15,7 +16,7 @@ function ChatbotAuthGate({ children }) {
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       sessionStorage.setItem(REDIRECT_KEY, window.location.pathname);
-      router.replace("/login");
+      router.replace(loginHref());
     }
   }, [isAuthenticated, isLoading, router]);
 

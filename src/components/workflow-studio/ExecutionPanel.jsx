@@ -139,6 +139,13 @@ function ReportedError({ message, t }) {
   return <p className="text-[10px] text-amber-400 mt-0.5">{t("toolReportedError", { message })}</p>;
 }
 
+/** A failure the node's `on_error` absorbed: the node completed, the error is still shown. */
+function HandledError({ error, t }) {
+  if (!error) return null;
+  const key = error.onError === "route" ? "handledErrorRoute" : "handledErrorContinue";
+  return <p className="text-[10px] text-amber-400 mt-0.5">{t(key, { error: errorText(t, error) })}</p>;
+}
+
 // Codes the server sends for failures whose cause stays in its logs: the panel
 // words them itself, with the reference to quote. Other codes (the studio's
 // own written errors) are shown as the server wrote them.
@@ -206,6 +213,19 @@ const TRANSLATED_ERRORS = new Set([
   "decision_not_saved",
   "decision_unavailable",
   "decision_state_too_large",
+  // error handling v1: per-node on_error / timeout_s, http error statuses
+  "node_timeout",
+  "http_error_status",
+  "tool_reported_error",
+  "on_error_unknown",
+  "on_error_unsupported",
+  "on_error_route_missing",
+  "on_error_route_unexpected",
+  "on_error_route_unknown",
+  "on_error_route_conflict",
+  "node_timeout_invalid",
+  "node_timeout_unsupported",
+  "http_accept_error_status_invalid",
 ]);
 
 export function errorText(t, error) {
@@ -230,7 +250,7 @@ export function errorText(t, error) {
   return error.detail || t("statusError");
 }
 
-function IterationRow({ innerId, status, duration, output, error, route, input, inputTruncated, toolCalls, asksQuestion, artifacts, reportedError, t }) {
+function IterationRow({ innerId, status, duration, output, error, route, input, inputTruncated, toolCalls, asksQuestion, artifacts, reportedError, handledError, t }) {
   return (
     <div className="flex items-start gap-1.5 py-1 pl-3 border-l th-border-secondary">
       <StatusIcon status={status} size={11} />
@@ -246,7 +266,8 @@ function IterationRow({ innerId, status, duration, output, error, route, input, 
         <ToolCallsBlock calls={toolCalls} t={t} />
         <OutputBlock value={output} t={t} />
         <ArtifactsBlock artifacts={artifacts} t={t} />
-        <ReportedError message={reportedError} t={t} />
+        <HandledError error={handledError} t={t} />
+        {!handledError && <ReportedError message={reportedError} t={t} />}
       </div>
     </div>
   );
@@ -290,7 +311,8 @@ function TimelineEntry({ entry, label, t, retryOf, onRetryHere }) {
           <ToolCallsBlock calls={entry.toolCalls} t={t} />
           <OutputBlock value={entry.output} t={t} />
           <ArtifactsBlock artifacts={entry.artifacts} t={t} />
-          <ReportedError message={entry.reportedError} t={t} />
+          <HandledError error={entry.handledError} t={t} />
+          {!entry.handledError && <ReportedError message={entry.reportedError} t={t} />}
           {iterationKeys.length > 0 && (
             <div className="mt-1.5">
               <button type="button" onClick={() => setOpen(!open)} className="text-[10px] font-semibold th-text-faint hover:th-text-secondary flex items-center gap-0.5 mb-1">
@@ -424,7 +446,11 @@ export default function ExecutionPanel({
                   // Only on the step the engine can resume at, on the run as it is
                   // now (not a replay step, not while something runs).
                   onRetryHere={
-                    onRetryHere && !isRunning && !replay?.active && runState.status === "error" && runState.retryFrom === entry.id
+                    onRetryHere &&
+                    !isRunning &&
+                    !replay?.active &&
+                    (runState.status === "error" || runState.status === "cancelled") &&
+                    runState.retryFrom === entry.id
                       ? onRetryHere
                       : undefined
                   }

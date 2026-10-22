@@ -30,6 +30,7 @@ export default function TestUntilConfirm({ nodeLabel, effects, onConfirm, onCanc
                 </li>
               ))}
             </ul>
+            {retry && effects.some((e) => e.inBody) && <p className="mb-3 text-xs th-text-secondary">{t("retryHereBodyAgain")}</p>}
           </>
         ) : (
           <p className="mb-3 text-xs th-text-ghost">{t("testUntilNoEffects")}</p>
