@@ -134,7 +134,7 @@ function triggerSubtitle(cfg, ti) {
 
 const AI_IDLE = { slot: null, status: "idle", items: [] };
 
-export default function WorkflowStudio({ workflowId }) {
+export default function WorkflowStudio({ workflowId, initialRunsOpen = false }) {
   const t = useTranslations("WorkflowStudio");
   const ti = useTranslations("WorkflowInspector");
 
@@ -150,10 +150,8 @@ export default function WorkflowStudio({ workflowId }) {
   const [saveState, setSaveState] = useState("idle");
   const [conflict, setConflict] = useState(null);
   const [versionsOpen, setVersionsOpen] = useState(false);
-  // The Runs drawer; `?runs=1` (the Workflows page's link) opens it at once.
-  const [runsOpen, setRunsOpen] = useState(
-    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("runs") === "1",
-  );
+  // The Runs drawer; the page opens it at once for `?runs=1`.
+  const [runsOpen, setRunsOpen] = useState(initialRunsOpen);
   const [publishing, setPublishing] = useState(false);
   // Why the server refused to publish (its validation is stricter than the
   // studio's): shown in the top bar instead of a bare "save error".

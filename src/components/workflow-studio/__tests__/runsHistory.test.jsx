@@ -5,12 +5,14 @@
  * the Test panel's replay. Reached from the studio's top bar, from
  * `?runs=1`, and from the Workflows page.
  */
+import { Suspense } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RunsDrawer from "@/components/workflow-studio/RunsDrawer";
 import WorkflowStudio from "@/components/workflow-studio/WorkflowStudio";
 import StudioTopBar from "@/components/workflow-studio/StudioTopBar";
+import StudioPage from "@/app/(dashboard)/workflows/[workflowId]/page";
 
 vi.mock("@/lib/navigation", () => ({
   Link: ({ href, children, ...rest }) => <a href={href} {...rest}>{children}</a>,
@@ -211,11 +213,29 @@ describe("Runs in the studio", () => {
     expect(screen.getByRole("group", { name: /Replay/i })).toBeInTheDocument();
   });
 
-  it("opens the drawer straight from ?runs=1", async () => {
+  it("opens the drawer straight from ?runs=1, read by the page", async () => {
     setupStudio();
-    window.history.replaceState({}, "", "/workflows/wf1?runs=1");
-    render(<WorkflowStudio workflowId="wf1" />);
+    // A click on the Workflows page's link renders the studio before the
+    // address bar changes: the query must come from the route, not the window.
+    window.history.replaceState({}, "", "/workflows");
+    await act(async () => render(
+      <Suspense fallback={null}>
+        <StudioPage params={Promise.resolve({ workflowId: "wf1" })} searchParams={Promise.resolve({ runs: "1" })} />
+      </Suspense>,
+    ));
     expect(await screen.findByRole("dialog", { name: "Runs" })).toBeInTheDocument();
+    expect(api.listWorkflowRuns).toHaveBeenCalledWith(expect.objectContaining({ workflowId: "wf1" }));
+  });
+
+  it("keeps the drawer closed without ?runs=1", async () => {
+    setupStudio();
+    await act(async () => render(
+      <Suspense fallback={null}>
+        <StudioPage params={Promise.resolve({ workflowId: "wf1" })} searchParams={Promise.resolve({})} />
+      </Suspense>,
+    ));
+    await screen.findByRole("button", { name: "Runs" });
+    expect(screen.queryByRole("dialog", { name: "Runs" })).not.toBeInTheDocument();
   });
 
   it("warns that nothing handles a failure, until a workflow listens to it", async () => {
