@@ -80,4 +80,12 @@ describe("Connexion demandée depuis une page de l'application", () => {
     render(<LoginPage />);
     await waitFor(() => expect(loginReplace).toHaveBeenCalledWith("/workflows?decision=run-42"));
   });
+
+  it("une fois connecté, ne suit jamais une cible hors du site", async () => {
+    session = { ...session, isAuthenticated: true, user: { email: "a@example.com" } };
+    at("/login?redirect=%2F%5Cevil.com");
+    render(<LoginPage />);
+    await waitFor(() => expect(loginReplace).toHaveBeenCalled());
+    expect(loginReplace).toHaveBeenCalledWith("/");
+  });
 });
