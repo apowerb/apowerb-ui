@@ -115,4 +115,43 @@ describe("WorkflowsPage - answering a decision", () => {
     expect(within(owned).getByRole("link", { name: "Open in the Studio" })).toHaveAttribute("href", "/workflows/w1?decision=r1");
     expect(within(owned).getByRole("button", { name: "Abandon" })).toBeInTheDocument();
   });
+
+  it("answering a second decision never cuts the first resumption; the status is the latest one's", async () => {
+    let firstSignal;
+    let pushFirst;
+    api.resumeWorkflowRun.mockImplementationOnce(async (_id, _b, { signal }) => {
+      firstSignal = signal;
+      return { ok: true, status: 200, body: new ReadableStream({ start(c) { pushFirst = c; } }) };
+    });
+    api.resumeWorkflowRun.mockImplementationOnce(async () => sse([{ event: "run_started" }, { event: "done", output: "ok" }]));
+    const user = userEvent.setup();
+    render(<WorkflowsPage />);
+    await user.click(within(await rowOf("Accorder ?")).getByRole("button", { name: "Reply" }));
+    await user.type(within(screen.getByRole("dialog")).getByRole("textbox"), "x");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.click(within(await rowOf("Valider ?")).getByRole("button", { name: "Reply" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Oui" }));
+    expect(await screen.findByText("Answer sent: the workflow finished.")).toBeInTheDocument();
+    expect(firstSignal.aborted).toBe(false);
+    pushFirst.enqueue(enc.encode(`data: ${JSON.stringify({ event: "cancelled" })}\n\n`));
+    pushFirst.close();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByText("Answer sent: the workflow finished.")).toBeInTheDocument();
+  });
+
+  it("leaving the page does not cut a resumption", async () => {
+    let signal;
+    api.resumeWorkflowRun.mockImplementationOnce(async (_id, _b, opts) => {
+      signal = opts.signal;
+      return { ok: true, status: 200, body: new ReadableStream({ start() {} }) };
+    });
+    const user = userEvent.setup();
+    const { unmount } = render(<WorkflowsPage />);
+    await user.click(within(await rowOf("Accorder ?")).getByRole("button", { name: "Reply" }));
+    await user.type(within(screen.getByRole("dialog")).getByRole("textbox"), "x");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(signal).toBeDefined());
+    unmount();
+    expect(signal.aborted).toBe(false);
+  });
 });

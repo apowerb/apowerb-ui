@@ -22,10 +22,18 @@ export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setI
   const [manual, setManual] = useState(null);
   const [dismissed, setDismissed] = useState(null);
   const [resumes, setResumes] = useState(0);
-  // The stream this hook started: closed when the studio goes away.
-  const ownControllerRef = useRef(null);
+  // A resumption is never cut from here: the engine would cancel a run whose
+  // answer is already given. A replaced stream (another answer) or one that
+  // outlives the studio is only no longer listened to.
+  const generationRef = useRef(0);
+  const mountedRef = useRef(true);
 
-  useEffect(() => () => ownControllerRef.current?.abort(), []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const pending = liveRunState.status === "awaiting" ? liveRunState.pendingDecision : null;
   const pendingKey = keyOf(pending);
@@ -63,10 +71,10 @@ export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setI
       // Accepted: from here on the run is shown again, from its start.
       setManual(null);
       setDismissed(keyOf(target));
-      // A previous resumption still streaming must not keep feeding the panel.
-      runAbortRef.current?.abort();
+      const generation = ++generationRef.current;
+      const listened = () => mountedRef.current && generationRef.current === generation;
+      // Stop (the panel's button) reaches the latest stream.
       runAbortRef.current = controller;
-      ownControllerRef.current = controller;
       setRunState(createRunState());
       setRunEvents([]);
       setIsRunning(true);
@@ -74,19 +82,21 @@ export function useHumanDecision({ liveRunState, setRunState, setRunEvents, setI
       consumeWorkflowRun(response, {
         signal: controller.signal,
         onEvent: (evt) => {
+          if (!listened()) return;
           setRunEvents((list) => [...list, evt]);
           setRunState((s) => applyRunEvent(s, evt));
         },
       })
         .catch((err) => {
-          if (controller.signal.aborted) return;
+          if (controller.signal.aborted || !listened()) return;
           const evt = { event: "error", code: "server_unreachable", detail: err?.message, params: { status: "-" } };
           setRunEvents((list) => [...list, evt]);
           setRunState((s) => applyRunEvent(s, evt));
         })
         .finally(() => {
-          setIsRunning(false);
           if (runAbortRef.current === controller) runAbortRef.current = null;
+          if (!listened()) return;
+          setIsRunning(false);
           setResumes((n) => n + 1);
         });
     },

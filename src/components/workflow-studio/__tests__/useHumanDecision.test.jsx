@@ -179,27 +179,33 @@ describe("useHumanDecision", () => {
     expect(result.current.liveRunState.status).toBe("awaiting");
   });
 
-  it("a second answer stops the stream of the first, so two flows never feed the panel", async () => {
+  it("a second answer never cuts the first stream (that would cancel its run); only the latest feeds the panel", async () => {
     let firstSignal;
-    const hang = new ReadableStream({ start() {} });
+    let pushFirst;
+    const first = new ReadableStream({ start(c) { pushFirst = c; } });
     resumeWorkflowRun.mockImplementationOnce(async (_id, _b, { signal }) => {
       firstSignal = signal;
-      return { ok: true, status: 200, body: hang };
+      return { ok: true, status: 200, body: first };
     });
     const { result } = renderHook(() => useHarness());
     await act(async () => {
       await result.current.answer(result.current.decision, { choice: "oui" });
     });
-    expect(firstSignal.aborted).toBe(false);
     resumeWorkflowRun.mockResolvedValueOnce(sseResponse(RESUME));
     await act(async () => {
       await result.current.answer({ runId: "r1", nodeId: "decision1" }, { choice: "non" });
     });
-    expect(firstSignal.aborted).toBe(true);
     await waitFor(() => expect(result.current.liveRunState.status).toBe("done"));
+    await act(async () => {
+      pushFirst.enqueue(enc.encode(`data: ${JSON.stringify({ event: "error", code: "internal" })}\n\n`));
+      pushFirst.close();
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(firstSignal.aborted).toBe(false);
+    expect(result.current.liveRunState.status).toBe("done");
   });
 
-  it("unmounting stops the resumption stream it started", async () => {
+  it("unmounting does not cut the resumption stream: the run goes on, nothing is applied after", async () => {
     let signal;
     resumeWorkflowRun.mockImplementationOnce(async (_id, _b, opts) => {
       signal = opts.signal;
@@ -209,9 +215,8 @@ describe("useHumanDecision", () => {
     await act(async () => {
       await result.current.answer(result.current.decision, { choice: "oui" });
     });
-    expect(signal.aborted).toBe(false);
     unmount();
-    expect(signal.aborted).toBe(true);
+    expect(signal.aborted).toBe(false);
   });
 });
 

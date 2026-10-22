@@ -115,7 +115,8 @@ export default function WorkflowsPage() {
   const userEmail = user?.email ?? null;
   const [resumeStatus, setResumeStatus] = useState(null);
   const [decisionsKey, setDecisionsKey] = useState(0);
-  const resumeAbortRef = useRef(null);
+  const resumeGenerationRef = useRef(0);
+  const mountedRef = useRef(true);
   const router = useRouter();
   const [workflows, setWorkflows] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -153,30 +154,35 @@ export default function WorkflowsPage() {
     return workflows.filter((w) => w.name?.toLowerCase().includes(q));
   }, [workflows, query]);
 
-  useEffect(() => () => resumeAbortRef.current?.abort(), []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // An assignee cannot open the workflow in the studio (owner only): the answer
   // is sent from here. A refusal (404, 409, 422) is thrown to the dialog; once
-  // accepted, the rest of the run is followed in the background.
+  // accepted, the rest of the run is followed in the background. The stream is
+  // never cut (the engine would cancel a run whose answer is given): leaving
+  // the page, or answering another decision, only stops listening to it.
   const answerDecision = async (decision, body) => {
-    const controller = new AbortController();
-    const response = await resumeWorkflowRun(decision.runId, body, { signal: controller.signal });
-    resumeAbortRef.current?.abort();
-    resumeAbortRef.current = controller;
+    const response = await resumeWorkflowRun(decision.runId, body, { signal: new AbortController().signal });
+    const generation = ++resumeGenerationRef.current;
+    const latest = () => mountedRef.current && resumeGenerationRef.current === generation;
     setResumeStatus({ tone: "info", text: td("resumeRunning") });
     let outcome;
-    consumeWorkflowRun(response, { signal: controller.signal })
+    consumeWorkflowRun(response)
       .then((terminal) => {
         outcome = resumeOutcome(terminal, td, te);
       })
       .catch(() => {
-        if (!controller.signal.aborted) outcome = resumeOutcome(null, td, te);
+        outcome = resumeOutcome(null, td, te);
       })
       .finally(() => {
-        if (controller.signal.aborted) return;
-        resumeAbortRef.current = null;
-        setResumeStatus(outcome);
+        if (!mountedRef.current) return;
         setDecisionsKey((n) => n + 1);
+        if (latest()) setResumeStatus(outcome);
       });
   };
 

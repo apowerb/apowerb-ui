@@ -181,4 +181,20 @@ describe("AwaitingDecisionsList", () => {
     await user.click(within(row).getByRole("button", { name: "Yes, abandon" }));
     expect(await within(row).findByRole("alert")).toHaveTextContent(/expired/i);
   });
+
+  it("trusts the server's mine flag: Abandon only on the user's own runs, none while the user is unknown", async () => {
+    listAwaitingDecisions.mockResolvedValue([
+      { ...ROWS[0], owner_id: undefined, mine: true },
+      { ...ROWS[1], owner_id: undefined, mine: false },
+    ]);
+    const { unmount } = render(<AwaitingDecisionsList onAnswer={vi.fn()} userEmail="me@example.com" />);
+    const own = (await screen.findByText("Valider Plan A ?")).closest("li");
+    expect(within(own).getByRole("button", { name: "Abandon" })).toBeInTheDocument();
+    expect(within(screen.getByText("Accorder ?").closest("li")).queryByRole("button", { name: "Abandon" })).toBeNull();
+    unmount();
+    listAwaitingDecisions.mockResolvedValue([{ ...ROWS[0], owner_id: undefined }]);
+    render(<AwaitingDecisionsList onAnswer={vi.fn()} userEmail={null} />);
+    const row = (await screen.findByText("Valider Plan A ?")).closest("li");
+    expect(within(row).queryByRole("button", { name: "Abandon" })).toBeNull();
+  });
 });

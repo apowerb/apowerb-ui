@@ -19,6 +19,7 @@ export function decisionFromRow(row) {
     choices: row.choices || [],
     assignee: row.assignee ?? null,
     ownerId: row.owner_id ?? null,
+    mine: typeof row.mine === "boolean" ? row.mine : null,
     pausedAt: row.paused_at ?? null,
     expiresAt: row.expires_at ?? null,
   };
@@ -33,11 +34,14 @@ function parseWhen(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-// Owner of the run? `userEmail` undefined: the caller is the owner by construction.
-// An unknown owner (older server) is not hidden from anyone.
+// Owner of the run? `userEmail` undefined: the studio, which only the owner
+// opens. Otherwise the server's `mine` says it (an older server sent the
+// owner's address instead); while the user is unknown, nothing is theirs.
 function isOwner(item, userEmail) {
-  if (userEmail === undefined || !item.ownerId) return true;
-  return String(item.ownerId).toLowerCase() === String(userEmail || "").toLowerCase();
+  if (userEmail === undefined) return true;
+  if (item.mine !== null) return item.mine;
+  if (!userEmail || !item.ownerId) return false;
+  return String(item.ownerId).toLowerCase() === String(userEmail).toLowerCase();
 }
 
 function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, canAbandon, studioLink, t }) {
