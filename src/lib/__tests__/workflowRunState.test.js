@@ -154,3 +154,47 @@ describe("applyRunEvent — loop nodes", () => {
   });
 });
 
+describe("applyRunEvent — Resume here", () => {
+  const run = (events) => events.reduce(applyRunEvent, createRunState());
+
+  it("keeps the run id and the step a retryable failure can be resumed at", () => {
+    const state = run([
+      { event: "run_started", wid: "r1" },
+      { event: "node_start", node_id: "a" },
+      { event: "node_error", node_id: "a", code: "workflow_error" },
+      { event: "error", code: "workflow_error", failed_node: "a", retryable: true },
+    ]);
+    expect(state.runId).toBe("r1");
+    expect(state.retryFrom).toBe("a");
+  });
+
+  it("offers nothing when the engine could not keep what was done", () => {
+    const state = run([
+      { event: "run_started", wid: "r1" },
+      { event: "error", code: "workflow_error", failed_node: "a", retryable: false },
+    ]);
+    expect(state.retryFrom).toBeNull();
+  });
+
+  it("forgets the resumable step as soon as anything else happens", () => {
+    const failed = run([
+      { event: "run_started", wid: "r1" },
+      { event: "error", failed_node: "a", retryable: true },
+    ]);
+    expect(applyRunEvent(failed, { event: "cancelled" }).retryFrom).toBeNull();
+  });
+
+  it("marks a resumed run with the run and step it comes from", () => {
+    const state = run([
+      { event: "run_started", wid: "r2" },
+      { event: "retry_started", replay_of: "r1", node_id: "a" },
+      { event: "node_start", node_id: "t", replayed: true },
+      { event: "node_complete", node_id: "t", output: 1, replayed: true },
+      { event: "done", output: 1 },
+    ]);
+    expect(state.runId).toBe("r2");
+    expect(state.retryOf).toEqual({ runId: "r1", nodeId: "a" });
+    expect(state.timeline[0].replayed).toBe(true);
+  });
+});
+
