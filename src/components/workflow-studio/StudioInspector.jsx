@@ -21,6 +21,9 @@ import {
   UNCERTAIN_ROUTE,
   JEV_MIN_CONFIDENCE_DEFAULT,
   DB_WRITE_CONNECTION_PATTERN,
+  FILE_FORMATS,
+  FILE_SAVE_PROVIDERS,
+  FILE_SAVE_CONFLICTS,
   RAG_TOP_K_MIN,
   RAG_TOP_K_MAX,
   TRY_ROUTES,
@@ -1526,6 +1529,53 @@ export default function StudioInspector({
         </>
       )}
 
+      {node.type === "file" && (
+        <>
+          <Field label={t("fileFormat")} help={t("fileFormatHelp")}>
+            <SelectInput
+              value={config.format || "csv"}
+              onChange={(e) => patch({ format: e.target.value, ...(e.target.value === "xlsx" ? {} : { sheet_name: undefined }) })}
+            >
+              {FILE_FORMATS.map((f) => <option key={f} value={f}>{t(`fileFormat_${f}`)}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label={t("fileName")} help={t("fileNameHelp")}>
+            <TemplateInput value={config.filename} onChange={(v) => patch({ filename: v })} placeholder={t("fileNamePlaceholder")} upstreamNodes={upstreamNodes} t={t} />
+          </Field>
+          <Field label={t("fileContent")} help={t(["csv", "xlsx"].includes(config.format || "csv") ? "fileContentHelp_rows" : "fileContentHelp_text")}>
+            <TemplateInput value={config.content} onChange={(v) => patch({ content: v })} multiline upstreamNodes={upstreamNodes} t={t} />
+          </Field>
+          {config.format === "xlsx" && (
+            <Field label={t("fileSheet")}>
+              <TextInput value={config.sheet_name || ""} onChange={(e) => patch({ sheet_name: e.target.value || undefined })} placeholder="Data" />
+            </Field>
+          )}
+          <p className="mt-1.5 text-[10px] th-text-ghost">{t("fileOutputHelp", { id: node.id })}</p>
+        </>
+      )}
+
+      {node.type === "file_save" && (
+        <>
+          <Field label={t("fileSaveProvider")}>
+            <SelectInput value={config.provider || "onedrive"} onChange={(e) => patch({ provider: e.target.value })}>
+              {FILE_SAVE_PROVIDERS.map((p) => <option key={p} value={p}>{t(`fileSaveProvider_${p}`)}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label={t("fileSaveFile")} help={t("fileSaveFileHelp")}>
+            <TemplateInput value={config.file} onChange={(v) => patch({ file: v })} placeholder="{{file1}}" upstreamNodes={upstreamNodes} t={t} />
+          </Field>
+          <Field label={t("fileSaveFolder")} help={t("fileSaveFolderHelp")}>
+            <TemplateInput value={config.folder} onChange={(v) => patch({ folder: v })} placeholder={t("fileSaveFolderPlaceholder")} upstreamNodes={upstreamNodes} t={t} />
+          </Field>
+          <Field label={t("fileSaveConflict")}>
+            <SelectInput value={config.conflict || "rename"} onChange={(e) => patch({ conflict: e.target.value })}>
+              {FILE_SAVE_CONFLICTS.map((c) => <option key={c} value={c}>{t(`fileSaveConflict_${c}`)}</option>)}
+            </SelectInput>
+          </Field>
+          <p className="mt-1.5 text-[10px] th-text-ghost">{t("fileSaveIntegrationHelp")}</p>
+        </>
+      )}
+
       {node.type === "rag" && (
         <>
           <Field label={t("agentLabel")}>
@@ -1568,6 +1618,9 @@ export default function StudioInspector({
               </Field>
               <Field label={t("notificationBody")}>
                 <TemplateInput value={config.body} onChange={(v) => patch({ body: v })} multiline upstreamNodes={upstreamNodes} examples="notificationBody" t={t} />
+              </Field>
+              <Field label={t("notificationAttachments")} help={t("notificationAttachmentsHelp")}>
+                <TemplateInput value={config.attachments} onChange={(v) => patch({ attachments: v || undefined })} placeholder={t("notificationAttachmentsPlaceholder")} upstreamNodes={upstreamNodes} t={t} />
               </Field>
             </>
           )}

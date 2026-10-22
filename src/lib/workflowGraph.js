@@ -32,6 +32,8 @@ export const NODE_TYPES = [
   "extract",
   "document",
   "db_write",
+  "file",
+  "file_save",
   "rag",
   "set",
   "condition",
@@ -64,6 +66,15 @@ export const JEV_MIN_CONFIDENCE_DEFAULT = 0.7;
 export const DB_WRITE_MAX_COLUMNS = 50;
 export const DB_WRITE_CONNECTION_PATTERN = /^tool_config\d+$/;
 export const SQL_IDENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
+
+/** file / file_save limits; mirror the backend's FILE_FORMATS, MAX_FILE_NAME, _SHEET_FORBIDDEN, FILE_SAVE_PROVIDERS, _FILE_SAVE_CONFLICTS, MAX_FILE_FOLDER. */
+export const FILE_FORMATS = ["csv", "xlsx", "json", "markdown", "text", "docx", "pdf"];
+export const FILE_NAME_MAX = 120;
+export const FILE_SHEET_MAX = 31;
+const FILE_SHEET_FORBIDDEN = /[[\]:*?/\\]/;
+export const FILE_SAVE_PROVIDERS = ["onedrive"];
+export const FILE_SAVE_CONFLICTS = ["rename", "replace", "fail"];
+export const FILE_FOLDER_MAX = 200;
 
 export const RAG_TOP_K_DEFAULT = 5;
 export const RAG_TOP_K_MIN = 1;
@@ -166,6 +177,11 @@ export const NODE_FAMILIES = {
   // database connection — a plain tool.
   document: { family: "intelligence", color: "blue" },
   db_write: { family: "tools", color: "emerald" },
+  // Where a result ends up: a file to download or attach, then a copy on the
+  // owner's OneDrive. Next to Output, the other way a workflow hands its
+  // result over.
+  file: { family: "output", color: "amber" },
+  file_save: { family: "output", color: "amber" },
   set: { family: "tools", color: "emerald" },
   condition: { family: "logic", color: "blue" },
 };
@@ -222,6 +238,10 @@ function defaultConfig(type) {
       return { files: "" };
     case "db_write":
       return { connection: "", table: "", values: {} };
+    case "file":
+      return { format: "csv", filename: "", content: "" };
+    case "file_save":
+      return { provider: "onedrive", file: "", folder: "", conflict: "rename" };
     case "set":
       return { fields: [] };
     case "condition":
@@ -395,6 +415,8 @@ const FIXED_OUTPUT_FIELDS = {
   approval: ["choice", "text", "answered_by", "answered_at"],
   document: ["documents", "text", "count"],
   db_write: ["table", "inserted"],
+  file: ["name", "ref", "size", "content_type", "format", "rows"],
+  file_save: ["provider", "name", "path", "web_url"],
 };
 const ROUTING_NODE_TYPES = new Set(["router", "classifier", "condition", "try"]);
 
@@ -602,6 +624,10 @@ function validateNotificationConfig(node) {
   const push = (message) => errors.push({ nodeId: node.id, message });
   const channel = cfg.channel || "app";
   const to = Array.isArray(cfg.to) ? cfg.to : [];
+  const attachments = cfg.attachments;
+  const hasAttachments = Array.isArray(attachments) ? attachments.length > 0 : Boolean(attachments);
+  if (hasAttachments && channel !== "email") push("notificationAttachmentsEmailOnly");
+  if (hasAttachments && typeof attachments !== "string" && !Array.isArray(attachments)) push("notificationAttachmentBadRef");
 
   if (channel === "email") {
     const validRecipients = to.filter((r) => String(r || "").trim());
@@ -732,6 +758,46 @@ function validateDbWriteConfig(node) {
       if (!SQL_IDENT_PATTERN.test(col)) push(`dbWriteColumnInvalid:${col}`);
     }
   }
+  return errors;
+}
+
+function validateFileConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+  if (!FILE_FORMATS.includes(cfg.format)) push(`fileFormatUnknown:${cfg.format ?? ""}`);
+  const content = cfg.content;
+  if (content == null || (typeof content === "string" && !content.trim())) push("fileContentRequired");
+  if (cfg.filename != null && (typeof cfg.filename !== "string" || cfg.filename.length > FILE_NAME_MAX)) {
+    push("fileFilenameTooLong");
+  }
+  const sheet = cfg.sheet_name;
+  if (sheet != null && sheet !== "" && (typeof sheet !== "string" || sheet.length > FILE_SHEET_MAX || FILE_SHEET_FORBIDDEN.test(sheet))) {
+    push("fileSheetInvalid");
+  }
+  return errors;
+}
+
+/** Relative folder, no `..`, no backslash; a template part is checked once rendered, by the engine. */
+function fileFolderValid(folder) {
+  if (folder == null || folder === "") return true;
+  const raw = String(folder);
+  const literal = raw.replace(/\{\{[^}]*\}\}/g, "x");
+  // Measured once the references are replaced, like the engine.
+  if (literal.length > FILE_FOLDER_MAX || literal.includes("\\")) return false;
+  if (/[\u0000-\u001f]/.test(literal)) return false;
+  return !literal.split("/").some((p) => p.trim() === "." || p.trim() === "..");
+}
+
+function validateFileSaveConfig(node) {
+  const errors = [];
+  const cfg = node.config || {};
+  const push = (message) => errors.push({ nodeId: node.id, message });
+  if (!FILE_SAVE_PROVIDERS.includes(cfg.provider)) push(`fileSaveProviderUnknown:${cfg.provider ?? ""}`);
+  if (typeof cfg.file !== "string" || !cfg.file.trim()) push("fileSaveFileRequired");
+  if (!fileFolderValid(cfg.folder)) push("fileSaveFolderInvalid");
+  const conflict = cfg.conflict ?? "rename";
+  if (!FILE_SAVE_CONFLICTS.includes(conflict)) push(`fileSaveConflictUnknown:${conflict}`);
   return errors;
 }
 
@@ -951,6 +1017,12 @@ function validateGraphCore(graph, options = {}) {
     }
     if (n.type === "db_write") {
       errors.push(...validateDbWriteConfig(n));
+    }
+    if (n.type === "file") {
+      errors.push(...validateFileConfig(n));
+    }
+    if (n.type === "file_save") {
+      errors.push(...validateFileSaveConfig(n));
     }
     if (n.type === "subworkflow") {
       const targetId = n.config?.workflow_id;

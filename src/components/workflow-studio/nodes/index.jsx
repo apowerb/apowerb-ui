@@ -1,7 +1,7 @@
 "use client";
 
 import { getToolCategoryLogo, isProviderLogo } from "@/components/icons/integrationLogos";
-import { Zap, Bot, Sparkles, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell, FileText, DatabaseZap } from "lucide-react";
+import { Zap, Bot, Sparkles, GitBranch, Merge, Repeat, UserCheck, Clock, CheckCircle2, XCircle, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell, FileText, DatabaseZap, FileOutput, CloudUpload } from "lucide-react";
 import { useTranslations } from "use-intl";
 import NodeShell from "./NodeShell";
 import { NODE_FAMILIES, approvalRoutes, APPROVAL_TEXT_ROUTE, UNCERTAIN_ROUTE } from "@/lib/workflowGraph";
@@ -377,6 +377,39 @@ export function DbWriteNode({ data, selected }) {
   );
 }
 
+export function FileNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  const format = data.config?.format;
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeFile")}
+      subtitle={format ? tn(`fileFormat_${format}`) : undefined}
+      color={NODE_FAMILIES.file.color}
+      icon={FileOutput}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
+export function FileSaveNode({ data, selected }) {
+  const t = useTranslations("WorkflowPalette");
+  const tn = useTranslations("WorkflowNode");
+  return (
+    <NodeShell
+      {...common(data, selected)}
+      title={data.label || t("nodeFile_save")}
+      subtitle={data.config?.folder || tn("fileSaveRoot")}
+      color={NODE_FAMILIES.file_save.color}
+      icon={CloudUpload}
+    >
+      <RunFooter runStatus={data.runStatus} runDuration={data.runDuration} />
+    </NodeShell>
+  );
+}
+
 export function SetNode({ data, selected }) {
   const t = useTranslations("WorkflowPalette");
   return (
@@ -469,6 +502,8 @@ export const studioNodeTypes = {
   rag: RagNode,
   document: DocumentNode,
   db_write: DbWriteNode,
+  file: FileNode,
+  file_save: FileSaveNode,
   set: SetNode,
   condition: ConditionNode,
   approval: ApprovalNode,
