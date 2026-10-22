@@ -338,8 +338,10 @@ export default function WorkflowStudio({ workflowId }) {
   // run ends so the inspector asks for the shapes again.
   const [runsFinished, setRunsFinished] = useState(0);
 
-  // A "Test up to here" resumed with "Resume here" stops at the same step.
-  const runUntilRef = useRef(null);
+  // A "Test up to here" resumed with "Resume here" stops at the same step:
+  // `{ runId, until }` of the last run started here, so a run resumed from
+  // elsewhere (a decision from the list) is not bounded by it.
+  const runUntilRef = useRef({ runId: null, until: null });
 
   // Feeds the Test panel with one run's stream: `open(signal)` gives its
   // Response (a first run, or a "Resume here" already accepted).
@@ -348,7 +350,7 @@ export default function WorkflowStudio({ workflowId }) {
     setRunEvents([]);
     setIsRunning(true);
     runAbortRef.current = controller;
-    runUntilRef.current = until;
+    runUntilRef.current = { runId: null, until };
     liveRunRef.current = { runId: null, detached: false };
     try {
       if (beforeRun) await beforeRun();
@@ -358,6 +360,7 @@ export default function WorkflowStudio({ workflowId }) {
         onEvent: (evt) => {
           if (evt.event === "run_started") {
             liveRunRef.current = { runId: evt.wid ?? evt.run_id ?? null, detached: false };
+            runUntilRef.current = { ...runUntilRef.current, runId: liveRunRef.current.runId };
           }
           setRunEvents((list) => [...list, evt]);
           setRunState((s) => applyRunEvent(s, evt));
@@ -530,8 +533,10 @@ export default function WorkflowStudio({ workflowId }) {
   );
   const askRetryHere = useCallback(
     (nodeId) => {
-      if (!liveRunState.runId) return;
-      setRetryTarget({ runId: liveRunState.runId, nodeId, until: runUntilRef.current, error: null, busy: false });
+      const runId = liveRunState.runId;
+      if (!runId) return;
+      const until = runUntilRef.current.runId === runId ? runUntilRef.current.until : null;
+      setRetryTarget({ runId, nodeId, until, error: null, busy: false });
     },
     [liveRunState.runId],
   );

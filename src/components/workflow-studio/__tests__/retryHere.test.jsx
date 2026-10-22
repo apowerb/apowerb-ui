@@ -177,6 +177,19 @@ describe("Resume here", () => {
     expect(screen.queryByRole("button", { name: "Resume here" })).not.toBeInTheDocument();
   });
 
+  it("lists the steps up to where a failed Test up to here stopped, not below", async () => {
+    api.runWorkflowDef.mockResolvedValueOnce(sse(failedRun()));
+    const user = userEvent.setup();
+    render(<WorkflowStudio workflowId="wf1" />);
+    await user.click(await screen.findByTestId("node-writer"));
+    await user.click(within(document.querySelector("[data-studio-inspector]")).getByRole("button", { name: "Test up to here" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Run up to here" }));
+    await user.click(await screen.findByRole("button", { name: "Resume here" }));
+
+    const effects = within(screen.getByRole("dialog")).getAllByRole("listitem").map((li) => li.textContent);
+    expect(effects).toEqual(["Writer (calls an agent)"]);
+  });
+
   it("keeps the failed run on screen and says why when the server refuses", async () => {
     api.retryWorkflowRunFromFailure.mockRejectedValue(
       Object.assign(new Error("409"), { status: 409, detail: { code: "retry_graph_changed", params: { nodes: ["lookup"] } } }),
