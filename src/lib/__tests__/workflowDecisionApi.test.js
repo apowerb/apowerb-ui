@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { listAwaitingDecisions, resumeWorkflowRun, abandonWorkflowRun } from "../api";
+import { listAwaitingDecisions, resumeWorkflowRun, abandonWorkflowRun, retryWorkflowRunFromFailure } from "../api";
 import { configureClient, resetClientConfig } from "@apowerb/apowerb-sdk/config";
 
 const authStorage = { getToken: vi.fn(() => "tok-1"), setToken: vi.fn(), clear: vi.fn() };
@@ -67,5 +67,23 @@ describe("human decision API", () => {
     const [url, opts] = global.fetch.mock.calls[0];
     expect(url).toBe("/api/workflows/runs/r1/abandon");
     expect(opts.method).toBe("POST");
+  });
+
+  it("resumes a failed run at its failed step and returns the raw stream", async () => {
+    const res = { ok: true, status: 200, body: {} };
+    global.fetch.mockResolvedValueOnce(res);
+    const signal = new AbortController().signal;
+    expect(await retryWorkflowRunFromFailure("r 1", { signal })).toBe(res);
+    const [url, opts] = global.fetch.mock.calls[0];
+    expect(url).toBe("/api/workflows/runs/r%201/retry-from-failure");
+    expect(opts.method).toBe("POST");
+    expect(opts.signal).toBe(signal);
+    expect(opts.headers).toMatchObject({ Authorization: "Bearer tok-1" });
+  });
+
+  it("throws a coded refusal of Resume here before any stream", async () => {
+    const detail = { code: "retry_graph_changed", params: { nodes: ["a"] } };
+    global.fetch.mockResolvedValueOnce({ ok: false, status: 409, text: async () => JSON.stringify({ detail }) });
+    await expect(retryWorkflowRunFromFailure("r1")).rejects.toMatchObject({ status: 409, detail });
   });
 });
