@@ -242,9 +242,12 @@ export default function WorkflowStudio({ workflowId }) {
         .then((wf) => {
           const { nodes: n, edges: e } = graphToFlow(wf.graph);
           resetHistory(n, e);
-          setWorkflowMeta({ name: wf.name, description: wf.description, status: wf.status, version: wf.version });
+          // `settings` (e.g. notify_on_failure) live in the graph but not on
+          // the canvas: kept here and written back on every save.
+          const settings = wf.graph?.settings ?? null;
+          setWorkflowMeta({ name: wf.name, description: wf.description, status: wf.status, version: wf.version, settings });
           expectedVersionRef.current = wf.version;
-          lastSavedSnapshotRef.current = JSON.stringify({ name: wf.name, graph: flowToGraph(n, e) });
+          lastSavedSnapshotRef.current = JSON.stringify({ name: wf.name, graph: flowToGraph(n, e, settings) });
           setSavedSnapshot(lastSavedSnapshotRef.current);
           setConflict(null);
           conflictRef.current = false;
@@ -414,7 +417,7 @@ export default function WorkflowStudio({ workflowId }) {
       buildWorkflowFile({
         name: workflowMeta?.name,
         description: workflowMeta?.description,
-        graph: flowToGraph(nodes, edges),
+        graph: flowToGraph(nodes, edges, workflowMeta?.settings),
       }),
     );
   }, [nodes, edges, workflowMeta]);
@@ -423,7 +426,7 @@ export default function WorkflowStudio({ workflowId }) {
   const doSave = useCallback(
     async (overrides = {}, { keepalive = false } = {}) => {
       if (conflictRef.current) return;
-      const graph = flowToGraph(nodes, edges);
+      const graph = flowToGraph(nodes, edges, workflowMeta?.settings);
       const name = overrides.name ?? workflowMeta?.name ?? "";
       const body = {
         expected_version: expectedVersionRef.current,
@@ -457,12 +460,12 @@ export default function WorkflowStudio({ workflowId }) {
         throw err;
       }
     },
-    [workflowId, nodes, edges, workflowMeta?.name],
+    [workflowId, nodes, edges, workflowMeta?.name, workflowMeta?.settings],
   );
 
   useEffect(() => {
     if (loadState !== "loaded" || conflictRef.current) return;
-    const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) });
+    const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges, workflowMeta?.settings) });
     if (snapshot === lastSavedSnapshotRef.current) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
@@ -470,7 +473,7 @@ export default function WorkflowStudio({ workflowId }) {
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, workflowMeta?.name, loadState]);
+  }, [nodes, edges, workflowMeta?.name, workflowMeta?.settings, loadState]);
 
   // --- "Test up to here" and known output shapes (proactive Studio, step 2) --
   const serverShapes = useNodeShapes(nodes, edges, runsFinished);
@@ -497,17 +500,17 @@ export default function WorkflowStudio({ workflowId }) {
     // The server runs the saved version: a node wired a second ago must be
     // saved before it can be tested.
     const beforeRun = async () => {
-      const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) });
+      const snapshot = JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges, workflowMeta?.settings) });
       if (snapshot === lastSavedSnapshotRef.current) return;
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       await doSave();
     };
     startRun({ until, beforeRun, text });
-  }, [testUntilId, payloadText, workflowMeta?.name, nodes, edges, doSave, startRun]);
+  }, [testUntilId, payloadText, workflowMeta?.name, workflowMeta?.settings, nodes, edges, doSave, startRun]);
 
   const currentSnapshot = useMemo(
-    () => JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges) }),
-    [nodes, edges, workflowMeta?.name],
+    () => JSON.stringify({ name: workflowMeta?.name, graph: flowToGraph(nodes, edges, workflowMeta?.settings) }),
+    [nodes, edges, workflowMeta?.name, workflowMeta?.settings],
   );
   const dirty = loadState === "loaded" && savedSnapshot !== null && currentSnapshot !== savedSnapshot;
   const shownSaveState = saveState === "idle" && dirty ? "dirty" : saveState;
@@ -593,9 +596,10 @@ export default function WorkflowStudio({ workflowId }) {
           description: updated.description ?? m?.description,
           status: updated.status,
           version: updated.version,
+          settings: updated.graph?.settings ?? null,
         }));
       expectedVersionRef.current = updated.version;
-      lastSavedSnapshotRef.current = JSON.stringify({ name: updated.name, graph: flowToGraph(n, e) });
+      lastSavedSnapshotRef.current = JSON.stringify({ name: updated.name, graph: flowToGraph(n, e, updated.graph?.settings) });
       setSavedSnapshot(lastSavedSnapshotRef.current);
       setVersionsOpen(false);
     },
@@ -991,6 +995,9 @@ export default function WorkflowStudio({ workflowId }) {
           onTestUntil={setTestUntilId}
           isRunning={isRunning}
           runOutputs={runOutputs}
+          workflowStatus={workflowMeta?.status}
+          workflowSettings={workflowMeta?.settings}
+          onChangeSettings={(settings) => setWorkflowMeta((m) => ({ ...m, settings }))}
         />
       </div>
 

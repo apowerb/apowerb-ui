@@ -96,6 +96,17 @@ export function effectfulNodesUpTo(nodeId, nodes, edges) {
     .map((n) => ({ id: n.id, type: n.type, label: n.data?.label || n.id }));
 }
 
+/**
+ * The steps of a try's body that reach outside the Studio: each retry runs
+ * them again (a second mail, a second write). Body nodes are graph nodes,
+ * labelled by `label`, not xyflow nodes.
+ */
+export function effectfulBodyNodes(body) {
+  return (body?.nodes || [])
+    .filter((n) => EFFECT_NODE_TYPES.has(n.type))
+    .map((n) => ({ id: n.id, type: n.type, label: n.label || n.id }));
+}
+
 const INPUT_FIELD = {
   agent: "input",
   extract: "input",

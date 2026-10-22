@@ -38,6 +38,8 @@ export default function NodeShell({
   soon = false,
   onDelete,
   onDuplicate,
+  errorOutput = false,
+  errorTaken = false,
   children,
 }) {
   const t = useTranslations("WorkflowNode");
@@ -127,6 +129,16 @@ export default function NodeShell({
           </div>
         </div>
         {children}
+        {errorOutput && (
+          <span
+            data-testid="node-error-output"
+            className={`inline-block mt-1.5 px-1.5 py-0.5 text-[10px] font-semibold rounded-md border ${
+              errorTaken ? "bg-red-500/30 border-red-400/70 text-red-100" : "bg-red-500/10 border-red-500/30 text-red-300"
+            }`}
+          >
+            {t("errorOutputChip")}
+          </span>
+        )}
         {soon && (
           <span className={`inline-block mt-1.5 px-1.5 py-0.5 text-[10px] font-medium rounded-md border ${style.chip}`}>
             {t("soonBadge")}

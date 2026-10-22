@@ -186,6 +186,9 @@ function applyToEntry(entry, evt) {
       entry.artifacts = Array.isArray(evt.artifacts) && evt.artifacts.length > 0 ? evt.artifacts : null;
       // A tool in continue mode that reported an error: the flow went on anyway.
       entry.reportedError = evt.reported_error ?? null;
+      // A failure the node's `on_error` absorbed (continue, or its error
+      // output): the node completed, but must not read as a success.
+      entry.handledError = evt.handled_error ? { ...errorOf(evt.handled_error), onError: evt.handled_error.on_error ?? null } : null;
       break;
     case "node_error":
       entry.status = "error";
