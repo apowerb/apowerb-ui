@@ -14,7 +14,9 @@
  * "Resume here": `runId` is the run on screen (from `run_started`),
  * `retryFrom` the node a failed run can be resumed at (its `error` said
  * `retryable`), and `retryOf` is set on a resumed run (`retry_started`): its
- * `replayed` nodes were done before the failure.
+ * `replayed` nodes were done before the failure. A resumed run that is
+ * stopped gives the failure back to the run it resumed: `retryFrom` is then
+ * that run's failed node, to resume `retryOf.runId` again.
  */
 
 export function createRunState() {
@@ -146,6 +148,7 @@ export function applyRunEvent(state, evt) {
       status = "cancelled";
       pendingDecision = null;
       settleRunning(timeline, "cancelled");
+      if (retryOf?.runId && retryOf.nodeId) retryFrom = retryOf.nodeId;
       break;
 
     default:
