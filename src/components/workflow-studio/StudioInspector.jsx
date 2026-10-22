@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Plus, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { useTranslations } from "use-intl";
-import { insertFieldPatch } from "@/lib/workflowShapes";
+import { insertFieldPatch, effectfulBodyNodes } from "@/lib/workflowShapes";
 import UpstreamShapeHint, { TestUntilButton } from "./UpstreamShapeHint";
 import { getToolCategoryLogo, isProviderLogo } from "@/components/icons/integrationLogos";
 import {
@@ -31,6 +31,12 @@ import {
   TRY_RETRY_DELAY_MS_CAP,
   CONDITION_ROUTES,
   approvalRoutes,
+  onErrorModesFor,
+  routesOnError,
+  ERROR_ROUTE,
+  NODE_TIMEOUT_TYPES,
+  NODE_TIMEOUT_MIN,
+  NODE_TIMEOUT_MAX,
   nodeIdRenameError,
   filterToolOptions,
   groupToolOptions,
@@ -1081,6 +1087,73 @@ function ExtraArgsSection({ args, schemaNames, acceptsKwargs, onChange, upstream
 // `{{id.field}}` never silently reads nothing.
 const OUTPUT_TYPES = ["any", "text", "json"];
 
+/**
+ * What a node that can fail does when it does (`on_error`), its time limit
+ * (`timeout_s`) and, for http, whether a 4xx/5xx answer is a failure.
+ * `accept_error_status` is always written explicitly: a missing key means
+ * "accept", the behaviour of nodes saved before the option.
+ */
+function ErrorHandlingFields({ type, config, patch, t }) {
+  const modes = onErrorModesFor(type);
+  return (
+    <>
+      {NODE_TIMEOUT_TYPES.has(type) && (
+        <Field label={t("nodeTimeout")} help={t("nodeTimeoutHelp", { max: NODE_TIMEOUT_MAX })}>
+          <TextInput
+            type="number"
+            min={NODE_TIMEOUT_MIN}
+            max={NODE_TIMEOUT_MAX}
+            value={config.timeout_s ?? ""}
+            onChange={(e) => patch({ timeout_s: e.target.value === "" ? undefined : Number(e.target.value) })}
+          />
+        </Field>
+      )}
+      {type === "http" && (
+        <Field label={t("httpAcceptErrorStatus")} help={t("httpAcceptErrorStatusHelp")}>
+          <BooleanSwitch checked={config.accept_error_status !== false} onChange={(v) => patch({ accept_error_status: v })} />
+        </Field>
+      )}
+      <Field label={t("onError")} help={t("onErrorHelp")}>
+        <SelectInput value={config.on_error || "fail"} onChange={(e) => patch({ on_error: e.target.value === "fail" ? undefined : e.target.value })}>
+          {modes.map((m) => <option key={m} value={m}>{t(`onError_${m}`)}</option>)}
+        </SelectInput>
+      </Field>
+    </>
+  );
+}
+
+/** Each retry of a try runs its body again: the steps that reach outside the Studio happen once per attempt. */
+function TryEffectsWarning({ body, retries, t }) {
+  const effects = effectfulBodyNodes(body);
+  if (!retries || effects.length === 0) return null;
+  return (
+    <div data-testid="try-effects-warning" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-300">
+      <p className="font-semibold mb-1">{t("tryEffectsWarning", { count: retries + 1 })}</p>
+      <ul className="list-disc pl-4">
+        {effects.map((e) => (
+          <li key={e.id}>
+            {e.label} <span className="opacity-70">({t(`testUntilEffect_${e.type}`)})</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Settings of the workflow itself, shown when nothing is selected. */
+function WorkflowSettingsFields({ status, settings, onChange, t }) {
+  // Unset: on once published, off on a draft — as the engine decides.
+  const notify = settings?.notify_on_failure ?? status === "published";
+  return (
+    <div className="w-full text-left border-t th-border-secondary pt-3 mt-3">
+      <p className="text-xs font-bold th-text mb-2">{t("workflowSettingsTitle")}</p>
+      <Field label={t("notifyOnFailure")} help={t("notifyOnFailureHelp")}>
+        <BooleanSwitch checked={notify} onChange={(v) => onChange({ ...(settings || {}), notify_on_failure: v })} />
+      </Field>
+    </div>
+  );
+}
+
 function OutputTypeField({ config, patch, t }) {
   return (
     <Field label={t("outputType")} help={t("outputTypeHelp")}>
@@ -1181,6 +1254,10 @@ export default function StudioInspector({
   onTestUntil,
   isRunning = false,
   runOutputs = {},
+  // The workflow's own settings (failure alert), edited with nothing selected.
+  workflowStatus,
+  workflowSettings = null,
+  onChangeSettings,
 }) {
   const t = useTranslations("WorkflowInspector");
   // Field the "Available data" panel inserts into: the template field last
@@ -1217,9 +1294,14 @@ export default function StudioInspector({
 
   if (!selection) {
     return (
-      <div className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 hidden xl:flex flex-col items-center justify-center text-center h-full">
-        <p className="text-sm font-semibold th-text-secondary mb-1">{t("emptyTitle")}</p>
-        <p className="text-xs th-text-ghost">{t("emptyBody")}</p>
+      <div className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 hidden xl:flex flex-col h-full">
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <p className="text-sm font-semibold th-text-secondary mb-1">{t("emptyTitle")}</p>
+          <p className="text-xs th-text-ghost">{t("emptyBody")}</p>
+        </div>
+        {onChangeSettings && (
+          <WorkflowSettingsFields status={workflowStatus} settings={workflowSettings} onChange={onChangeSettings} t={t} />
+        )}
       </div>
     );
   }
@@ -1228,12 +1310,22 @@ export default function StudioInspector({
     const edge = selection.edge;
     const sourceNode = nodes.find((n) => n.id === edge.source);
     const routes = routesOf(sourceNode);
+    // A node with an error output and no routes of its own: the edge is
+    // either its success (no route) or its error output.
+    const errorOutputOnly = !routes && sourceNode && routesOnError({ type: sourceNode.type, config: sourceNode.data?.config });
     return (
       <div data-studio-inspector className="w-80 shrink-0 border-l th-border-secondary th-bg-sidebar p-4 overflow-y-auto h-full max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-2xl max-xl:bg-[var(--bg-modal)]">
         <h3 className="text-sm font-bold th-text mb-3">{t("edgeTitle")}</h3>
         <Field label={t("edgeFrom")}><TextInput value={edge.source} disabled /></Field>
         <Field label={t("edgeTo")}><TextInput value={edge.target} disabled /></Field>
-        {routes ? (
+        {errorOutputOnly ? (
+          <Field label={t("edgeRoute")}>
+            <SelectInput value={edge.data?.route || ""} onChange={(e) => onChangeEdgeRoute(edge.id, e.target.value)}>
+              <option value="">{t("edgeRouteSuccess")}</option>
+              <option value={ERROR_ROUTE}>{t("edgeRouteError")}</option>
+            </SelectInput>
+          </Field>
+        ) : routes ? (
           <Field label={t("edgeRoute")}>
             <SelectInput value={edge.data?.route || ""} onChange={(e) => onChangeEdgeRoute(edge.id, e.target.value)}>
               <option value="">{t("edgeRoutePlaceholder")}</option>
@@ -1712,6 +1804,7 @@ export default function StudioInspector({
 
       {node.type === "try" && (
         <>
+          <TryEffectsWarning body={config.body} retries={config.retries} t={t} />
           <Field label={t("tryRetries")} help={t("tryRetriesHelp")}>
             <TextInput
               type="number"
@@ -1767,6 +1860,8 @@ export default function StudioInspector({
 
       {node.type === "approval" && <ApprovalInspector config={config} patch={patch} upstreamNodes={upstreamNodes} t={t} />}
 
+      {onErrorModesFor(node.type).length > 0 && <ErrorHandlingFields type={node.type} config={config} patch={patch} t={t} />}
+
       <DeleteButton onClick={() => onDeleteNode(node.id)} label={t("deleteNode")} />
     </div>
     </TemplateFieldContext.Provider>
@@ -1783,7 +1878,8 @@ function routesOf(sourceNode) {
   }
   if (sourceNode.type === "classifier") {
     const routes = (cfg.routes || []).map((r) => r.route).filter(Boolean);
-    return cfg.engine === "jev" ? [...routes, UNCERTAIN_ROUTE] : routes;
+    const withUncertain = cfg.engine === "jev" ? [...routes, UNCERTAIN_ROUTE] : routes;
+    return routesOnError({ type: "classifier", config: cfg }) ? [...withUncertain, ERROR_ROUTE] : withUncertain;
   }
   if (sourceNode.type === "try") {
     return TRY_ROUTES;
@@ -1804,6 +1900,9 @@ function routeOptionLabel(sourceNode, route, t) {
     return route === "true" ? t("conditionRouteTrue") : t("conditionRouteFalse");
   }
   if (sourceNode?.type === "approval" && route === "text") return t("approvalRouteText");
+  if (sourceNode?.type === "classifier" && route === ERROR_ROUTE && sourceNode.data?.config?.on_error === "route") {
+    return t("edgeRouteError");
+  }
   if (sourceNode?.type === "classifier" && route === UNCERTAIN_ROUTE && sourceNode.data?.config?.engine === "jev") {
     return t("classifierRouteUncertain");
   }
