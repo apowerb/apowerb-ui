@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, UserCheck } from "lucide-react";
 import { useTranslations, useFormatter } from "use-intl";
 import { Link } from "@/lib/navigation";
@@ -133,23 +133,36 @@ function Row({ item, onReply, onAbandoned, showWorkflow, replyHref, canAbandon, 
  *   undefined (the studio, which only the owner opens) every row is theirs.
  * - `refreshKey` reloads the list (a run just parked, or resumed).
  * - `hideWhenEmpty` renders nothing while no decision waits (the workflows page).
+ * - `openRunId` (with `onAnswer`) opens that run's dialog once the list is
+ *   loaded: the link of a decision notice. Once only; a run no longer in the
+ *   list is said to be gone.
  * - `className` spaces the section (default: the panel's).
  */
-export default function AwaitingDecisionsList({ workflowId, onAnswer, onAbandoned, refreshKey, userEmail, studioLink = false, hideWhenEmpty = false, className = "mt-3" }) {
+export default function AwaitingDecisionsList({ workflowId, onAnswer, onAbandoned, refreshKey, userEmail, openRunId = null, studioLink = false, hideWhenEmpty = false, className = "mt-3" }) {
   const t = useTranslations("WorkflowDecision");
   const [items, setItems] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [open, setOpen] = useState(null);
+  // The linked decision, until the first list that loads answers for it.
+  const linkRef = useRef(openRunId && onAnswer ? openRunId : null);
+  const [linkGone, setLinkGone] = useState(false);
 
   const load = useCallback(
     () =>
       Promise.resolve(listAwaitingDecisions())
         .then((rows) => {
+          const list = (Array.isArray(rows) ? rows : []).map(decisionFromRow);
           setLoadError(null);
-          setItems((Array.isArray(rows) ? rows : []).map(decisionFromRow));
+          setItems(list);
+          const wanted = linkRef.current;
+          if (!wanted) return;
+          linkRef.current = null;
+          const linked = list.find((d) => d.runId === wanted && (workflowId == null || String(d.workflowId) === String(workflowId)));
+          if (linked) setOpen(linked);
+          else setLinkGone(true);
         })
         .catch((err) => setLoadError(err?.message || "-")),
-    [],
+    [workflowId],
   );
 
   useEffect(() => {
@@ -189,6 +202,9 @@ export default function AwaitingDecisionsList({ workflowId, onAnswer, onAbandone
 
   return (
     <>
+      {linkGone && (
+        <p role="status" className={`text-[11px] text-amber-300 ${className}`}>{t("linkedGone")}</p>
+      )}
       {!hidden && (
         <section aria-label={t("listTitle")} className={className}>
           <p className="text-[11px] font-semibold th-text-secondary mb-1">{t("listTitle")}</p>
