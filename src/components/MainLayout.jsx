@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "@/lib/navigation";
+import { loginHref } from "@/lib/loginRedirect";
 import { Image } from "@/lib/navigation";
 import { Link } from "@/lib/navigation";
 import BrandIcon from "@/components/brand/BrandIcon";
@@ -339,19 +340,13 @@ function AppContent({ children }) {
   );
 }
 
-// Signed out: the login page brings the user back to the page they asked for
-// (the link of a decision notice, say), query included.
-function loginHref() {
-  const here = window.location.pathname + window.location.search;
-  return here === "/" ? "/login" : `/login?redirect=${encodeURIComponent(here)}`;
-}
-
 function MainContent({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
+      // Back to the page asked for (the link of a decision notice, say).
       router.replace(loginHref());
     }
   }, [isAuthenticated, isLoading, router]);
