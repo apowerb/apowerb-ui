@@ -4180,7 +4180,9 @@
     "runError_file_empty": "Créer un fichier {node} : le contenu est vide, il n'y a rien à mettre dans le fichier.",
     "runError_file_text_too_long": "Créer un fichier {node} : texte trop long pour un fichier {format} ({max} caractères au plus).",
     "runError_file_too_many_columns": "Créer un fichier {node} : trop de colonnes ({max} au plus). Des lignes aux clés toutes différentes ajoutent chacune des colonnes.",
-    "runError_file_too_many_cells": "Créer un fichier {node} : trop de cellules ({max} au plus, lignes × colonnes)."
+    "runError_file_too_many_cells": "Créer un fichier {node} : trop de cellules ({max} au plus, lignes × colonnes).",
+    "runError_file_too_deep": "Créer un fichier {node} : la valeur est imbriquée sur plus de {max} niveaux.",
+    "runError_file_too_many_lines": "Créer un fichier {node} : trop de lignes de texte pour Word ou PDF ({max} au plus)."
   },
   "WorkflowVersions": {
     "title": "Versions",

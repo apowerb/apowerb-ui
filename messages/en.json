@@ -4180,7 +4180,9 @@
     "runError_file_empty": "Create file {node}: the content is empty, there is nothing to put in the file.",
     "runError_file_text_too_long": "Create file {node}: text too long for a {format} file ({max} characters max).",
     "runError_file_too_many_columns": "Create file {node}: too many columns ({max} max). Rows with all-different keys each add columns.",
-    "runError_file_too_many_cells": "Create file {node}: too many cells ({max} max, rows × columns)."
+    "runError_file_too_many_cells": "Create file {node}: too many cells ({max} max, rows × columns).",
+    "runError_file_too_deep": "Create file {node}: the value is nested more than {max} levels deep.",
+    "runError_file_too_many_lines": "Create file {node}: too many lines of text for Word or PDF ({max} max)."
   },
   "WorkflowVersions": {
     "title": "Versions",

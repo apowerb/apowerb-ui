@@ -153,6 +153,8 @@ const ENGINE_CODES = [
   "file_too_many_rows",
   "file_too_many_columns",
   "file_too_many_cells",
+  "file_too_deep",
+  "file_too_many_lines",
   "file_too_large",
   "file_build_failed",
   "file_run_limit",
