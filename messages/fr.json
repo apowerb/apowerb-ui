@@ -3984,7 +3984,7 @@
     "onError_continue": "Continuer avec l'erreur",
     "onError_route": "Prendre la sortie d'erreur",
     "nodeTimeout": "Durée maximale (secondes)",
-    "nodeTimeoutHelp": "Vide : pas de limite. Au-delà, le sous-workflow est arrêté : aucune de ses étapes suivantes ne démarre, et il échoue pour dépassement de délai, traité comme réglé ci-dessus (1 à {max} s). Une étape déjà en cours à l'intérieur (agent, outil) peut tout de même aller au bout.",
+    "nodeTimeoutHelp": "Vide : pas de limite. Au-delà, le sous-workflow est arrêté : aucune de ses étapes suivantes ne démarre, et il échoue pour dépassement de délai, traité comme réglé ci-dessous (1 à {max} s). Une étape déjà en cours à l'intérieur (agent, outil) peut tout de même aller au bout.",
     "httpAcceptErrorStatus": "Considérer les réponses 4xx/5xx comme un succès",
     "httpAcceptErrorStatusHelp": "Désactivé : une réponse 4xx ou 5xx fait échouer l'étape, traité comme réglé ci-dessous. Activé : la réponse est transmise telle quelle, avec son statut.",
     "edgeRouteSuccess": "Succès",
@@ -4271,7 +4271,7 @@
     "agentRequired": "Choisis l'agent que ce nœud exécute",
     "nodeNotConnected": "Aucun lien n'arrive à ce nœud : il s'exécute sans rien recevoir. Tire un lien depuis l'étape qu'il doit lire.",
     "approvalExpiryInvalid": "Le délai d'attente doit être un nombre entier d'heures entre 1 et 720",
-    "onErrorUnknown": "Gestion d'erreur « {value} » inconnue",
+    "onErrorUnknown": "Gestion d'erreur « {value} » inconnue : ignorée, l'étape arrête le workflow en cas d'échec",
     "onErrorUnsupported": "Cette étape n'a pas de réglage de gestion d'erreur : il est ignoré",
     "onErrorRouteMissing": "Reliez la sortie d'erreur à l'étape qui traite l'erreur",
     "onErrorRouteUnexpected": "Liaison de sortie d'erreur sur une étape qui ne prend pas sa sortie d'erreur",
@@ -4279,7 +4279,7 @@
     "onErrorRouteConflict": "Une route nommée « error » entre en conflit avec la sortie d'erreur",
     "nodeTimeoutInvalid": "La durée maximale doit être comprise entre 1 et 3600 secondes",
     "nodeTimeoutUnsupported": "Cette étape ne peut pas être arrêtée en cours de route : sa durée maximale est ignorée",
-    "httpAcceptErrorStatusInvalid": "« Considérer les réponses 4xx/5xx comme un succès » doit être activé ou désactivé"
+    "httpAcceptErrorStatusInvalid": "« Considérer les réponses 4xx/5xx comme un succès » doit être activé ou désactivé : valeur ignorée, les réponses 4xx/5xx sont acceptées"
   },
   "TeamsWebhookModal": {
     "title": "Configurer le webhook Teams",

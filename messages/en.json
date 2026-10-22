@@ -3984,7 +3984,7 @@
     "onError_continue": "Continue with the error",
     "onError_route": "Take the error output",
     "nodeTimeout": "Time limit (seconds)",
-    "nodeTimeoutHelp": "Empty: no limit. Past it the sub-workflow is stopped: none of its next steps start, and it fails with a timeout, handled as set above (1 to {max} s). A step already running inside it (agent, tool) may still finish.",
+    "nodeTimeoutHelp": "Empty: no limit. Past it the sub-workflow is stopped: none of its next steps start, and it fails with a timeout, handled as set below (1 to {max} s). A step already running inside it (agent, tool) may still finish.",
     "httpAcceptErrorStatus": "Treat 4xx/5xx responses as success",
     "httpAcceptErrorStatusHelp": "Off: a 4xx or 5xx answer makes the step fail, handled as set below. On: the answer is passed on as is, with its status.",
     "edgeRouteSuccess": "Success",
@@ -4271,7 +4271,7 @@
     "agentRequired": "Choose the agent this node runs",
     "nodeNotConnected": "Nothing leads to this node: it runs without receiving anything. Draw a link from the step it should read.",
     "approvalExpiryInvalid": "The waiting delay must be a whole number of hours between 1 and 720",
-    "onErrorUnknown": "Unknown error handling “{value}”",
+    "onErrorUnknown": "Unknown error handling “{value}”: ignored, the step stops the workflow if it fails",
     "onErrorUnsupported": "This step has no error handling setting: it is ignored",
     "onErrorRouteMissing": "Connect the error output to the step that handles the error",
     "onErrorRouteUnexpected": "Error-output connection on a step that does not take its error output",
@@ -4279,7 +4279,7 @@
     "onErrorRouteConflict": "A route named “error” conflicts with the error output",
     "nodeTimeoutInvalid": "Time limit must be between 1 and 3600 seconds",
     "nodeTimeoutUnsupported": "This step cannot be stopped mid-way: its time limit is ignored",
-    "httpAcceptErrorStatusInvalid": "“Treat 4xx/5xx responses as success” must be on or off"
+    "httpAcceptErrorStatusInvalid": "“Treat 4xx/5xx responses as success” must be on or off: value ignored, 4xx/5xx responses are accepted"
   },
   "TeamsWebhookModal": {
     "title": "Configure Teams webhook",

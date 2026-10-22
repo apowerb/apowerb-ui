@@ -59,14 +59,17 @@ describe("on_error in the graph model", () => {
     expect(messages(graph)).toContain("onErrorRouteUnknown:oops");
   });
 
-  it("refuses an unknown mode and continue on a classifier, and only warns about a mode the engine ignores", () => {
-    expect(messages({ nodes: [trigger, agent({ on_error: "ignore" })], edges: [{ source: "t", target: "a" }] })).toContain("onErrorUnknown:ignore");
+  it("only warns about a mode the engine ignores: unknown, continue on a classifier, or a step without it", () => {
+    // A saved graph keeps running: the engine treats these as fail.
+    const unknown = { nodes: [trigger, agent({ on_error: "ignore" })], edges: [{ source: "t", target: "a" }] };
+    expect(warnings(unknown)).toContain("onErrorUnknown:ignore");
+    expect(validateGraphLocal(unknown).valid).toBe(true);
     const set = { id: "s", type: "set", config: { fields: [{ key: "k", value: "v" }], on_error: "continue" } };
     const withSet = { nodes: [trigger, set], edges: [{ source: "t", target: "s" }] };
     expect(warnings(withSet)).toContain("onErrorUnsupported:set");
     expect(validateGraphLocal(withSet).valid).toBe(true);
     const cls = { id: "c", type: "classifier", config: { agent_id: "x", routes: [{ route: "a", description: "a" }, { route: "b", description: "b" }], on_error: "continue" } };
-    expect(messages({ nodes: [trigger, cls], edges: [{ source: "t", target: "c" }] })).toContain("onErrorUnknown:continue");
+    expect(warnings({ nodes: [trigger, cls], edges: [{ source: "t", target: "c" }] })).toContain("onErrorUnknown:continue");
   });
 
   it("gives a routing classifier an extra error route, and reserves its name", () => {
@@ -90,6 +93,8 @@ describe("on_error in the graph model", () => {
   it("bounds timeout_s on a sub-workflow, the only step it really stops", () => {
     const edge = [{ source: "t", target: "a" }];
     expect(messages({ nodes: [trigger, sub({ timeout_s: 0 })], edges: edge })).toContain("nodeTimeoutInvalid");
+    // null means no limit, like a null on_error means fail.
+    expect(messages({ nodes: [trigger, sub({ timeout_s: null })], edges: edge })).toEqual([]);
     expect(messages({ nodes: [trigger, sub({ timeout_s: 3601 })], edges: edge })).toContain("nodeTimeoutInvalid");
     expect(messages({ nodes: [trigger, sub({ timeout_s: 60 })], edges: edge }).some((m) => m.startsWith("nodeTimeout"))).toBe(false);
     // An agent keeps running on the ADK server and a tool in its thread: ignored, said so.
@@ -113,9 +118,11 @@ describe("http error statuses", () => {
     expect(createNode("http").config.accept_error_status).toBe(false);
   });
 
-  it("refuses a non-boolean accept_error_status", () => {
+  it("only warns about a non-boolean accept_error_status, which the engine ignores", () => {
     const h = { id: "h", type: "http", config: { method: "GET", url: "https://x.example", headers: [], timeout_s: 15, accept_error_status: "no" } };
-    expect(messages({ nodes: [trigger, h], edges: [{ source: "t", target: "h" }] })).toContain("httpAcceptErrorStatusInvalid");
+    const graph = { nodes: [trigger, h], edges: [{ source: "t", target: "h" }] };
+    expect(warnings(graph)).toContain("httpAcceptErrorStatusInvalid");
+    expect(validateGraphLocal(graph).valid).toBe(true);
   });
 });
 

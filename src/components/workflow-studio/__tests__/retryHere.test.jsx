@@ -128,6 +128,22 @@ async function runAndFail(user, retryable = true) {
 }
 
 describe("Resume here", () => {
+  it("does not save an unchanged workflow that has settings before running", async () => {
+    // The saved snapshot carries the workflow settings: comparing against a
+    // graph without them would save again on every Test run or Resume here.
+    api.getWorkflowDef.mockResolvedValue({
+      workflow_id: "wf1", name: "W", description: "", status: "draft", version: 1,
+      graph: { ...GRAPH, settings: { notify_on_failure: true } },
+    });
+    api.retryWorkflowRunFromFailure.mockResolvedValueOnce(sse(RESUMED));
+    const user = userEvent.setup();
+    await runAndFail(user);
+    await user.click(screen.getByRole("button", { name: "Resume here" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /resume/i }));
+    await waitFor(() => expect(api.retryWorkflowRunFromFailure).toHaveBeenCalled());
+    expect(api.updateWorkflowDef).not.toHaveBeenCalled();
+  });
+
   it("is offered on the failed step only, and only when the engine kept what was done", async () => {
     const user = userEvent.setup();
     await runAndFail(user);

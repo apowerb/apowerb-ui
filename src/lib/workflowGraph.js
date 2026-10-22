@@ -641,12 +641,13 @@ function validateErrorHandling(node, outgoing, routed) {
   if (!ON_ERROR_NODE_TYPES.has(node.type)) {
     if (mode !== "fail") warn(`onErrorUnsupported:${node.type}`);
   } else if (!ON_ERROR_MODES.includes(mode) || (node.type === "classifier" && mode === "continue")) {
-    push(`onErrorUnknown:${mode}`);
+    // The engine runs it as fail: a saved graph must keep running.
+    warn(`onErrorUnknown:${mode}`);
   }
   if (mode === "route" && node.type === "classifier" && (cfg.routes || []).some((r) => r?.route === ERROR_ROUTE)) {
     push("onErrorRouteConflict");
   }
-  if (cfg.timeout_s !== undefined && node.type !== "http") {
+  if (cfg.timeout_s != null && node.type !== "http") {
     if (!NODE_TIMEOUT_TYPES.has(node.type)) {
       warn(`nodeTimeoutUnsupported:${node.type}`);
     } else if (!Number.isInteger(cfg.timeout_s) || cfg.timeout_s < NODE_TIMEOUT_MIN || cfg.timeout_s > NODE_TIMEOUT_MAX) {
@@ -685,7 +686,8 @@ function validateHttpConfig(node) {
     push("httpTimeoutRange");
   }
   if (cfg.accept_error_status !== undefined && typeof cfg.accept_error_status !== "boolean") {
-    push("httpAcceptErrorStatusInvalid");
+    // Ignored by the engine (the response is accepted), not refused.
+    errors.push({ nodeId: node.id, message: "httpAcceptErrorStatusInvalid", level: "warning" });
   }
 
   for (const header of cfg.headers || []) {
