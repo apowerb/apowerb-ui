@@ -339,13 +339,20 @@ function AppContent({ children }) {
   );
 }
 
+// Signed out: the login page brings the user back to the page they asked for
+// (the link of a decision notice, say), query included.
+function loginHref() {
+  const here = window.location.pathname + window.location.search;
+  return here === "/" ? "/login" : `/login?redirect=${encodeURIComponent(here)}`;
+}
+
 function MainContent({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace("/login");
+      router.replace(loginHref());
     }
   }, [isAuthenticated, isLoading, router]);
 
