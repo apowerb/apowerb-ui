@@ -4,7 +4,7 @@ import {
   shapeFieldPaths,
   knownShapes,
   effectfulNodesUpTo,
-  effectfulNodesFrom,
+  effectfulNodesToResume,
   insertFieldPatch,
 } from "@/lib/workflowShapes";
 
@@ -102,7 +102,7 @@ describe("insertFieldPatch — composing the downstream input on click", () => {
   });
 });
 
-describe("effectfulNodesFrom — what a Resume here really runs", () => {
+describe("effectfulNodesToResume — what a Resume here really runs", () => {
   const nodes = [
     node("t", "trigger"),
     node("look", "tool", {}, "Lookup"),
@@ -117,12 +117,52 @@ describe("effectfulNodesFrom — what a Resume here really runs", () => {
     { source: "mail", target: "db" },
   ];
 
-  it("lists the failed step and every step below it, never the ones above", () => {
-    expect(effectfulNodesFrom("w", nodes, edges).map((n) => n.id)).toEqual(["w", "mail", "db"]);
+  const done = new Set(["t", "look"]);
+
+  it("lists the failed step and every step below it, never the finished ones", () => {
+    expect(effectfulNodesToResume(nodes, edges, { done }).map((n) => n.id)).toEqual(["w", "mail", "db"]);
   });
 
   it("stops at the step a Test up to here stopped at", () => {
-    expect(effectfulNodesFrom("w", nodes, edges, "mail").map((n) => n.id)).toEqual(["w", "mail"]);
+    expect(effectfulNodesToResume(nodes, edges, { done, until: "mail" }).map((n) => n.id)).toEqual(["w", "mail"]);
+  });
+
+  it("lists a step added above since the failure, and a branch that had not run yet", () => {
+    const more = [...nodes, node("added", "http", {}, "Added"), node("side", "notification", {}, "Side")];
+    const wires = [
+      ...edges,
+      { source: "added", target: "w" },
+      { source: "t", target: "side" },
+    ];
+    expect(effectfulNodesToResume(more, wires, { done }).map((n) => n.id)).toEqual(["w", "mail", "db", "added", "side"]);
+  });
+
+  it("lists what the body of an unfinished loop does again, at any depth", () => {
+    const body = {
+      nodes: [
+        { id: "bt", type: "trigger" },
+        { id: "send", type: "notification", label: "Mail" },
+        { id: "guard", type: "try", label: "Guard", config: { body: { nodes: [{ id: "call", type: "http" }] } } },
+      ],
+    };
+    const loop = [node("t", "trigger"), node("each", "loop", { body }, "Each")];
+    expect(effectfulNodesToResume(loop, [{ source: "t", target: "each" }], { done: new Set(["t"]) })).toEqual([
+      { id: "each.send", type: "notification", label: "Each › Mail", inBody: true },
+      { id: "guard.call", type: "http", label: "Each › Guard › call", inBody: true },
+    ]);
+    expect(effectfulNodesToResume(loop, [], { done: new Set(["t", "each"]) })).toEqual([]);
+  });
+});
+
+describe("effectfulNodesUpTo — loop bodies", () => {
+  it("lists the effects inside a loop on the way", () => {
+    const body = { nodes: [{ id: "send", type: "notification", label: "Mail" }] };
+    const nodes = [node("t", "trigger"), node("each", "loop", { body }, "Each"), node("o", "output")];
+    const edges = [
+      { source: "t", target: "each" },
+      { source: "each", target: "o" },
+    ];
+    expect(effectfulNodesUpTo("o", nodes, edges).map((n) => n.label)).toEqual(["Each › Mail"]);
   });
 });
 

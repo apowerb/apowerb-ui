@@ -479,7 +479,11 @@ export default function ExecutionPanel({
                   // Only on the step the engine can resume at, on the run as it is
                   // now (not a replay step, not while something runs).
                   onRetryHere={
-                    onRetryHere && !isRunning && !replay?.active && runState.status === "error" && runState.retryFrom === entry.id
+                    onRetryHere &&
+                    !isRunning &&
+                    !replay?.active &&
+                    (runState.status === "error" || runState.status === "cancelled") &&
+                    runState.retryFrom === entry.id
                       ? onRetryHere
                       : undefined
                   }
