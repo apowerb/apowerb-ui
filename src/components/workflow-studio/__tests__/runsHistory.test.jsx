@@ -61,8 +61,9 @@ const FAILED = {
   finished_at: "2026-10-22T09:00:12.400+00:00",
   duration_ms: 12400,
   error_message: "HTTP http1 timed out",
-  error: { code: "http_timeout", params: { node: "http1", seconds: "10" } },
-  failure_node: "http1",
+  error: { code: "http_timeout", params: { node: "http1", seconds: "10" }, failed_node: "http1" },
+  // No retry snapshot saved: the node comes from `error` only.
+  failure_node: null,
   replay_of: null,
 };
 const OK = { ...FAILED, run_id: "r1", trigger_kind: "manual", status: "success", duration_ms: 800, error_message: null, error: null };

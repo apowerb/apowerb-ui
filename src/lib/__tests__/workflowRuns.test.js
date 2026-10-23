@@ -72,10 +72,14 @@ describe("a row's trigger and failure", () => {
   });
 
   it("splits the faulty node of a loop or try body", () => {
-    expect(runFailedNode({ status: "error", failure_node: "agent2" })).toEqual(["agent2", null]);
-    expect(runFailedNode({ status: "error", failure_node: "loop1.agent2" })).toEqual(["loop1", "agent2"]);
-    expect(runFailedNode({ status: "error", failure_node: null })).toBeNull();
-    // Only the engine's failure_node counts: no node recomputed from the error.
+    expect(runFailedNode({ status: "error", error: { failed_node: "agent2" } })).toEqual(["agent2", null]);
+    expect(runFailedNode({ status: "error", error: { failed_node: "loop1.agent2" }, failure_node: null })).toEqual(["loop1", "agent2"]);
+    // A retry inherits failure_node from the run it retries: error.failed_node wins.
+    expect(runFailedNode({ status: "error", error: { failed_node: "b" }, failure_node: "a" })).toEqual(["b", null]);
+    // A run recorded before the node moved into `error`.
+    expect(runFailedNode({ status: "error", error: { code: "x" }, failure_node: "agent2" })).toEqual(["agent2", null]);
+    expect(runFailedNode({ status: "error", error: null, failure_node: null })).toBeNull();
+    // Only the engine's failed_node counts: no node recomputed from the error.
     expect(runFailedNode({ status: "error", error: { node_id: "agent2" } })).toBeNull();
     expect(runFailedNode({ status: "success" })).toBeNull();
   });
