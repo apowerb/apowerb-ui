@@ -40,6 +40,7 @@ import {
   nodeIdRenameError,
   filterToolOptions,
   groupToolOptions,
+  notifiesOnFailure,
 } from "@/lib/workflowGraph";
 import TriggerInspector from "./TriggerInspector";
 import ApprovalInspector from "./ApprovalInspector";
@@ -1143,7 +1144,7 @@ function TryEffectsWarning({ body, retries, t }) {
 /** Settings of the workflow itself, shown when nothing is selected. */
 function WorkflowSettingsFields({ status, settings, onChange, t }) {
   // Unset: on once published, off on a draft — as the engine decides.
-  const notify = settings?.notify_on_failure ?? status === "published";
+  const notify = notifiesOnFailure(settings, status);
   return (
     <div className="w-full text-left border-t th-border-secondary pt-3 mt-3">
       <p className="text-xs font-bold th-text mb-2">{t("workflowSettingsTitle")}</p>

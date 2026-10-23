@@ -55,6 +55,12 @@ describe("WorkflowsPage", () => {
     expect(badge).toHaveAttribute("title", "Preview feature — feedback welcome");
   });
 
+  it("links each workflow to its run history", async () => {
+    render(<WorkflowsPage />);
+    await waitFor(() => expect(screen.getByText("Lead triage")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Runs" })).toHaveAttribute("href", "/workflows/wf1?runs=1");
+  });
+
   it("lists workflows with their status, version and node count", async () => {
     render(<WorkflowsPage />);
     await waitFor(() => expect(screen.getByText("Lead triage")).toBeInTheDocument());
