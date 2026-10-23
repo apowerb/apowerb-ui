@@ -173,4 +173,11 @@ describe("tryNothingToCatch", () => {
     expect(warnings(validateGraphLocal(tryWith([agent("agent1")])), "tryNothingToCatch")).toEqual([]);
     expect(warnings(validateGraphLocal(tryWith([{ id: "http1", type: "http", config: { method: "GET", url: "https://x.test" } }])), "tryNothingToCatch")).toEqual([]);
   });
+
+  it("stays quiet when the body creates or saves a file, both can fail", () => {
+    const file = { id: "file1", type: "file", config: { format: "csv", content: "{{trigger1}}" } };
+    const save = { id: "save1", type: "file_save", config: { provider: "onedrive", file: "{{file1}}" } };
+    expect(warnings(validateGraphLocal(tryWith([file])), "tryNothingToCatch")).toEqual([]);
+    expect(warnings(validateGraphLocal(tryWith([save])), "tryNothingToCatch")).toEqual([]);
+  });
 });

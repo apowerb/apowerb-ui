@@ -1016,7 +1016,7 @@ function errorHandlingWarnings(graph, options) {
 // (set, merge, output…) has nothing to catch.
 const FALLIBLE_NODE_TYPES = new Set([
   "agent", "tool", "http", "rag", "subworkflow", "notification", "db_write", "document",
-  "extract", "classifier", "convert", "loop", "try",
+  "extract", "classifier", "convert", "loop", "try", "file", "file_save",
 ]);
 
 /**
