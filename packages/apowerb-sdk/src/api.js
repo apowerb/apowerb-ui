@@ -1359,6 +1359,29 @@ async function postRunStream(path, body, signal) {
 export const abandonWorkflowRun = (runId) =>
   request(`/api/workflows/runs/${encodeURIComponent(runId)}/abandon`, { method: "POST" });
 
+// --- Run history -------------------------------------------------------------
+
+/**
+ * My runs, newest first: `[{run_id, workflow_id, trigger_kind, trigger_detail,
+ * status, created_at, finished_at, duration_ms, error_message, error:
+ * {code, params, ref, node_id} | null, replay_of, decision, …}]`.
+ * `workflowId` keeps one workflow's runs, `status` a comma-separated list of
+ * statuses ("error", "awaiting"…); `limit`/`offset` page through them.
+ */
+export const listWorkflowRuns = ({ workflowId, status, limit, offset } = {}) => {
+  const params = new URLSearchParams();
+  if (workflowId) params.set("workflow_id", workflowId);
+  if (status) params.set("status", status);
+  if (limit != null) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const query = params.toString();
+  return request(`/api/workflows/runs${query ? `?${query}` : ""}`);
+};
+
+// A past run's events (capped), to replay it: {events, truncated, available}.
+export const getWorkflowRunTrace = (runId) =>
+  request(`/api/workflows/runs/${encodeURIComponent(runId)}/trace`);
+
 // --- Workflow triggers ---------------------------------------------------
 
 export const getWorkflowTriggerState = (workflowId) => request(`/api/workflows/${workflowId}/triggers`);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Search, Workflow as WorkflowIcon, Copy, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, Search, Workflow as WorkflowIcon, Copy, Trash2, AlertTriangle, Loader2, ListChecks } from "lucide-react";
 import { useTranslations, useFormatter, useNow } from "use-intl";
 import { Link, useRouter } from "@/lib/navigation";
 import { listWorkflowDefs, createWorkflowDef, duplicateWorkflowDef, deleteWorkflowDef, resumeWorkflowRun } from "@/lib/api";
@@ -63,6 +63,14 @@ function WorkflowCard({ workflow, onDuplicate, onDelete, duplicatingId, duplicat
         <div className="mt-auto flex items-center gap-1.5">
           <Link href={`/workflows/${workflow.workflow_id}`} className="flex-1 text-center px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-linear-to-r from-brand to-brand-secondary text-white hover:opacity-90">
             {t("open")}
+          </Link>
+          <Link
+            href={`/workflows/${workflow.workflow_id}?runs=1`}
+            title={t("runs")}
+            aria-label={t("runs")}
+            className="p-1.5 rounded-lg th-text-secondary hover:th-text hover:th-bg-surface-hover border th-border-secondary"
+          >
+            <ListChecks size={13} />
           </Link>
           <button
             type="button"
