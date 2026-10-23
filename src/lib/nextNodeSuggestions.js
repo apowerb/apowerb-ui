@@ -17,6 +17,8 @@ const AFTER = {
   extract: ["condition", "output", "notification"],
   document: ["classifier", "agent", "output"],
   db_write: ["output", "notification"],
+  file: ["notification", "file_save", "output"],
+  file_save: ["notification", "output"],
   tool: ["convert", "output", "notification"],
   http: ["convert", "output", "notification"],
   convert: ["agent", "condition", "output"],
@@ -89,6 +91,11 @@ export function prefillFor(type, sourceNode, { nodes = [], edges = [] } = {}) {
   if (type === "agent" && sourceNode?.type === "agent") {
     return { input: agentAfterAgentInput(sourceNode, nodes, edges) };
   }
+  // A file is attached or dropped as a whole, never pasted into a message.
+  if (sourceNode?.type === "file") {
+    if (type === "notification") return { channel: "email", attachments: ref };
+    if (type === "file_save") return { file: ref };
+  }
   switch (type) {
     case "output":
       return { value: ref };
@@ -101,6 +108,8 @@ export function prefillFor(type, sourceNode, { nodes = [], edges = [] } = {}) {
       return { input: ref };
     case "rag":
       return { query: ref };
+    case "file":
+      return { content: ref };
     default:
       return {};
   }

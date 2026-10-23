@@ -1295,6 +1295,19 @@ export const renderWorkflowPreview = (body, { signal } = {}) =>
 export const cancelWorkflowRun = (workflowId) =>
   request(`/api/workflows/${workflowId}/cancel`, { method: "POST" });
 
+// --- Files a run produced (`file` node) or received ---------------------------
+
+// The bytes of a run file, for its owner only (404 otherwise), as a Blob.
+export const downloadWorkflowFile = async (ref) => {
+  const res = await fetch(apiUrl(`/api/workflows/files/${encodeURIComponent(ref)}`), {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error(`Download failed (${res.status})`);
+  }
+  return res.blob();
+};
+
 // --- Human decisions (an `approval` node pauses its run) ---------------------
 
 // Runs parked on an answer that I own or am assigned to:

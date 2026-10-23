@@ -75,6 +75,10 @@ export const EFFECT_NODE_TYPES = new Set([
   "notification",
   "http",
   "db_write",
+  // A produced file stays in the owner's storage after the test; a OneDrive
+  // drop lands in their drive.
+  "file",
+  "file_save",
   "tool",
   "agent",
   "extract",

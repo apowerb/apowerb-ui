@@ -1,4 +1,4 @@
-import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell, FileText, DatabaseZap } from "lucide-react";
+import { Zap, Bot, Sparkles, Wrench, GitBranch, Merge, Repeat, UserCheck, ArrowRightLeft, Flag, ListPlus, Split, ShieldAlert, Workflow, ScanText, BookOpen, Globe, Bell, FileText, DatabaseZap, FileOutput, CloudUpload } from "lucide-react";
 
 /** One icon per node type, shared by the palette and the next-step chips. */
 export const NODE_ICONS = {
@@ -20,6 +20,8 @@ export const NODE_ICONS = {
   rag: BookOpen,
   document: FileText,
   db_write: DatabaseZap,
+  file: FileOutput,
+  file_save: CloudUpload,
   set: ListPlus,
   condition: Split,
 };

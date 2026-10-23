@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, Square, ChevronDown, ChevronUp, ChevronRight, Loader2, CheckCircle2, XCircle, Circle, UserCheck, RotateCcw } from "lucide-react";
+import { Play, Square, ChevronDown, ChevronUp, ChevronRight, Loader2, CheckCircle2, XCircle, Circle, UserCheck, RotateCcw, Download } from "lucide-react";
 import { useTranslations } from "use-intl";
 import PayloadEditor from "./PayloadEditor";
 import ReplayControls from "./ReplayControls";
 import ChartRenderer from "@/components/bi/ChartRenderer";
+import { downloadWorkflowFile } from "@/lib/api";
 
 const STATUS_ICON = { running: Loader2, done: CheckCircle2, error: XCircle, pending: Circle, cancelled: XCircle, awaiting: UserCheck };
 const STATUS_COLOR = { running: "text-purple-300", done: "text-blue-400", error: "text-red-400", pending: "th-text-ghost", cancelled: "text-amber-400", awaiting: "text-purple-400" };
@@ -102,9 +103,39 @@ function ToolCallsBlock({ calls, t }) {
   );
 }
 
+// A file a node produced: fetched with the session (the route answers its
+// owner only), then handed to the browser as a download.
+function FileDownload({ fileRef, name, size, t }) {
+  const [failed, setFailed] = useState(false);
+  const download = async () => {
+    setFailed(false);
+    try {
+      const blob = await downloadWorkflowFile(fileRef);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name || "file";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      setFailed(true);
+    }
+  };
+  return (
+    <div>
+      <button type="button" onClick={download} className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand underline">
+        <Download size={11} />
+        {name}
+        {size != null && <span className="th-text-faint font-normal no-underline">({t("fileSize", { kb: Math.max(1, Math.round(size / 1024)) })})</span>}
+      </button>
+      {failed && <p className="text-[10px] text-red-400">{t("fileDownloadFailed")}</p>}
+    </div>
+  );
+}
+
 // What a node created while it ran: a chart is drawn right here, a dashboard
-// or a dataset is linked. Without it an agent "talks about" a chart nobody
-// can see.
+// or a dataset is linked, a file can be downloaded. Without it an agent
+// "talks about" a chart nobody can see.
 function ArtifactsBlock({ artifacts, t }) {
   if (!artifacts || artifacts.length === 0) return null;
   return (
@@ -124,6 +155,9 @@ function ArtifactsBlock({ artifacts, t }) {
               {t("openDashboard")}
             </a>
           );
+        }
+        if (a.file_ref) {
+          return <FileDownload key={i} fileRef={a.file_ref} name={a.file_name} size={a.size} t={t} />;
         }
         if (a.dataset_id != null) {
           return <p key={i} className="text-[10px] th-text-faint">{t("artifactDataset", { id: String(a.dataset_id) })}</p>;
@@ -170,6 +204,27 @@ const TRANSLATED_ERRORS = new Set([
   "document_no_file",
   "document_too_many",
   "document_bad_ref",
+  "file_bad_rows",
+  "file_empty",
+  "file_text_too_long",
+  "file_too_many_rows",
+  "file_too_many_columns",
+  "file_too_many_cells",
+  "file_too_deep",
+  "file_too_many_lines",
+  "file_too_large",
+  "file_build_failed",
+  "file_run_limit",
+  "file_save_bad_file",
+  "file_save_folder_invalid",
+  "file_save_not_found",
+  "file_save_failed",
+  "notification_attachment_bad_ref",
+  "notification_too_many_attachments",
+  "notification_attachment_missing",
+  "notification_attachment_not_found",
+  "notification_attachments_too_large",
+  "notification_attachments_email_only",
   "loop_items_not_list",
   "convert_failed",
   "template_ref_invalid",
