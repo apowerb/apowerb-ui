@@ -1377,7 +1377,9 @@ export const abandonWorkflowRun = (runId) =>
 /**
  * My runs, newest first: `[{run_id, workflow_id, trigger_kind, trigger_detail,
  * status, created_at, finished_at, duration_ms, error_message, error:
- * {code, params, ref, node_id} | null, replay_of, decision, …}]`.
+ * {code, params, ref, failed_node} | null, failure_node, retry_available,
+ * replay_of, decision, …}]`. `failure_node` is set only while a retry snapshot
+ * exists; the failed node itself is `error.failed_node`.
  * `workflowId` keeps one workflow's runs, `status` a comma-separated list of
  * statuses ("error", "awaiting"…); `limit`/`offset` page through them.
  */
