@@ -84,7 +84,7 @@ export default function GuardrailsSection({
                 onChange={(e) => setNewTerm(e.target.value)}
                 placeholder={t("addBlockedTermPlaceholder")}
                 className="glass-input flex-1 px-3 py-2 rounded-lg text-sm"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTerm(); } }}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) { e.preventDefault(); addTerm(); } }}
               />
               <button
                 type="button"
@@ -160,7 +160,7 @@ export default function GuardrailsSection({
                   onChange={(e) => setNewBlockedTool(e.target.value)}
                   placeholder={t("toolNamePlaceholder")}
                   className="glass-input flex-1 px-3 py-2 rounded-lg text-sm"
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBlockedTool(); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) { e.preventDefault(); addBlockedTool(); } }}
                 />
               )}
               <button

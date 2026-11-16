@@ -42,6 +42,16 @@ describe("UserInputCard", () => {
     expect(onRespond).toHaveBeenCalledWith({ type: "text", value: "120" });
   });
 
+  it("does not submit on the Enter that confirms an IME composition", () => {
+    const onRespond = vi.fn();
+    render(<UserInputCard card={makeCard()} onRespond={onRespond} />);
+    const input = screen.getByPlaceholderText("e.g. 50");
+    fireEvent.change(input, { target: { value: "120" } });
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter", isComposing: true });
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter", keyCode: 229 });
+    expect(onRespond).not.toHaveBeenCalled();
+  });
+
   it("does not submit on Enter for multiline inputs", () => {
     const onRespond = vi.fn();
     const card = makeCard({

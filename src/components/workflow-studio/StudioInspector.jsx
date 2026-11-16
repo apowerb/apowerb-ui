@@ -330,7 +330,7 @@ function NodeIdField({ nodeId, existingIds, onRename, t }) {
           }}
           onBlur={commit}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) {
               e.preventDefault();
               commit();
             } else if (e.key === "Escape") {

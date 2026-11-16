@@ -285,7 +285,7 @@ export default function MiniChat({
 
   const handleKeyDown = useCallback(
     (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229 && !e.shiftKey) {
         e.preventDefault();
         handleSend();
       }

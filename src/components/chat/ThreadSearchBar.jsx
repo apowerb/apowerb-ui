@@ -64,7 +64,7 @@ export default function ThreadSearchBar({ messages, query, onQueryChange, onClos
     if (e.key === "Escape") {
       e.preventDefault();
       onClose();
-    } else if (e.key === "Enter") {
+    } else if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) {
       e.preventDefault();
       step(e.shiftKey ? -1 : 1);
     }
