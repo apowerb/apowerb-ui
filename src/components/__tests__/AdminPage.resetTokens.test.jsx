@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 
 vi.mock("use-intl", () => ({
   useTranslations: () => (key, params) =>
@@ -85,19 +85,22 @@ describe("« Remettre le compteur de jetons à zéro »", () => {
   });
 
   it("appelle le cœur pour ce compte après confirmation", async () => {
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     await openMenu();
     fireEvent.click(await screen.findByText("actResetTokens"));
-    expect(confirm).toHaveBeenCalledWith(
-      `confirmResetTokens({"email":"${user.email}"})`,
-    );
+    const dialog = await screen.findByRole("dialog", {
+      name: `confirmResetTokens({"email":"${user.email}"})`,
+    });
+    expect(resetTokenUsage).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "actResetTokens" }));
     await waitFor(() => expect(resetTokenUsage).toHaveBeenCalledWith(2));
   });
 
   it("n'envoie rien si l'administrateur annule", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     await openMenu();
     fireEvent.click(await screen.findByText("actResetTokens"));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(resetTokenUsage).not.toHaveBeenCalled();
   });
 });

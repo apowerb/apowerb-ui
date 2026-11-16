@@ -1811,3 +1811,14 @@ html.light .glass-card.bi-v2-card.bi-v2-card--bare {
   .bi-v2-fade-in { animation: none; }
   .bi-v2-card, .bi-v2-card * { transition: none !important; }
 }
+
+/* Native modal dialogs (showModal): keep scroll gestures, over the backdrop or
+   inside the dialog, from reaching the page behind. No overflow lock on
+   html/body: that would drop the scrollbar and shift the layout. */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}

@@ -49,3 +49,17 @@ vi.mock("next-intl", async (importOriginal) => {
     useTimeZone: () => "UTC",
   };
 });
+
+// jsdom (29) has HTMLDialogElement but not its modal methods. Components built
+// on the native <dialog> call showModal() / close(); mirror what they do to the
+// `open` attribute so queries by role see the dialog.
+if (typeof HTMLDialogElement !== "undefined" && !HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    if (!this.hasAttribute("open")) return;
+    this.removeAttribute("open");
+    this.dispatchEvent(new Event("close"));
+  };
+}

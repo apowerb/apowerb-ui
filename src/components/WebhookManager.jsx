@@ -38,6 +38,7 @@ import {
   listAgents,
 } from "@/lib/api";
 import { useToast } from "./Toast";
+import ConfirmToast from "./ConfirmToast";
 import WebhookAttachment from "./WebhookAttachment";
 import { formatDateTime } from "@/lib/datetime";
 
@@ -887,6 +888,7 @@ function ActivityTab({ agents, subscriptions, focusLogId }) {
   const t = useTranslations("WebhookManager");
   const toast = useToast();
   const [logs, setLogs] = useState([]);
+  const [retriggerTarget, setRetriggerTarget] = useState(null);
   // Un chargement en echec n'est pas une liste vide. Sans cet etat, les
   // deux rendaient le meme ecran « aucune activite » (Anis, 11/09/2026).
   const [error, setError] = useState(null);
@@ -1032,14 +1034,14 @@ function ActivityTab({ agents, subscriptions, focusLogId }) {
     };
   }, [focusLogId, logs, loading, toast, t]);
 
-  const handleRetrigger = async (e, log) => {
+  const handleRetrigger = (e, log) => {
     e.stopPropagation();
-    if (log.status === "success") {
-      const ok = window.confirm(
-        t("retriggerConfirmMessage")
-      );
-      if (!ok) return;
-    }
+    // A run that succeeded is only replayed after an explicit confirmation.
+    if (log.status === "success") setRetriggerTarget(log);
+    else retrigger(log);
+  };
+
+  const retrigger = async (log) => {
     setRetriggering(log.id);
     try {
       await retriggerWebhookLog(log.id);
@@ -1395,6 +1397,18 @@ function ActivityTab({ agents, subscriptions, focusLogId }) {
           )}
         </div>
       )}
+      <ConfirmToast
+        message={retriggerTarget ? t("retriggerConfirmMessage") : null}
+        confirmLabel={t("retryButton")}
+        hint={null}
+        tone="neutral"
+        onCancel={() => setRetriggerTarget(null)}
+        onConfirm={() => {
+          const log = retriggerTarget;
+          setRetriggerTarget(null);
+          retrigger(log);
+        }}
+      />
     </div>
   );
 }

@@ -44,6 +44,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isAdminUser } from "@/lib/roles";
 import { Skeleton } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import ConfirmToast from "@/components/ConfirmToast";
 import DashboardTab from "@/components/admin/DashboardTab";
 import BugReportsAdmin from "@/components/bug-report/BugReportsAdmin";
 import BugReportBadge from "@/components/bug-report/BugReportBadge";
@@ -435,11 +436,17 @@ function QuotaLines({ quota, resetAt, t }) {
  */
 function UserActions({ user, isMe, busy, onAct, t, mfaAvailable }) {
   const [open, setOpen] = useState(false);
+  // An action that needs a confirmation waits here until the dialog answers.
+  const [pending, setPending] = useState(null);
 
-  const act = (fn, confirmLabel) => {
-    if (confirmLabel && !window.confirm(confirmLabel)) return;
+  const run = (fn) => {
     setOpen(false);
     onAct(fn);
+  };
+
+  const act = (fn, confirmMessage, { label, danger = false } = {}) => {
+    if (confirmMessage) setPending({ fn, message: confirmMessage, label, danger });
+    else run(fn);
   };
 
   return (
@@ -486,7 +493,7 @@ function UserActions({ user, isMe, busy, onAct, t, mfaAvailable }) {
             </button>
             <button
               type="button"
-              onClick={() => act(() => forceRelogin(user.user_id), t("confirmForceRelogin", { email: user.email }))}
+              onClick={() => act(() => forceRelogin(user.user_id), t("confirmForceRelogin", { email: user.email }), { label: t("actForceRelogin") })}
               className="w-full flex items-start gap-2 px-3 py-2 text-left text-xs th-text hover:th-bg-surface-hover"
             >
               <LogOut size={13} className="mt-0.5 shrink-0" />
@@ -497,7 +504,7 @@ function UserActions({ user, isMe, busy, onAct, t, mfaAvailable }) {
             </button>
             <button
               type="button"
-              onClick={() => act(() => resetTokenUsage(user.user_id), t("confirmResetTokens", { email: user.email }))}
+              onClick={() => act(() => resetTokenUsage(user.user_id), t("confirmResetTokens", { email: user.email }), { label: t("actResetTokens") })}
               className="w-full flex items-start gap-2 px-3 py-2 text-left text-xs th-text hover:th-bg-surface-hover"
             >
               <RotateCcw size={13} className="mt-0.5 shrink-0" />
@@ -526,7 +533,7 @@ function UserActions({ user, isMe, busy, onAct, t, mfaAvailable }) {
             {user.mfa_enabled && (
               <button
                 type="button"
-                onClick={() => act(() => disableAdminUserMfa(user.user_id), t("confirmDisableMfa", { email: user.email }))}
+                onClick={() => act(() => disableAdminUserMfa(user.user_id), t("confirmDisableMfa", { email: user.email }), { label: t("actDisableMfa") })}
                 className="w-full flex items-start gap-2 px-3 py-2 text-left text-xs th-text hover:th-bg-surface-hover"
               >
                 <ShieldOff size={13} className="mt-0.5 shrink-0" />
@@ -539,7 +546,7 @@ function UserActions({ user, isMe, busy, onAct, t, mfaAvailable }) {
             {!isMe && (
               <button
                 type="button"
-                onClick={() => act(() => deleteAdminUser(user.user_id), t("confirmDeleteUser", { email: user.email }))}
+                onClick={() => act(() => deleteAdminUser(user.user_id), t("confirmDeleteUser", { email: user.email }), { label: t("actDeleteUser"), danger: true })}
                 className="w-full flex items-start gap-2 px-3 py-2 text-left text-xs text-red-400 hover:th-bg-surface-hover border-t th-border mt-1 pt-2"
               >
                 <Trash2 size={13} className="mt-0.5 shrink-0" />
@@ -552,6 +559,18 @@ function UserActions({ user, isMe, busy, onAct, t, mfaAvailable }) {
           </div>
         </>
       )}
+      <ConfirmToast
+        message={pending?.message || null}
+        confirmLabel={pending?.label}
+        hint={null}
+        tone={pending?.danger ? "danger" : "neutral"}
+        onCancel={() => setPending(null)}
+        onConfirm={() => {
+          const { fn } = pending;
+          setPending(null);
+          run(fn);
+        }}
+      />
     </div>
   );
 }
