@@ -210,8 +210,11 @@ export default function ChatInput({ editingText, onEditingTextClear, commands, r
     }
   }, [editingText]);
 
-  // Auto-resize textarea
+  // Auto-resize textarea. Browsers that support `field-sizing: content` grow
+  // it in CSS (see the textarea's classes); this measurement is the fallback
+  // for the others (Safari < 26.2, Firefox < 152).
   useEffect(() => {
+    if (typeof CSS !== "undefined" && CSS.supports?.("field-sizing", "content")) return;
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(
@@ -586,8 +589,10 @@ export default function ChatInput({ editingText, onEditingTextClear, commands, r
           disabled={isLoading || isStreaming}
         />
 
-        {/* Textarea / markdown editor (center, flexible) */}
-        <div className="flex-1 relative">
+        {/* Textarea / markdown editor (center, flexible). `min-w-0`: with
+            `field-sizing: content` the textarea is as wide as its longest
+            unbroken word, and a flex item never shrinks below that by itself. */}
+        <div className="flex-1 min-w-0 relative">
           {menuKind && !previewMode && (
             <ComposerMenu
               kind={menuKind}
@@ -634,7 +639,7 @@ export default function ChatInput({ editingText, onEditingTextClear, commands, r
               placeholder={t("placeholder")}
               disabled={isLoading || isStreaming}
               rows={1}
-              className="w-full glass-input px-4 py-3 rounded-xl resize-none transition-all disabled:opacity-50 leading-relaxed"
+              className="w-full glass-input px-4 py-3 rounded-xl resize-none field-sizing-content supports-[field-sizing:content]:placeholder:whitespace-nowrap placeholder:overflow-hidden placeholder:text-ellipsis max-h-[150px] transition-all disabled:opacity-50 leading-relaxed"
             />
           )}
         </div>
