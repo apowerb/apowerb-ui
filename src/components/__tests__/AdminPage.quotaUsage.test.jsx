@@ -127,7 +127,6 @@ describe("Colonne Usage : quota du mois", () => {
   });
 
   it("recharge la ligne après une remise à zéro réussie", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const row = await openUsers([
       { ...base, quota_tokens: 300_000, token_usage_reset_at: null },
     ]);
@@ -142,6 +141,9 @@ describe("Colonne Usage : quota du mois", () => {
       screen.getByRole("button", { name: `actionsFor({"email":"${base.email}"})` }),
     );
     fireEvent.click(await screen.findByText("actResetTokens"));
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "actResetTokens" }),
+    );
 
     await waitFor(() => expect(resetTokenUsage).toHaveBeenCalledWith(2));
     const fresh = (await screen.findByText(base.email)).closest("tr");

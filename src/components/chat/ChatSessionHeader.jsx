@@ -218,7 +218,7 @@ export default function ChatSessionHeader({ commands, runCommand }) {
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) {
                 e.preventDefault();
                 commitEdit();
               } else if (e.key === "Escape") {

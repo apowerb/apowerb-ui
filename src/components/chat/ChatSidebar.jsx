@@ -454,7 +454,7 @@ export default function ChatSidebar({ onNewChat, sessionFilter, showUserMenu = f
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleSaveEdit(session.id);
+                if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) handleSaveEdit(session.id);
                 if (e.key === "Escape") setEditingId(null);
               }}
               className="flex-1 min-w-0 bg-transparent border-b th-border th-text text-sm focus:outline-none px-1"
@@ -639,7 +639,7 @@ export default function ChatSidebar({ onNewChat, sessionFilter, showUserMenu = f
               value={editFolderName}
               onChange={(e) => setEditFolderName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleSaveFolderName(folder.id);
+                if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) handleSaveFolderName(folder.id);
                 if (e.key === "Escape") setEditingFolderId(null);
               }}
               className="flex-1 min-w-0 bg-transparent border-b th-border th-text text-xs font-semibold focus:outline-none px-1"
@@ -831,7 +831,7 @@ export default function ChatSidebar({ onNewChat, sessionFilter, showUserMenu = f
                       if (tagError) setTagError("");
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleBulkTag();
+                      if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) handleBulkTag();
                       if (e.key === "Escape") setTagInputOpen(false);
                     }}
                     placeholder={t("newTagPlaceholder")}
@@ -884,7 +884,7 @@ export default function ChatSidebar({ onNewChat, sessionFilter, showUserMenu = f
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && newFolderName.trim())
+                      if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229 && newFolderName.trim())
                         handleCreateFolderAndMove(newFolderName);
                       if (e.key === "Escape") setMoveMenuOpen(false);
                     }}
@@ -941,7 +941,7 @@ export default function ChatSidebar({ onNewChat, sessionFilter, showUserMenu = f
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleCreateFolder();
+                      if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) handleCreateFolder();
                       if (e.key === "Escape") setNewFolderOpen(false);
                     }}
                     placeholder={t("folderNamePlaceholder")}

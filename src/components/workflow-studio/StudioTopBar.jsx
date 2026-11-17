@@ -56,7 +56,7 @@ export default function StudioTopBar({
             onChange={(e) => setDraftName(e.target.value)}
             onBlur={commitName}
             onKeyDown={(e) => {
-              if (e.key === "Enter") commitName();
+              if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) commitName();
               if (e.key === "Escape") { setDraftName(name); setEditingName(false); }
             }}
             placeholder={t("namePlaceholder")}

@@ -638,7 +638,7 @@ export default function VoiceConversationModal({ isOpen, onClose, sessionId, age
               value={typedText}
               onChange={(e) => setTypedText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229 && !e.shiftKey) {
                   e.preventDefault();
                   handleSendTyped();
                 }

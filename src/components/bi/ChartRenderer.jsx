@@ -26,6 +26,7 @@ import DataTable from "./DataTable";
 import ForecastChart from "./ForecastChart";
 import ChartTooltip from "./ChartTooltip";
 import { useOAuthPopup } from "@/hooks/useOAuthPopup";
+import ConfirmToast from "@/components/ConfirmToast";
 
 function OneDriveReconnectButton({ onDone }) {
   const t = useTranslations("ChartRenderer");
@@ -145,6 +146,8 @@ export default function ChartRenderer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
   const [retrying, setRetrying] = useState(false);
   const intervalRef = useRef(null);
   // Stable ref for the onLoaded callback so a parent re-render that
@@ -306,8 +309,24 @@ export default function ChartRenderer({
             </button>
             <button
               type="button"
-              onClick={async () => {
-                if (!confirm(t("deleteConfirm"))) return;
+              onClick={() => {
+                setDeleteError(null);
+                setConfirmingDelete(true);
+              }}
+              className="text-[10px] text-red-400 hover:text-red-300 underline"
+            >
+              {t("deleteChart")}
+            </button>
+            {deleteError && (
+              <span role="alert" className="text-[10px] text-red-400">
+                {deleteError}
+              </span>
+            )}
+            <ConfirmToast
+              message={confirmingDelete ? t("deleteConfirm") : null}
+              onCancel={() => setConfirmingDelete(false)}
+              onConfirm={async () => {
+                setConfirmingDelete(false);
                 try {
                   // If the parent (e.g. DashboardDetail) handles deletion,
                   // let it detach the component first so we don't leave a
@@ -320,13 +339,10 @@ export default function ChartRenderer({
                   await deleteChart(chartId);
                   window.location.reload();
                 } catch (err) {
-                  alert(t("deleteFailed", { message: err.message }));
+                  setDeleteError(t("deleteFailed", { message: err.message }));
                 }
               }}
-              className="text-[10px] text-red-400 hover:text-red-300 underline"
-            >
-              {t("deleteChart")}
-            </button>
+            />
           </div>
         )}
       </div>

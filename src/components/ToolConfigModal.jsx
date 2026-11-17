@@ -431,7 +431,7 @@ export default function ToolConfigModal({
                       onChange={(e) => setParamKey(e.target.value)}
                       placeholder={t("parameterKeyPlaceholder")}
                       className="glass-input flex-1 px-3 py-2 rounded-lg text-sm"
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addParameter(); } }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) { e.preventDefault(); addParameter(); } }}
                     />
                     <input
                       type="password"
@@ -439,7 +439,7 @@ export default function ToolConfigModal({
                       onChange={(e) => setParamValue(e.target.value)}
                       placeholder={t("parameterValuePlaceholder")}
                       className="glass-input flex-1 px-3 py-2 rounded-lg text-sm"
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addParameter(); } }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) { e.preventDefault(); addParameter(); } }}
                     />
                     <button
                       onClick={addParameter}

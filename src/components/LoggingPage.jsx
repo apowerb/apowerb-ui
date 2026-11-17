@@ -616,7 +616,7 @@ export default function LoggingPage() {
                         value={noteDraft.text}
                         onChange={(e) => setNoteDraft({ ...noteDraft, text: e.target.value })}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") saveNote();
+                          if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.keyCode !== 229) saveNote();
                           if (e.key === "Escape") setNoteDraft(null);
                         }}
                         maxLength={2000}
