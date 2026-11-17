@@ -55,6 +55,10 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8100/api/agents      # 200 ex
 - Ready when `/login` returns 200 and `GET :8100/api/agents` returns 200 (measured: `/login` in
   ~2 s, but the **first** visit of each route compiles it: `/agents` > 15 s, `/chat` several tens
   of seconds under load).
+- The first `npx next dev` may exit immediately after printing a "strongly recommend you upgrade
+  Next.js" notice (an upgrade nudge, exit 1, nothing listening on 3100). Do not run the suggested
+  upgrade: just launch the same command again (verified 2026-11-17: second launch starts normally).
+  Check `$D/next.log` if `/login` never answers.
 - `next dev` creates an untracked `AGENTS.md` at the repository root: delete it when stopping.
 - Record the PIDs (`$D/*.pid`) for shutdown.
 
@@ -65,20 +69,38 @@ then set in the `localStorage` of `http://localhost:3100` the keys `th2_auth_tok
 `mock_token_e2e` and `th2_auth_user` = the demo user (see `DEMO_USER` in
 `tests/e2e-mock/session.js`).
 
-Tool: `dev-browser`, page named "verify-apowerb-ui". Nominal path: `--connect <port>` to an
-already running Chrome. **Pitfall**: on a saturated machine that Chrome can be killed for lack of
-memory as soon as it opens the application (debugging port goes silent).
-Proven fallback: `dev-browser --headless -b verify-apowerb-ui` (clean, lighter profile), stopped
-afterwards with `dev-browser stop verify-apowerb-ui`. Always use `-t 150` and `goto(..., {timeout:
-120000})` for a route's first compilation. Write the script to `$D/*.js` and run it with
-`dev-browser <--connect <port> | --headless -b verify-apowerb-ui> -t 150 run $D/j.js`.
+Tool: `dev-browser`, page named "verify-apowerb-ui". Nominal path: `--connect <port>` to the
+shared, already running Chrome (verified 2026-11-17: works for every flow below; the page opens in
+the existing browser). Always use `-t 150` and `goto(..., {timeout: 120000})` for a route's first
+compilation. Write the script to `$D/*.js` and run it with
+`dev-browser --connect <port> -t 150 run $D/j.js`.
+**Pitfall**: on a saturated machine that Chrome can be killed by the OOM killer (the service ends
+as `failed (oom-kill)` and the debugging port goes silent). On 2026-11-17 this happened while a
+Playwright spec ran next to the shared Chrome (about 200 MB available): never run Playwright while
+the shared Chrome is open on a small machine. Fallback when Chrome is gone or too heavy:
+`dev-browser --headless -b verify-apowerb-ui` (clean, lighter profile), stopped afterwards with
+`dev-browser stop verify-apowerb-ui`. Do not start a different browser behind the owner's back.
+
+Scripting notes for `dev-browser run` (sandboxed script, not Node): `process` is not defined
+(substitute the screenshot directory into the script text, e.g. with `sed`), `fetch` is available
+(`await fetch("http://localhost:8100/api/__reset", {method: "POST"})` replaces the reset call),
+`page.waitForLoadState` does not exist (poll with `page.waitForSelector` or a `setTimeout` loop),
+`page.type(selector, text)` + `page.keyboard.press("Enter")` work for the chat box. For form fields
+use the native value setter plus `input`/`change` events inside `page.evaluate`. A `goto` of a route
+never compiled before can raise `Page.navigate timed out` under load: warm it with
+`curl -s -m 280 localhost:3100/<route>` and rerun.
 
 | Flow | Steps | Expected result |
 |---|---|---|
 | Session + agent list | reset, `localStorage` set, `goto /agents`, wait for `.w-80 .rounded-2xl.border` | 5 cards: Analyste, Rédacteur, Support Outillé, Chaîne Qualité, Brouillon (name: `.th-text.text-sm.font-bold`); sidebar visible, no red error screen |
 | Agent creation | panel `New` button (`.w-80 button`, rendered "NEW" by CSS) → in `[role=dialog]` "From Scratch" → name (1st `input`), `select` = Base, `input[placeholder="provider/model-name"]` = `mock/instant`, 2 `textarea` (description, instruction) → "Create Agent" | 6 cards, the last one = the entered name; body text without "Something went wrong / Application error / Unhandled Runtime Error" |
 | Chat with tools | `goto /chat`, "Choose an agent / All agents" button → "Support Outillé" → type in the `textarea` "Montre-moi les ventes avec les outils" + Enter | "Reasoning trail" region then "Reasoned for … · 2 tools · 1 error", `figure[data-chart='bar']` (Juil., Août, Sept.), answer "Septembre dépasse…", conversation listed on the left |
-| Other screens (as needed) | `/marketplace`, `/tool-box`, `/orchestrator`, `/webhooks`, `/workflows`, `/bi` | the mock serves marketplace, tool box, orchestrator, BI dashboards (see the header of `tests/mock-backend/server.mjs`); otherwise exercise them through the Playwright specs below |
+| Marketplace | `goto /marketplace`; click the "Clone" button found by text | heading "Marketplace", 2 cards ("Analyste de ventes", "Rédacteur d'offres", tags BASE/YOURS, 12 and 3 clones); "Clone" opens a dialog (tabs Clone / API Key / Done) with the name prefilled `analyste_ventes_clone`. Clone submission itself: not exercised |
+| Tool box | `goto /tool-box` | "Tool Box & MCP", tabs Available tools (4) / My configurations (1) / MCP servers / Skills (1) / Help, cards Database (2 tools, 1 configured), Email, Web |
+| Orchestrator | `goto /orchestrator`, wait: first visit shows a spinner for a while (first compile) | after the spinner: pipeline runs page, 5 agents table (Analyste, Brouillon, Chaîne Qualité, Rédacteur, Support Outillé) with "Run Now" / "Schedule", counters (1 active schedule) |
+| Webhooks | `goto /webhooks`; "New Subscription"; "Activity" tab | 0 subscriptions empty state; the form opens inline (Provider = Microsoft Outlook, Resource = Inbox, change types, agent to trigger, message template). Activity tab: **"Could not load activity ... mock: no route for GET /api/webhooks/logs"** (the mock has no such route; the Playwright spec `webhooks-activity` stubs it) |
+| Workflows | `goto /workflows` | page renders (heading + "Preview" badge, "New workflow") but with the **error banners** "mock: no route for GET /api/workflows/defs" and "/api/workflows/runs/awaiting": the mock does not serve workflows; the spec `workflows-decision-link` stubs these routes with `page.route`. Use the spec to exercise workflows |
+| BI | `goto /bi` | "BI & Reporting", counters 1 dashboard / 0 BI charts, card "Ventes 2026" (Draft, 0 charts), buttons Data Pool / From a template / New Dashboard |
 
 Mock chat keywords: `vide`, `partiel` (long, to test Stop), `erreur`, `outils`, `graph`, `lent`;
 any other text returns a short markdown answer.
@@ -137,14 +159,27 @@ Killing the `npx` PID can leave the `next-server` child behind: if so, kill it b
   - A missed click leaves the page half-way: `page.reload()` before replaying.
   - The mock's state lives in memory: `POST /api/__reset` before each flow, otherwise the number of
     cards depends on history.
+  - A red "1 Issue" badge in the bottom-left corner of a page is the Next dev overlay counting a
+    console error (typically the mock's missing routes above), not a crash; the red full-screen
+    error is what the flows look for.
+  - `pgrep -af 'next dev -p 3100'` also matches the shell running it; trust `ss -ltnp` (3100/8100)
+    and `ps -eo pid,args | grep next-server`, and only kill the PID you started.
   - `npx playwright install` downloads into `~/.cache/ms-playwright` (shared): additive only.
 
 ## Last successful run
 
-2026-11-17 — Linux, 8 GB — main `99b241c` — seen working: `npm run lint:no-undef` (green),
-`vitest run --maxWorkers=1 src/__tests__/noCommercialScreens.test.js` (21/21), mock + `next dev`
-startup, via `dev-browser --headless`: agent list (5 cards), agent creation (6th card "Agent
-verify"), chat "Support Outillé" ("Reasoned for 4.9s · 2 tools · 1 error" trail + bar chart).
-**Not verified**: `--connect` (Chrome killed for lack of memory), full vitest, Playwright specs
-(one test out of 8 green, the others timing out / browser crash under load 27–36), marketplace,
-tool box, orchestrator, webhooks, workflows, BI screens.
+2026-11-17 — Linux, 8 GB (about 100-700 MB available while running) — main `99b241c` — seen
+working through `dev-browser --connect <port>` on the shared Chrome: agent list (5 cards),
+agent creation (6th card "Agent verify", no error screen), chat "Support Outillé" (trail
+"Reasoned for 4.9s", bar chart Juil./Août/Sept., answer "Septembre dépasse nettement l'objectif...",
+a warning that the targets could not be loaded = the failing tool, conversation listed on the
+left), marketplace (2 cards, clone dialog), tool box (4 tools, 3 categories), orchestrator (5-agent
+table), webhooks (empty state, new-subscription form), BI (1 draft dashboard). Workflows load but
+show the mock-has-no-route banners (see the table), and the webhooks Activity tab likewise.
+Earlier the same day: `npm run lint:no-undef` (green), `vitest run --maxWorkers=1
+src/__tests__/noCommercialScreens.test.js` (21/21), headless fallback for agent list/creation/chat.
+**Not verified**: full vitest, clone submission, workflow editor and runs, webhook creation, BI
+chart editing. Playwright `marketplace.spec.js` (run twice, 3 tests): 1 of 3 passed the first
+time, 0 of 3 the second; every failure is the `Marketplace` heading not found within 5 s while the
+screenshot shows the loading spinner (slow first render under memory pressure, not an assertion on
+content). Shortly after, the shared Chrome was OOM-killed, so no other spec was attempted.
